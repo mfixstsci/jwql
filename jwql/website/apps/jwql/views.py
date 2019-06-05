@@ -437,7 +437,7 @@ def instrument(request, inst):
 
     return render(request, template, context)
 
-def logging_display(request, inst):
+def logging_display(request):
     """Generate the logging files page
 
     Parameters
@@ -450,12 +450,9 @@ def logging_display(request, inst):
     HttpResponse object
         Outgoing response sent to the webpage
     """
-    inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
-
     template = 'logging_display.html'
-    context = {'inst': inst}
 
-    return render(request, template, context)
+    return render(request, template)
 
 
 def jwqldb_table_viewer(request):

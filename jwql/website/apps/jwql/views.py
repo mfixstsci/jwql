@@ -86,6 +86,8 @@ from .oauth import auth_info, auth_required
 # from jwql.utils.anomaly_query_config import INSTRUMENTS_CHOSEN, OBSERVING_MODES_CHOSEN
 # from jwql.utils.anomaly_query_config import ANOMALIES_CHOSEN_FROM_CURRENT_ANOMALIES
 from jwql.utils import anomaly_query_config
+from jwql.utils.constants import JWST_INSTRUMENT_NAMES, MONITORS, JWST_INSTRUMENT_NAMES_MIXEDCASE, LOGGING_MONITORS
+from jwql.utils.utils import get_base_url, get_config
 
 FILESYSTEM_DIR = os.path.join(get_config()['jwql_dir'], 'filesystem')
 
@@ -452,7 +454,11 @@ def logging_display(request):
     """
     template = 'logging_display.html'
 
-    return render(request, template)
+    sect = LOGGING_MONITORS
+
+    context = {'sect': sect}
+
+    return render(request, template, context)
 
 
 def jwqldb_table_viewer(request):

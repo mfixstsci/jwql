@@ -697,6 +697,8 @@ def get_logging_filepaths(sect, log_path, log_type_dir):
 
     return all_log_paths, logging_path_dict
 
+
+
 def get_preview_images_by_instrument(inst):
     """Return a list of preview images available in the filesystem for
     the given instrument.
@@ -737,6 +739,25 @@ def get_preview_images_by_instrument(inst):
 
     return preview_images
 
+def get_log_text(filepath):
+    """Return a directory of logging files for each monitor and type of 
+    server the code was run on.
+
+    Parameters
+    ----------
+    filepath: object
+        Path to the log file.
+
+    Returns
+    -------
+    filetext: 
+        Text of that file. 
+    """
+
+    fopen = open(filepath)
+    filetext = fopen.read()
+
+    return filetext
 
 def get_preview_images_by_proposal(proposal):
     """Return a list of preview images available in the filesystem for

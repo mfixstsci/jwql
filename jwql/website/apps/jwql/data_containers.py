@@ -754,8 +754,9 @@ def get_log_text(filepath):
         Text of that file. 
     """
 
-    fopen = open(filepath)
-    filetext = fopen.read()
+    fopen = open(filepath, 'r')
+
+    filetext = list(fopen)
 
     return filetext
 

@@ -48,18 +48,24 @@
                     <select id="Select1" name="Select1">
                         {% for key in logging_path_dict %}
                             {% for log in logging_path_dict[key] %}
-                                <option value="{{ key }}">{{ log }}</option>
+                                <option value="{{ key + '/' + log }}">{{ log }}</option>
                             {% endfor %}
                         {% endfor %}
                     </select>
                 </fieldset>
             
             </div>
-            <button name=make_table_view class="btn btn-primary" type="submit"><span class="fas fa-search"></span></button>
+            <button name=show_log class="btn btn-primary" type="submit"><span class="fas fa-search"></span></button>
             <br>
 
-            {% if log_name %}
-                
+            {% if log_text %}
+                <pre>
+                    <code class="plaintext">
+                        {% for line in log_text %}
+                            {{ line.strip('\n') }}
+                        {% endfor %}
+                    </code>
+                </pre>
             {% endif %}
         </form>
 	</main>

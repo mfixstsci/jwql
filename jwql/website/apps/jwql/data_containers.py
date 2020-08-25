@@ -655,6 +655,7 @@ def get_instrument_proposals(instrument):
 
     return proposals
 
+
 def get_logging_filepaths(sect, log_path, log_type_dir):
     """Return a directory of logging files for each monitor and type of 
     server the code was run on.

@@ -443,6 +443,7 @@ def instrument(request, inst):
 
     return render(request, template, context)
 
+
 def logging_display(request):
     """Generate the main log file launch page
 
@@ -464,12 +465,20 @@ def logging_display(request):
 
     log_path = get_config()['log_dir']
 
-    all_log_paths, logging_path_dict = get_logging_filepaths(sect, log_path, log_type_dir) 
-    print(logging_path_dict)
-    context = {'sect': sect,
-                'log_type_dir' : log_type_dir,
-                'all_log_paths': all_log_paths,
-                'logging_path_dict': logging_path_dict}
+    _, logging_path_dict = get_logging_filepaths(sect, log_path, log_type_dir) 
+
+    if 'show_log' in request.POST:
+        log_path_from_select = request.POST['Select1']
+        log_text = get_log_text(log_path_from_select)
+        context = {'sect': sect,
+                   'log_type_dir' : log_type_dir,
+                   'logging_path_dict': logging_path_dict,
+                   'log_text': log_text}
+
+    else:
+        context = {'sect': sect,
+                   'log_type_dir' : log_type_dir,
+                   'logging_path_dict': logging_path_dict}
 
     return render(request, template, context)
 

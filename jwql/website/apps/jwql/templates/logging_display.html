@@ -2,28 +2,66 @@
 
 {% block preamble %}
 
-	<title> Monitor Logs </title>
+	<title>Monitoring Logs</title>
 
 {% endblock %}
 
 {% block content %}
 
-    <main role="main" class="container">
-        <h1 style="text-align: center"> Monitor Logs </h1>
+<script>
+    $(function(){
+    
+        var select = $('#Select1'),
+            options = select.find('option');
+        
+        $('[type="radio"]').click(function(){
+            var visibleItems = options.filter('[value*="' + $(this).val()  + '"]').show();
+            options.not(visibleItems).hide();
+            
+            if(visibleItems.length > 0)
+            {
+                select.val(visibleItems.eq(0).val());
+            }
+        });
+    });
+</script>
 
-    		<div class="center">
-    		{% for types in log_type_dir %}
-            <div class="column">
-                <div class="btn-group mr-1">
-                    <button type="button" class="btn btn-primary dropdown-toggle mr-5" data-toggle="dropdown">
-                        {{types}} Logs <span class="caret"></span></button> </br>
-                        <ul class="dropdown-menu" role="menu">
-                            {% for sectname in sect %}
-                                <li> <a style="text-align: center" role="button" class="btn btn-primary my-2" href={{ url('jwql:view_log', args=[types,sectname]) }}> {{sectname}} </a> </li>
+    <main role="main" class="container">
+    	<h2>View Log for JWQL Monitors</h2><hr>
+
+        <p align="justify">
+        This page provides users to interactively explore the JWQL monitoring logs.
+        </p><br>
+
+        <form action="" method="post" id="view_db_table">
+            {{ csrf_input }}
+            <!--DB TABLE DROPDOWN-->
+            <h4>Select JWQL Server</h4>
+            <div class="log_view_select">
+                {% for server_type in log_type_dir %}
+                    <input type="radio" name="server_radio" value="{{ server_type }}"> {{ server_type }} <br />
+                {% endfor %}
+                
+                <br>
+                <fieldset id="Group2" name="Group2">
+                    <legend>Available Logs</legend>
+                    <select id="Select1" name="Select1">
+                        {% for key in logging_path_dict %}
+                            {% for log in logging_path_dict[key] %}
+                                <option value="{{ key }}">{{ log }}</option>
                             {% endfor %}
-                    </ul>
-    		{% endfor %}
-			</div>
+                        {% endfor %}
+                    </select>
+                </fieldset>
+            
+            </div>
+            <button name=make_table_view class="btn btn-primary" type="submit"><span class="fas fa-search"></span></button>
+            <br>
+
+            {% if log_name %}
+                
+            {% endif %}
+        </form>
 	</main>
 
 {% endblock %}

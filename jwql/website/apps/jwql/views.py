@@ -65,16 +65,10 @@ from .data_containers import get_filenames_by_instrument
 from .data_containers import get_header_info
 from .data_containers import get_image_info
 from .data_containers import get_proposal_info
-<<<<<<< HEAD
 from .data_containers import get_thumbnails_all_instruments
 from .data_containers import nirspec_trending
-=======
 from .data_containers import get_logging_filepaths
-<<<<<<< HEAD
->>>>>>> Added to data_containers, views, and reformated logging_display
-=======
 from .data_containers import get_log_text
->>>>>>> Added code for a monitor type specific page to display the log and a dropdown of older logs
 from .data_containers import random_404_page
 from .data_containers import get_jwqldb_table_view_components
 from .data_containers import thumbnails_ajax
@@ -471,7 +465,7 @@ def logging_display(request):
     log_path = get_config()['log_dir']
 
     all_log_paths, logging_path_dict = get_logging_filepaths(sect, log_path, log_type_dir) 
-
+    print(logging_path_dict)
     context = {'sect': sect,
                 'log_type_dir' : log_type_dir,
                 'all_log_paths': all_log_paths,

@@ -141,7 +141,9 @@
 		      		<li class="nav-item active">
 	            		<a class="nav-link" href="https://jwql.readthedocs.io/en/latest/" target="_blank" rel="noopener noreferrer">Documentation<span class="sr-only">(current)</span></a>
 	          		</li>
-
+					<li class="nav-item active">
+	            		<a class="nav-link" href={{ url('jwql:logging_display') }}>Monitor Logs<span class="sr-only">(current)</span></a>
+	          		</li>
 					<!--GitHub Link-->
 					<!--Show GitHub link when navbar is NOT collapsed-->
 	            	<li class="nav-item active d-none d-xl-block">
@@ -157,7 +159,7 @@
 						</a>
 					</li>
 
-					<!--Show GitHub link when navbar is collapsed-->
+					  <!--Show GitHub link when navbar is collapsed-->
 	            	<li class="nav-item active d-xl-none">
 						<a id="github-link"
 						   class="nav-link"
@@ -171,33 +173,8 @@
 								 alt="GitHub Logo"
 								 title="GitHub Logo">
 						</a>
-	          		<li class="nav-item active">
-	            		<a class="nav-link" href={{ url('jwql:logging_display') }}>Monitor Logs<span class="sr-only">(current)</span></a>
-	          		</li>
 	        	</ul>
 	        </div>
-
-	        <!-- Oauth login and GitHub -->
-	        <div class="navbar-right">
-	            <ul class="navbar-nav mr-auto">
-	            	{% if user.ezid %}
-	            		<li>
-	            			<a class="nav-link" id="oauth_user" href="https://auth.mastdev.stsci.edu/tokens" target="_blank" rel="noopener noreferrer">{{ user.ezid }}</a>
-	            		</li>
-	            		<li>
-	            			<a role="button" class="btn btn-primary" href={{ url('jwql:logout') }}>logout</a>
-	            		</li>
-	            	{% else %}
-	            		<li class="nav-item active">
-	            			<a role="button" class="btn btn-primary" href={{ url('jwql:login') }}>login</a>
-	            		</li>
-	            	{% endif %}
-	            	<li class="nav-item active">
-						<a id="github-link" class="nav-link" href="https://github.com/spacetelescope/jwql" target="_blank"><img src={{ static('img/githublogo.svg') }} height=35 width=35></a>
-					</li>
-	        	</ul>
-	    	</div>
-
 
 			<!--Show OAuth button when navbar is NOT collapsed-->
 			<ul class="navbar-nav ml-auto d-none d-xl-block">

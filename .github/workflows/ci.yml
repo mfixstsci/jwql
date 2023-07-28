@@ -59,5 +59,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           python-version: "3.x"
+      - run: echo $GITHUB_BASE_REF
+      - run: echo ${{ github.GITHUB_BASE_REF }}
       - run: pip install ruff
       - run: ruff check $($(git diff $GITHUB_BASE_REF --name-only -- '*.py'))

@@ -70,6 +70,6 @@ jobs:
               echo "GITHUB_SHA: ${GITHUB_SHA}"
               echo "GITHUB_REF: ${GITHUB_REF}"
               echo "GITHUB_BASE_REF: ${GITHUB_BASE_REF}"
-              ls refs/heads/*
+              ls /home/runner/*
       - run: pip install ruff
       - run: ruff check $($(git diff ${GITHUB_BASE_REF} --name-only -- '*.py'))

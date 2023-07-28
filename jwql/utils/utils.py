@@ -58,6 +58,7 @@ __location__ = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 ON_GITHUB_ACTIONS = '/home/runner' in os.path.expanduser('~') or '/Users/runner' in os.path.expanduser('~')
 
+print('test test')
 
 def _validate_config(config_file_dict):
     """Check that the config.json file contains all the needed entries with

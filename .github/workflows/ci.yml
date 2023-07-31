@@ -60,6 +60,10 @@ jobs:
         with:
           python-version: "3.x"
       - run: |
+              cd ${GITHUB_WORKSPACE}
+              echo pwd
+              echo git branch
+      - run: |
               echo "Home: ${HOME}"
               echo "GITHUB_WORKFLOW: ${GITHUB_WORKFLOW}"
               echo "GITHUB_ACTIONS: ${GITHUB_ACTIONS}"

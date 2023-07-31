@@ -52,16 +52,3 @@ jobs:
       - run: python -c "import jwql; print('Version ' + jwql.__version__); print('Path ' + jwql.__path__[0])"
 
       - run: pytest jwql/tests/
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          python-version: "3.x"
-      - run: |
-            pip install ruff
-            $(cd ${GITHUB_WORKSPACE})
-            $(echo pwd)
-            $(git branch)
-            ruff check $($(git diff ${GITHUB_BASE_REF} --name-only -- '*.py'))

@@ -39,6 +39,7 @@ dependencies:
   - pandas=2.0.1
   - pip=23.1.2
   - postgresql=15.2
+  - pre-commit=3.3.3
   - psycopg2=2.9.3
   - pytest=7.3.1
   - pytest-cov=4.0.0

@@ -57,8 +57,7 @@ from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils import monitor_utils
 from jwql.utils.constants import JWST_INSTRUMENT_NAMES_MIXEDCASE
 from jwql.database.database_interface import session, engine
-from jwql.database.database_interface import NIRSpecTAQueryHistory, NIRSpecTAStats
-from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config, filename_parser
+from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config
 
 
 class WATA():
@@ -611,7 +610,7 @@ class WATA():
                 var end = slider.value[1];
 
                 for (var i=0; i < source.get_length(); i++) {
-                    if (source.data['time_arr'][i] >= start 
+                    if (source.data['time_arr'][i] >= start
                             && source.data['time_arr'][i] <= end) {
                         indices.push(true);
                     } else {
@@ -677,7 +676,7 @@ class WATA():
             where the wata monitor was run.
         """
         query = session.query(self.query_table).filter(and_(self.query_table.aperture == self.aperture,
-                                                            self.query_table.run_monitor == True)).order_by(self.query_table.end_time_mjd).all()
+                                                            self.query_table.run_monitor is True)).order_by(self.query_table.end_time_mjd).all()
 
         dates = np.zeros(0)
         for instance in query:

@@ -1,36 +1,16 @@
 #!/usr/bin/env python
 
 import argparse
-from astropy.io import fits
-from collections import OrderedDict
-from copy import deepcopy
-from glob import glob
 import os
-import shutil
 import sys
 import time
 
 from jwst import datamodels
-from jwst.dq_init import DQInitStep
-from jwst.dark_current import DarkCurrentStep
-from jwst.firstframe import FirstFrameStep
-from jwst.group_scale import GroupScaleStep
-from jwst.ipc import IPCStep
-from jwst.jump import JumpStep
-from jwst.lastframe import LastFrameStep
-from jwst.linearity import LinearityStep
-from jwst.persistence import PersistenceStep
 from jwst.pipeline.calwebb_detector1 import Detector1Pipeline
-from jwst.ramp_fitting import RampFitStep
-from jwst.refpix import RefPixStep
-from jwst.rscd import RscdStep
-from jwst.saturation import SaturationStep
-from jwst.superbias import SuperBiasStep
 
 from jwql.instrument_monitors.pipeline_tools import PIPELINE_STEP_MAPPING, get_pipeline_steps
-from jwql.utils.logging_functions import configure_logging
 from jwql.utils.permissions import set_permissions
-from jwql.utils.utils import copy_files, ensure_dir_exists, get_config, filesystem_path
+from jwql.utils.utils import copy_files, get_config
 
 
 def run_pipe(input_file, short_name, work_directory, instrument, outputs, max_cores='all'):
@@ -43,17 +23,17 @@ def run_pipe(input_file, short_name, work_directory, instrument, outputs, max_co
     status_file_name = short_name + "_status.txt"
     status_file = os.path.join(work_directory, status_file_name)
     uncal_file = os.path.join(work_directory, input_file_basename)
-    
+
     with open(status_file, 'a+') as status_f:
         status_f.write("Running run_pipe\n")
         status_f.write("\t input_file_basename is {} ({})\n".format(input_file_basename, type(input_file_basename)))
         status_f.write("\t start_dir is {} ({})\n".format(start_dir, type(start_dir)))
         status_f.write("\t uncal_file is {} ({})\n".format(uncal_file, type(uncal_file)))
-    
+
     try:
         copy_files([input_file], work_directory)
         set_permissions(uncal_file)
-    
+
         steps = get_pipeline_steps(instrument)
         first_step_to_be_run = True
         for step_name in steps:
@@ -94,7 +74,7 @@ def run_pipe(input_file, short_name, work_directory, instrument, outputs, max_co
                             # If the dither_points entry is not populated, then ignore this change
                             pass
                         model[0].save(output_file)
-                
+
                     done = True
                     for output in outputs:
                         output_name = "{}_{}.fits".format(short_name, output)
@@ -110,7 +90,7 @@ def run_pipe(input_file, short_name, work_directory, instrument, outputs, max_co
             status_f.write("{}\n".format(e))
             status_f.write("FAILED")
         sys.exit(1)
-    
+
     with open(status_file, "a+") as status_f:
         status_f.write("SUCCEEDED")
     # Done.
@@ -122,7 +102,7 @@ def run_save_jump(input_file, short_name, work_directory, instrument, ramp_fit=T
     run the ``ramp_fit`` step and save the resulting slope file as well.
     """
     input_file_basename = os.path.basename(input_file)
-    start_dir = os.path.dirname(input_file)
+    os.path.dirname(input_file)
     status_file_name = short_name + "_status.txt"
     status_file = os.path.join(work_directory, status_file_name)
     uncal_file = os.path.join(work_directory, input_file_basename)
@@ -130,7 +110,7 @@ def run_save_jump(input_file, short_name, work_directory, instrument, ramp_fit=T
     sys.stderr.write("Starting pipeline\n")
     with open(status_file, 'a+') as status_f:
         status_f.write("Starting pipeline\n")
-    
+
     try:
         copy_files([input_file], work_directory)
         set_permissions(uncal_file)
@@ -211,7 +191,7 @@ def run_save_jump(input_file, short_name, work_directory, instrument, ramp_fit=T
             status_f.write("{}\n".format(e))
             status_f.write("FAILED")
         sys.exit(1)
-    
+
     with open(status_file, "a+") as status_f:
         status_f.write("{}\n".format(jump_output))
         status_f.write("{}\n".format(pipe_output))
@@ -258,14 +238,14 @@ if __name__ == '__main__':
 
     with open(general_status_file, "a+") as status_file:
         status_file.write("Finished parsing args at {}\n".format(time.ctime()))
-    
+
     input_file = args.input_file
     instrument = args.instrument
     short_name = args.short_name
     working_path = args.working_path
     pipe_type = args.pipe
     outputs = args.outputs
-    
+
     status_file = os.path.join(working_path, short_name+"_status.txt")
     with open(status_file, 'w') as out_file:
         out_file.write("Starting Process\n")
@@ -275,10 +255,10 @@ if __name__ == '__main__':
         out_file.write("\tinstrument is {} ({})\n".format(instrument, type(instrument)))
         out_file.write("\tinput_file is {} ({})\n".format(input_file, type(input_file)))
         out_file.write("\tshort_name is {} ({})\n".format(short_name, type(short_name)))
-    
+
     if not os.path.isfile(args.input_file):
         raise FileNotFoundError("No input file {}".format(args.input_file))
-    
+
     if pipe_type not in ['jump', 'cal']:
         raise ValueError("Unknown calibration type {}".format(pipe_type))
 

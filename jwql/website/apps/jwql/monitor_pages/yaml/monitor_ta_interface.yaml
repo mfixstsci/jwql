@@ -162,8 +162,8 @@
                     - !row:
                         - *v2v3_offsets_trend_fig
                         - *time_offsets_trend_fig
-    
+
 # Document structure
 - !Document:
     - *msata_tabs
-            
+

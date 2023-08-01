@@ -30,8 +30,8 @@ Dependencies
 
 import os
 
-from bokeh.resources import CDN, INLINE
-from django.http import HttpResponse, JsonResponse
+from bokeh.resources import CDN
+from django.http import JsonResponse
 from django.shortcuts import render
 import json
 
@@ -41,7 +41,6 @@ from jwql.utils.constants import JWST_INSTRUMENT_NAMES_MIXEDCASE
 from jwql.utils.utils import get_config, get_base_url
 from jwql.instrument_monitors.nirspec_monitors.ta_monitors import msata_monitor
 from jwql.instrument_monitors.nirspec_monitors.ta_monitors import wata_monitor
-from jwql.utils import monitor_utils
 
 CONFIG = get_config()
 FILESYSTEM_DIR = os.path.join(CONFIG['jwql_dir'], 'filesystem')

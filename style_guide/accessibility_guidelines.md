@@ -1,7 +1,7 @@
 Guidelines for Accessible Development
 =====================================
 
-This document serves as a guide for developing accessible web pages and code within the `jwql` project.  Any contribution to the `jwql` code repository should be checked against these guidelines to ensure it meets all applicable standards. Any violations of these guidelines should be fixed before the code is committed to the `main` or `develop` branches. 
+This document serves as a guide for developing accessible web pages and code within the `jwql` project.  Any contribution to the `jwql` code repository should be checked against these guidelines to ensure it meets all applicable standards. Any violations of these guidelines should be fixed before the code is committed to the `main` or `develop` branches.
 
 
 `jwql`-specific Guidelines
@@ -36,7 +36,7 @@ Please note that this list is not exhaustive; other guidelines listed by WCAG or
 Resources
 ---------
 
-The above guidelines are taken from the following guides and checklists that compile important components of an accessible web site: 
+The above guidelines are taken from the following guides and checklists that compile important components of an accessible web site:
 
 - [Web Content Accessibility Guidelines (WCAG)](https://www.w3.org/WAI/standards-guidelines/wcag/) - aims to provide a "single shared standard for web content accessibility that meets the needs of individuals, organizations, and governments internationally" and "explain how to make web content more accessible to people with disabilities."
 - [Section 508 Standards](https://www.section508.gov/create) - the US Access Board's "accessibility requirements for information and communication technology (ICT) covered by Section 508 of the Rehabilitation Act and Section 255 of the Communications Act."

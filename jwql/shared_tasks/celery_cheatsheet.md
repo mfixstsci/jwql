@@ -2,14 +2,14 @@
 
 ## Very quick start-up
 
-Note that this start-up assumes that *nothing* is currently running anywhere in terms of 
+Note that this start-up assumes that *nothing* is currently running anywhere in terms of
 redis or celery. Or at least that nothing is *supposed* to be running.
 
 - **Set up config.json**: Make sure that it has the following entries:
   - `"redis_host"`: `"pljwql2.stsci.edu"`,
   - `"redis_port"`: `"6379"`,
   - `"transfer_dir"`: `"$CENTRAL_STORAGE/transfer/dev"`
-- **Start Redis**: 
+- **Start Redis**:
   - Log into `pljwql2` and change to the `svc_jwqladm_mon` account
   - Activate the celery environment (currently named `jwql_celery_38`)
   - Run `ps -e | grep redis-server`. If any process shows up, kill it.
@@ -28,7 +28,7 @@ logs of the celery servers available in the usual log location under the name "s
 
 ## Introduction
 
-`celery` is a task server infrastructure, which means that, if you have processing work 
+`celery` is a task server infrastructure, which means that, if you have processing work
 that needs to be done, and that you don't want to do in your main process for some reason
 (e.g. memory leaks, resource usage, not wanting multiple tasks to run at the same time,
 not wanting the same task to be run multiple times at once, etc.) `celery` provides the
@@ -45,7 +45,7 @@ ability to
 
 In order to co-ordinate between multiple independent workers, celery relies on one of
 several services to maintain state. For JWQL, `redis` is used as the task storage and
-co-ordination method, and to maintain task status. For the task server to work, you must 
+co-ordination method, and to maintain task status. For the task server to work, you must
 have:
 
 - a single `redis` server, with a known location (server and port). Currently `redis` runs
@@ -78,7 +78,7 @@ have:
   - Log in as the appropriate service user
   - Change to the JWQL `shared_tasks` directory
   - Run `ps auxww | grep 'python' | awk '{print $2}' | xargs kill -9`
-  - Celery worker threads will exit immediately, and may not complete their work, update 
+  - Celery worker threads will exit immediately, and may not complete their work, update
     their task status, or release locks
 - **Clearing Saved Tasks:**
   - Make sure that no JWQL monitors are running
@@ -89,7 +89,7 @@ have:
   - Run `celery -A shared_tasks purge`
   - This will discard any tasks that have not been completed. If a monitor is currently
     running, and is waiting for a task to finish, that task will be purged by this command,
-    and the monitor will wait forever for the task to return, so if you didn't make sure 
+    and the monitor will wait forever for the task to return, so if you didn't make sure
     that no monitors were running, you will now have to kill any monitor that's currently
     waiting for a task.
 
@@ -99,12 +99,12 @@ have:
   - The JWQL config file has 2 values for redis, `redis_host` and `redis_port`
   - To run `redis`, ssh to the server `redis_host`, and change to the appropriate account
     for that host (ops, test, dev, etc.)
-  - `redis_port` tells you which port `redis` should use to listen for connections, and 
+  - `redis_port` tells you which port `redis` should use to listen for connections, and
     which port `celery` should use to connect to redis. The default value is 6379. If you
     need to run `redis` on a different port, then run `redis-server` with `--port PORT`
   - Run redis with `redis-server --protected-mode no &`. If you will be running jwql
     monitors **and** `celery` on the same server that `redis` is running on, then you can
-    omit the `--protected-mode no` argument (having that argument allows redis to accept 
+    omit the `--protected-mode no` argument (having that argument allows redis to accept
     connections from servers other than `localhost`).
 - **Deleting a Redis lock:**
   - *Before you do this, make sure that the process which has the lock has actually crashed or finished without releasing it*
@@ -119,29 +119,29 @@ have:
   - ssh to `redis_host` and change to the appropriate service account
   - run `ps -e | grep redis` and mark down the process number of `redis-server`
   - run `kill <X>` where `<X>` is the process number from the previous step
-  - `redis` will exit gracefully from a `kill` command. Don't use `kill -9` unless a 
+  - `redis` will exit gracefully from a `kill` command. Don't use `kill -9` unless a
     standard `kill` fails to clear the process.
 
 ## Using Redis for locking
 
-In addition to acting as a task broker for celery, `redis` also acts as a persistent 
-key/value store, which allows it to be used for locking code. Locks should be used to 
+In addition to acting as a task broker for celery, `redis` also acts as a persistent
+key/value store, which allows it to be used for locking code. Locks should be used to
 protect segments of code which should only be running once, no matter how many processes
 want to potentially run them. Using locks *can* be dangerous, and can lead to unpredictable
-and difficult-to-find bugs and issues at run-time. As a (very) abbreviated primer to 
+and difficult-to-find bugs and issues at run-time. As a (very) abbreviated primer to
 locking, you should keep the following principles in mind:
 
 - If you get a lock, be sure to release it, even in the case of errors (i.e. run the locked
   code in a `try/except` block, and put releasing the lock into `finally`)
-- If you need multiple locks, **always** acquire and release them in the same order. 
+- If you need multiple locks, **always** acquire and release them in the same order.
   Otherwise, if you have code that needs both Lock A and Lock B to run, then Process 1 can
-  have Lock A (and be waiting for Lock B), and Process 2 can have Lock B (and be waiting 
+  have Lock A (and be waiting for Lock B), and Process 2 can have Lock B (and be waiting
   for Lock A), and the deadlock will persist forever.
 - If you set a lock to automatically time out, make sure that the timeout is long enough
   that by the time it expires, the process that has the lock has either finished or crashed.
   Otherwise you could end up with two processes each thinking they have the lock.
 - Before you manually delete a lock to let a process run, make sure that whatever process
-  has the lock has either finished with it (and failed to release it) or crashed (and 
+  has the lock has either finished with it (and failed to release it) or crashed (and
   failed to release it).
 - Lock as little as you can get away with (but no less)
 
@@ -165,20 +165,20 @@ def function(args):
 ```
 
 Note that key strings are global, so if you use the key "my_lock", then only one function
-that uses that lock may execute as a time *anywhere*. If you want to lock out a function 
-so that only one simultaneous instance of that particular function runs (but you don't 
+that uses that lock may execute as a time *anywhere*. If you want to lock out a function
+so that only one simultaneous instance of that particular function runs (but you don't
 care about other functions), choose a unique name for the key. If in doubt as to what would
 make a unique name, using the module path (e.g. `key=jwql.shared\_tasks.share\_tasks.function`)
-will be guaranteed to be unique within the `jwql` module. `timeout` is the number of 
-seconds before the lock will be automatically released. If you never want the lock to 
+will be guaranteed to be unique within the `jwql` module. `timeout` is the number of
+seconds before the lock will be automatically released. If you never want the lock to
 time out, don't provide any value for the `timeout` parameter.
 
 ### Using a custom lock
 
 For a worked example of this, look at the `run_pipeline` function in `jwql/shared_tasks/shared_tasks.py`.
 
-In order to create a custom lock, you need to import the `REDIS_CLIENT` instance from 
-`jwql.shared_tasks.shared_tasks`, and then use the `redis` `lock()` and `acquire()` 
+In order to create a custom lock, you need to import the `REDIS_CLIENT` instance from
+`jwql.shared_tasks.shared_tasks`, and then use the `redis` `lock()` and `acquire()`
 functions. As an example,
 
 ```
@@ -201,8 +201,8 @@ def some_function(args):
 ```
 
 In this case, `lock_name` acts the same as `key` above, and `timeout` works in exactly the
-same way as it does above. When acquiring the lock, `blocking` describes whether you want 
-the code to wait until the lock is available, and then acquire it (`blocking=True`), or 
+same way as it does above. When acquiring the lock, `blocking` describes whether you want
+the code to wait until the lock is available, and then acquire it (`blocking=True`), or
 whether you want the function to return whether or not you have the lock into the `have_lock`
 variable (`blocking=False`). In the case where `blocking=False`, if `have_lock=False` then
 the lock is already in use, and you must **not** execute any code that requires the lock.
@@ -211,7 +211,7 @@ If your code has no way to proceed without the lock, then you should use `blocki
 ## Testing Celery and Redis
 
 - Create and activate your test environment
-- Make sure that in the ``config.json`` file, 
+- Make sure that in the ``config.json`` file,
   - ``redis_host`` is set to localhost
   - ``test_data`` is set appropriately
   - ``transfer_dir`` is set to the test or dev directory as appropriate

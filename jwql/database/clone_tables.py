@@ -1,14 +1,14 @@
 #! /usr/bin/env python
 
 """Clone a table (or tables) from the ``jwqldb`` databases. In particular, this script
-supports cloning a table (or tables) into ``pandas`` frames, and supports writing a 
-``pandas`` frame into a database table. The intent of the script is to let a table (or all 
-the tables related to a particular monitor) from production to be copied to either the 
-test or dev database, to allow for local testing that can match the state of the 
+supports cloning a table (or tables) into ``pandas`` frames, and supports writing a
+``pandas`` frame into a database table. The intent of the script is to let a table (or all
+the tables related to a particular monitor) from production to be copied to either the
+test or dev database, to allow for local testing that can match the state of the
 production database.
 
-Note that, before using this script, you must ensure that the source and destination 
-table(s) have the same columns and, if you want an exact copy, the destination table 
+Note that, before using this script, you must ensure that the source and destination
+table(s) have the same columns and, if you want an exact copy, the destination table
 should be emtpy. For the above reasons, unless you have a compelling reason not to do so,
 you should run the ``reset_database.py`` script before running this script.
 
@@ -20,7 +20,7 @@ Then, after moving the pandas file(s) to the appropriate server, write them::
 
     python clone_tables.py write -m bad_pixel
 
-*These commands work because they are not intended to be run on the same server or as the 
+*These commands work because they are not intended to be run on the same server or as the
 same user.*
 
 Authors
@@ -70,7 +70,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--table', metavar='TABLE', type=str,
                         help=tab_help, default=None, dest='table')
     args = parser.parse_args()
-    
+
     if args.instrument is not None:
         instrument = args.instrument.lower()
         active_tables = INSTRUMENT_TABLES[instrument]
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     else:
         print("ERROR: Must specify one (and only one) of instrument, monitor, or table")
         sys.exit(1)
-    
+
     action = args.action.lower()
     if action == 'read': # read tables to pandas
         for table in active_tables:

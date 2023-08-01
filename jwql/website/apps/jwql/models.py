@@ -170,7 +170,7 @@ class Anomalies(models.Model):
             if isinstance(value, bool) and value:
                 true_anomalies.append(field)
         return true_anomalies
-    
+
     @classmethod
     def get_all_anomalies(cls):
         """Return list of all anomalies (assumed as any field with default of False)"""

@@ -312,8 +312,8 @@ function determine_page_title_obs(instrument, proposal, observation) {
 
 /**
  * adds/removes disabled_section class and clears value
- * @param {string} element_id 
- * @param {boolean} set_disable 
+ * @param {string} element_id
+ * @param {boolean} set_disable
  */
  function set_disabled_section (element_id, set_disable) {
 
@@ -331,7 +331,7 @@ function determine_page_title_obs(instrument, proposal, observation) {
  *                              values are the number of groups for that suffix
  */
 function explore_image_update_enable_options(integrations, groups) {
-    
+
     // Check nr of integrations and groups of currently selected extension
     var ext_name = get_radio_button_value("extension");
 
@@ -343,7 +343,7 @@ function explore_image_update_enable_options(integrations, groups) {
     groups = groups.replace(/&#39;/g, '"');
     groups = groups.replace(/'/g, '"');
     groups = JSON.parse(groups)[ext_name];
-    
+
     // Zero base our calculations
     integrations -= 1
     groups -=1
@@ -353,15 +353,15 @@ function explore_image_update_enable_options(integrations, groups) {
     document.getElementById("integration2").max = integrations;
     document.getElementById("group1").max = groups;
     document.getElementById("group2").max = groups;
-    
-    
+
+
     // If multiple integrations or groups.  Allow difference calculations
     //          enable calculate_difference box
     //          enable subtrahend boxes
     if (integrations > 0 || groups > 0) {
         set_disabled_section("calcDifferenceForm", false);
         calc_difference = document.getElementById("calcDifference").checked;
-        
+
     } else {
         document.getElementById("calcDifference").checked.value = false;
         set_disabled_section("calcDifferenceForm", true);
@@ -384,7 +384,7 @@ function explore_image_update_enable_options(integrations, groups) {
     set_disabled_section("groupInput1", (groups < 1));
     set_disabled_section("integrationInput2", (!calc_difference || integrations < 1));
     set_disabled_section("groupInput2", (!calc_difference || groups < 1));
-    
+
 }
 
 
@@ -811,7 +811,7 @@ function sort_by_thumbnails(sort_type, base_url) {
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
 
-    // Sort the thumbnails accordingly.  
+    // Sort the thumbnails accordingly.
     // Note: Because thumbnails will sort relating to their current order (when the exp_start is the same between thumbnails), we need to do multiple sorts to guarantee consistency.
 
     var thumbs = $('div#thumbnail-array>div')
@@ -838,9 +838,9 @@ function sort_by_thumbnails(sort_type, base_url) {
 
 
 /**
- * Toggle a viewed button when pressed.  
+ * Toggle a viewed button when pressed.
  * Ajax call to update RootFileInfo model with toggled value
- * 
+ *
  * @param {String} file_root - The rootname of the file corresponding to the thumbnail
  * @param {String} base_url - The base URL for gathering data from the AJAX view.
  */
@@ -850,7 +850,7 @@ function toggle_viewed(file_root, base_url) {
     var elem = document.getElementById("viewed");
     update_viewed_button(elem.value == "New" ? true : false);
     elem.disabled=true;
-    
+
     // Ajax Call to update RootFileInfo model with "viewed" info
     $.ajax({
         url: base_url + '/ajax/viewed/' + file_root,
@@ -1309,7 +1309,7 @@ function update_thumbnail_array(data) {
     var thumbnail_content = "";
     var image_updates = [];
     for (var i = 0; i < Object.keys(data.file_data).length; i++) {
-        
+
         // Parse out useful variables
         var rootname = Object.keys(data.file_data)[i];
         var file = data.file_data[rootname];
@@ -1413,7 +1413,7 @@ function submit_date_range_form(inst, base_url, group) {
                     } else {
                         show_thumbs = false;
                     }
-                } 
+                }
                 if (!show_thumbs) {
                     document.getElementById("loading").style.display = "none";
                     document.getElementById("no_thumbnails_msg").style.display = "inline-block";
@@ -1424,7 +1424,7 @@ function submit_date_range_form(inst, base_url, group) {
                 document.getElementById("loading").style.display = "none";
                 document.getElementById("thumbnail-array").style.display = "none";
                 document.getElementById("no_thumbnails_msg").style.display = "inline-block";
-    
+
             }
         });
     }

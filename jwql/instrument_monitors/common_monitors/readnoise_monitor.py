@@ -49,20 +49,16 @@ import numpy as np  # noqa: E348 (comparison to true)
 from pysiaf import Siaf  # noqa: E348 (comparison to true)
 from sqlalchemy.sql.expression import and_  # noqa: E348 (comparison to true)
 
-from jwql.database.database_interface import FGSReadnoiseQueryHistory, FGSReadnoiseStats  # noqa: E348 (comparison to true)
-from jwql.database.database_interface import MIRIReadnoiseQueryHistory, MIRIReadnoiseStats  # noqa: E348 (comparison to true)
-from jwql.database.database_interface import NIRCamReadnoiseQueryHistory, NIRCamReadnoiseStats  # noqa: E348 (comparison to true)
-from jwql.database.database_interface import NIRISSReadnoiseQueryHistory, NIRISSReadnoiseStats  # noqa: E348 (comparison to true)
-from jwql.database.database_interface import NIRSpecReadnoiseQueryHistory, NIRSpecReadnoiseStats  # noqa: E348 (comparison to true)
 from jwql.database.database_interface import session, engine  # noqa: E348 (comparison to true)
-from jwql.shared_tasks.shared_tasks import only_one, run_pipeline, run_parallel_pipeline  # noqa: E348 (comparison to true)
+from jwql.shared_tasks.shared_tasks import only_one, run_parallel_pipeline  # noqa: E348 (comparison to true)
 from jwql.instrument_monitors import pipeline_tools  # noqa: E348 (comparison to true)
 from jwql.utils import instrument_properties, monitor_utils  # noqa: E348 (comparison to true)
 from jwql.utils.constants import JWST_INSTRUMENT_NAMES, JWST_INSTRUMENT_NAMES_MIXEDCASE  # noqa: E348 (comparison to true)
 from jwql.utils.logging_functions import log_info, log_fail  # noqa: E348 (comparison to true)
-from jwql.utils.monitor_utils import update_monitor_table  # noqa: E348 (comparison to true)
 from jwql.utils.permissions import set_permissions  # noqa: E348 (comparison to true)
-from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config, copy_files  # noqa: E348 (comparison to true)
+from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config  # noqa: E348 (comparison to true)
+
+print('test test')
 
 
 class Readnoise():
@@ -413,7 +409,7 @@ class Readnoise():
             processed_file = file.replace("uncal", "refpix")
             if not os.path.isfile(processed_file):
                 files_to_calibrate.append(file)
-        
+
         # Run the files through the necessary pipeline steps
         outputs = run_parallel_pipeline(files_to_calibrate, "uncal", "refpix", self.instrument)
 
@@ -422,7 +418,7 @@ class Readnoise():
 
             # Get relevant header information for this file
             self.get_metadata(filename)
-            
+
             if filename in outputs:
                 processed_file = outputs[filename]
             else:

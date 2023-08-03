@@ -12,20 +12,21 @@ defaults:
 
 jobs:
 
-  checkout:
+  build-version:
+
     runs-on: ubuntu-latest
+
     steps:
-      name: Checkout Develop Branch
-        - uses: actions/checkout@master
-          with:
-            name: spacetelescope/jwql
-            fetch_depth: '0'
-      name: git
-        run: |
-          git --version
-          git status
-          git tag
-          git describe
+    - name: Git checkout
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: '0'
+    - name: git
+      run: |
+        git --version
+        git status
+        git tag
+        git describe
 
   check:
     runs-on: ubuntu-latest

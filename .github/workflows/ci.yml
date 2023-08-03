@@ -16,10 +16,10 @@ jobs:
     name: Checkout Develop Branch
     steps:
       - uses: actions/checkout@master
-          with:
-            name: spacetelescope/jwql
-            path: develop_branch
-            ref: develop
+        with:
+          name: spacetelescope/jwql
+          path: develop_branch
+          ref: develop
 
   check:
     runs-on: ubuntu-latest

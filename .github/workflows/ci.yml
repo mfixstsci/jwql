@@ -69,8 +69,6 @@ jobs:
         with:
           python-version: "3.x"
       - run: |
-            echo $(ls $GITHUB_WORKSPACE)
-            echo $(git branch $GITHUB_WORKSPACE/develop_branch/)
-            echo $(git diff $GITHUB_WORKSPACE/develop_branch/)
+            git fetch develop
             pip install ruff
-            ruff check $($(git diff $GITHUB_WORKSPACE/develop_branch/ --name-only -- '*.py'))
+            ruff check $($(git diff origin/develop --name-only -- '*.py'))

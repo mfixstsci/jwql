@@ -13,6 +13,7 @@ defaults:
 jobs:
 
   checkout develop branch:
+    runs-on: ubuntu-latest
     name: Checkout Develop Branch
     steps:
       - uses: actions/checkout@master

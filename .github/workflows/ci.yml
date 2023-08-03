@@ -12,7 +12,7 @@ defaults:
 
 jobs:
 
-  checkout develop branch:
+  checkout:
     runs-on: ubuntu-latest
     name: Checkout Develop Branch
     steps:

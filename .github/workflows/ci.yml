@@ -70,5 +70,7 @@ jobs:
           python-version: "3.x"
       - run: |
             echo $(ls $GITHUB_WORKSPACE)
+            echo $(git branch $GITHUB_WORKSPACE/develop_branch/)
+            echo $(git diff $GITHUB_WORKSPACE/develop_branch/)
             pip install ruff
             ruff check $($(git diff $GITHUB_WORKSPACE/develop_branch/ --name-only -- '*.py'))

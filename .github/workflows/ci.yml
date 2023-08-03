@@ -21,6 +21,7 @@ jobs:
           name: spacetelescope/jwql
           path: develop_branch
           ref: develop
+        run: echo $(ls $GITHUB_WORKSPACE/develop_branch/jwql)
 
   check:
     runs-on: ubuntu-latest

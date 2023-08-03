@@ -21,7 +21,6 @@ jobs:
           name: spacetelescope/jwql
           path: develop_branch
           ref: develop
-        run: echo $(ls $GITHUB_WORKSPACE/develop_branch/jwql)
 
   check:
     runs-on: ubuntu-latest
@@ -70,5 +69,6 @@ jobs:
         with:
           python-version: "3.x"
       - run: |
+            echo $(ls $GITHUB_WORKSPACE/develop_branch/jwql)
             pip install ruff
             ruff check $($(git diff $GITHUB_WORKSPACE/develop_branch/jwql --name-only -- '*.py'))

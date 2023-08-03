@@ -11,6 +11,16 @@ defaults:
     shell: bash -l {0}
 
 jobs:
+
+  checkout develop branch:
+    name: Checkout Develop Branch
+    steps:
+      - uses: actions/checkout@master
+          with:
+            name: spacetelescope/jwql
+            path: develop_branch
+            ref: develop
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -29,11 +39,9 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: [3.9, "3.10"]
+        python-version: ["3.9", "3.10"]
 
     steps:
-      - uses: actions/checkout@v3
-
       - uses: mamba-org/provision-with-micromamba@v15
         with:
           environment-file: ./environment_python_${{ matrix.python-version }}.yml
@@ -43,7 +51,7 @@ jobs:
       - run: pip install -e .[test]
 
       - run: conda env export
-      
+
       - uses: supercharge/redis-github-action@1.4.0
         with:
           redis-version: 5.0
@@ -52,3 +60,13 @@ jobs:
       - run: python -c "import jwql; print('Version ' + jwql.__version__); print('Path ' + jwql.__path__[0])"
 
       - run: pytest jwql/tests/
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          python-version: "3.x"
+      - run: |
+            pip install ruff
+            ruff check $($(git diff $GITHUB_WORKSPACE/develop_branch/jwql --name-only -- '*.py'))

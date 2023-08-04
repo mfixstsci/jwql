@@ -74,3 +74,6 @@ junit_family = "xunit2"
 
 [tool.pytest.ini_options]
 norecursedirs = ["jwql/website/apps/jwql/static"]
+
+[tool.ruff]
+ignore = ['E501', 'E402']

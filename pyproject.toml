@@ -76,4 +76,4 @@ junit_family = "xunit2"
 norecursedirs = ["jwql/website/apps/jwql/static"]
 
 [tool.ruff]
-ignore = ['E501', 'E402']
+ignore = ["E501", "E402"]

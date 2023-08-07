@@ -28,7 +28,7 @@ jobs:
         echo ls $GITHUB_WORKSPACE/*
         echo $(cat $GITHUB_WORKSPACE/pyproject.toml)
         echo $GITHUB_REF
-        ruff check --config pyproject.toml $(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py')
+        ruff check $(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py') --config $GITHUB_REF/pyproject.toml 
 
 
   check:

@@ -25,9 +25,7 @@ jobs:
     - name: Run Ruff Check
       run: |
         pip install ruff
-        echo ls $GITHUB_WORKSPACE/*
-        echo $(cat $GITHUB_WORKSPACE/pyproject.toml)
-        echo $GITHUB_REF
+        git fetch $GITHUB_REF_NAME
         ruff check $(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py') --config $GITHUB_REF/pyproject.toml 
 
 

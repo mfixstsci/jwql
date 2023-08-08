@@ -28,7 +28,6 @@ jobs:
         git fetch origin/$GITHUB_REF_NAME
         ruff check $(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py') --config $GITHUB_REF/pyproject.toml 
 
-
   check:
     runs-on: ubuntu-latest
     steps:

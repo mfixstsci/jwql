@@ -21,7 +21,7 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: '0'
-        ref: 'ruff-ignore-pyproject-test'
+        ref: 'add-checkout-step'
     - name: Run Ruff Check
       run: |
         pip install ruff

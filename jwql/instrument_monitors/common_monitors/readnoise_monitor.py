@@ -65,6 +65,7 @@ from jwql.utils.permissions import set_permissions  # noqa: E348 (comparison to 
 from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config, copy_files  # noqa: E348 (comparison to true)
 
 print('test test test')
+print('more tests, need more')
 
 class Readnoise():
     """Class for executing the readnoise monitor.

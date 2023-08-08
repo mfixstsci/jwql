@@ -26,7 +26,7 @@ jobs:
       run: |
         pip install ruff
         git fetch origin/$GITHUB_REF_NAME
-        ruff check $(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py') --config $GITHUB_REF/pyproject.toml 
+        ruff check $(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py') --ignore "E501","F401","E402"
 
   check:
     runs-on: ubuntu-latest

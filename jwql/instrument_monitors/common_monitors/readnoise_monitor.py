@@ -66,6 +66,7 @@ from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config, cop
 
 print('test test test')
 print('more tests, need more')
+print('and more and more')
 
 class Readnoise():
     """Class for executing the readnoise monitor.

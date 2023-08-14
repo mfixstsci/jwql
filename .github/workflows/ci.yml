@@ -23,8 +23,8 @@ jobs:
     - name: Find Python files
       run: |
         # Find .py files and store the count in a variable
-        PY_FILE_COUNT=$(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py')
-        
+        PY_FILE_COUNT=$(git diff origin/$GITHUB_REF_NAME --name-only -- '*.py' | wc -l)
+
         # Output the count for debugging purposes
         echo "Found $PY_FILE_COUNT .py files"
         

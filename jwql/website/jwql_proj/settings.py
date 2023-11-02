@@ -34,7 +34,8 @@ from django.contrib.messages import constants as messages
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = get_config()['django_secret_key']
+if not os.environ.get("READTHEDOCS"):
+    SECRET_KEY = get_config()['django_secret_key']
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -86,7 +87,8 @@ TEMPLATES = [
         'OPTIONS': {
             'context_processors': [
                 'django.contrib.auth.context_processors.auth',
-                'django.contrib.messages.context_processors.messages'
+                'django.contrib.messages.context_processors.messages',
+                'django.template.context_processors.request'
             ],
         },
     },
@@ -106,10 +108,7 @@ WSGI_APPLICATION = 'jwql.website.jwql_proj.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/2.0/ref/settings/#databases
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
-    },
+    'default': get_config()['django_database']
 }
 
 # Password validation
@@ -151,6 +150,15 @@ USE_TZ = True
 STATIC_URL = '/static/'
 
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "static/"),
+    os.path.join(BASE_DIR, "apps", "jwql", "static/"),
     get_config()['jwql_dir']
 ]
+
+# Use integer for auto primary key, as was default before django 3.2
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
+# Add trusted origins for CSRF origin checking
+CSRF_TRUSTED_ORIGINS = ['https://jwql.stsci.edu',
+                        'https://jwql-test.stsci.edu',
+                        'https://jwql-dev.stsci.edu',
+                        'https://127.0.0.1']

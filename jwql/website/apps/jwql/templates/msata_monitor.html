@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block preamble %}
+
+	<title>{{ inst }} MSATA Monitor- JWQL</title>
+
+{% endblock %}
+
+{% block content %}
+
+    <main role="main" class="container">
+
+		<h1>{{ inst }} MSATA Monitor</h1>
+        <!--Horizontal line-->
+        <hr>
+        <div id= "description">
+            <p>This monitor uses all MSATA data available.
+            The plots are updated regularly from new data in MAST.</p>
+
+            <h2>Instructions</h2>
+            <p>For general MSATA monitoring, you only need to look at the first two plots
+            below: 1. MSATA Status and 2. MSATA Least Squares Residual V2-V3 Offsets.</p>
+            <p>Plot 1 shows the successful Visit IDs (blue points, which always correspond
+            to the second position - 1/2 shutter moved from the first), the unsuccessful
+            ones (red points), and the in-progress images (gray points, which always
+            correspond to the first position of the TA). MSATA can do up-to two tries,
+            so you may see 4 entries for the same program ID in the gray points.</p>
+            <p>Plot 2 shows the V2-V3 least square residual offsets: the closer to the
+            purple cross (the half facet coordinates) the better. The default limits of
+            the plot are the acceptable values. If you see any point at the edges or
+            outside the limits of (-0.5, 0.5) for both axis, please let any of the
+            NIRSpec TA experts know: Tracy Beck, Charles Proffit, and/or Tony Keyes.</p>
+        </div>
+
+        <!-- Loading animation -->
+        <div id="loading">
+            <div class="lds-css ng-scope">
+                <div style="width:100%;height:100%" class="lds-magnify">
+                    <div>
+                        <div>
+                            <div>
+                            </div>
+                            <div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                Loading ...
+            </div>
+        </div>
+
+        <!-- Display the data -->
+        <div id='ta_data'></div>
+        <script>update_msata_page('{{base_url}}');</script>
+        <a id="msata_fail" style='display: none'>No MSATA data found</a>
+
+	</main>
+
+{% endblock %}

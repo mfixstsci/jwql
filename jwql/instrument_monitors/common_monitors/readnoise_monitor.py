@@ -44,24 +44,25 @@ from astropy.visualization import ZScaleInterval
 import crds
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-import numpy as np
-from pysiaf import Siaf
-from sqlalchemy.sql.expression import and_
+import matplotlib.pyplot as plt  # noqa: E348 (comparison to true)
+import numpy as np  # noqa: E348 (comparison to true)
+from pysiaf import Siaf  # noqa: E348 (comparison to true)
+from sqlalchemy.sql.expression import and_  # noqa: E348 (comparison to true)
 
-from jwql.database.database_interface import FGSReadnoiseQueryHistory, FGSReadnoiseStats
-from jwql.database.database_interface import MIRIReadnoiseQueryHistory, MIRIReadnoiseStats
-from jwql.database.database_interface import NIRCamReadnoiseQueryHistory, NIRCamReadnoiseStats
-from jwql.database.database_interface import NIRISSReadnoiseQueryHistory, NIRISSReadnoiseStats
-from jwql.database.database_interface import NIRSpecReadnoiseQueryHistory, NIRSpecReadnoiseStats
-from jwql.database.database_interface import session
-from jwql.instrument_monitors import pipeline_tools
-from jwql.utils import instrument_properties, monitor_utils
-from jwql.utils.constants import JWST_INSTRUMENT_NAMES, JWST_INSTRUMENT_NAMES_MIXEDCASE
-from jwql.utils.logging_functions import log_info, log_fail
-from jwql.utils.monitor_utils import update_monitor_table
-from jwql.utils.permissions import set_permissions
-from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config
+from jwql.database.database_interface import FGSReadnoiseQueryHistory, FGSReadnoiseStats  # noqa: E348 (comparison to true)
+from jwql.database.database_interface import MIRIReadnoiseQueryHistory, MIRIReadnoiseStats  # noqa: E348 (comparison to true)
+from jwql.database.database_interface import NIRCamReadnoiseQueryHistory, NIRCamReadnoiseStats  # noqa: E348 (comparison to true)
+from jwql.database.database_interface import NIRISSReadnoiseQueryHistory, NIRISSReadnoiseStats  # noqa: E348 (comparison to true)
+from jwql.database.database_interface import NIRSpecReadnoiseQueryHistory, NIRSpecReadnoiseStats  # noqa: E348 (comparison to true)
+from jwql.database.database_interface import session, engine  # noqa: E348 (comparison to true)
+from jwql.shared_tasks.shared_tasks import only_one, run_pipeline, run_parallel_pipeline  # noqa: E348 (comparison to true)
+from jwql.instrument_monitors import pipeline_tools  # noqa: E348 (comparison to true)
+from jwql.utils import instrument_properties, monitor_utils  # noqa: E348 (comparison to true)
+from jwql.utils.constants import JWST_INSTRUMENT_NAMES, JWST_INSTRUMENT_NAMES_MIXEDCASE  # noqa: E348 (comparison to true)
+from jwql.utils.logging_functions import log_info, log_fail  # noqa: E348 (comparison to true)
+from jwql.utils.monitor_utils import update_monitor_table  # noqa: E348 (comparison to true)
+from jwql.utils.permissions import set_permissions  # noqa: E348 (comparison to true)
+from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config, copy_files  # noqa: E348 (comparison to true)
 
 
 class Readnoise():
@@ -265,7 +266,7 @@ class Readnoise():
         plt.title('{}'.format(outname))
 
         # Save the figure
-        plt.savefig(output_filename, bbox_inches='tight', dpi=200, overwrite=True)
+        plt.savefig(output_filename, bbox_inches='tight', dpi=200)
         set_permissions(output_filename)
         logging.info('\t{} created'.format(output_filename))
 
@@ -342,28 +343,34 @@ class Readnoise():
             The 2D readnoise image.
         """
 
-        # Create a stack of correlated double sampling (CDS) images using input
-        # ramp data, combining multiple integrations if necessary.
-        logging.info('\tCreating stack of CDS difference frames')
-        num_ints, num_groups, num_y, num_x = data.shape
-        for integration in range(num_ints):
-            if num_groups % 2 == 0:
-                cds = data[integration, 1::2, :, :] - data[integration, ::2, :, :]
-            else:
-                # Omit the last group if the number of groups is odd
-                cds = data[integration, 1::2, :, :] - data[integration, ::2, :, :][:-1]
-
-            if integration == 0:
-                cds_stack = cds
-            else:
-                cds_stack = np.concatenate((cds_stack, cds), axis=0)
-
-        # Calculate readnoise by taking the clipped stddev through CDS stack
         logging.info('\tCreating readnoise image')
-        clipped = sigma_clip(cds_stack, sigma=3.0, maxiters=3, axis=0)
-        readnoise = np.std(clipped, axis=0)
-        # converts masked array to normal array and fills missing data
-        readnoise = readnoise.filled(fill_value=np.nan)
+        num_ints, num_groups, num_y, num_x = data.shape
+
+        # Calculate the readnoise in slices to avoid memory issues on large files.
+        slice_width = 20
+        cols_idx = np.array(np.arange(num_x)[::slice_width])
+        readnoise = np.zeros((num_y, num_x))
+        for idx in cols_idx:
+            # Create a stack of correlated double sampling (CDS) images using input
+            # ramp data, combining multiple integrations if necessary.
+            for integration in range(num_ints):
+                if num_groups % 2 == 0:
+                    cds = data[integration, 1::2, :, idx:idx + slice_width] - data[integration, ::2, :, idx:idx + slice_width]
+                else:
+                    # Omit the last group if the number of groups is odd
+                    cds = data[integration, 1::2, :, idx:idx + slice_width] - data[integration, ::2, :, idx:idx + slice_width][:-1]
+
+                if integration == 0:
+                    cds_stack = cds
+                else:
+                    cds_stack = np.concatenate((cds_stack, cds), axis=0)
+
+            # Calculate readnoise by taking the clipped stddev through CDS stack
+            clipped = sigma_clip(cds_stack, sigma=3.0, maxiters=3, axis=0)
+            readnoise_slice = np.ma.std(clipped, axis=0)
+
+            # Add the readnoise in this slice to the full readnoise image
+            readnoise[:, idx:idx + slice_width] = readnoise_slice
 
         return readnoise
 
@@ -380,7 +387,7 @@ class Readnoise():
         """
 
         query = session.query(self.query_table).filter(and_(self.query_table.aperture == self.aperture,
-            self.query_table.run_monitor == True)).order_by(self.query_table.end_time_mjd).all()
+                self.query_table.run_monitor == True)).order_by(self.query_table.end_time_mjd).all()  # noqa: E712 (comparison to True)
 
         if len(query) == 0:
             query_result = 59607.0  # a.k.a. Jan 28, 2022 == First JWST images (MIRI)
@@ -401,23 +408,32 @@ class Readnoise():
             List of filenames (including full paths) to the dark current
             files.
         """
+        files_to_calibrate = []
+        for file in file_list:
+            processed_file = file.replace("uncal", "refpix")
+            if not os.path.isfile(processed_file):
+                files_to_calibrate.append(file)
+        
+        # Run the files through the necessary pipeline steps
+        outputs = run_parallel_pipeline(files_to_calibrate, "uncal", "refpix", self.instrument)
 
         for filename in file_list:
             logging.info('\tWorking on file: {}'.format(filename))
 
             # Get relevant header information for this file
             self.get_metadata(filename)
-
-            # Run the file through the necessary pipeline steps
-            pipeline_steps = self.determine_pipeline_steps()
-            logging.info('\tRunning pipeline on {}'.format(filename))
-            try:
-                processed_file = pipeline_tools.run_calwebb_detector1_steps(filename, pipeline_steps)
-                logging.info('\tPipeline complete. Output: {}'.format(processed_file))
-                set_permissions(processed_file)
-            except:
-                logging.info('\tPipeline processing failed for {}'.format(filename))
-                continue
+            
+            if filename in outputs:
+                processed_file = outputs[filename]
+            else:
+                refpix_file = filename.replace("uncal", "refpix")
+                if os.path.isfile(refpix_file):
+                    processed_file = refpix_file
+                else:
+                    # Processed file not available
+                    logging.warning("Calibrated file {} not found".format(refpix_file))
+                    logging.warning("Skipping file {}".format(filename))
+                    continue
 
             # Find amplifier boundaries so per-amp statistics can be calculated
             _, amp_bounds = instrument_properties.amplifier_info(processed_file, omit_reference_pixels=True)
@@ -431,8 +447,8 @@ class Readnoise():
             # Make the readnoise image
             readnoise_outfile = os.path.join(self.data_dir, os.path.basename(processed_file.replace('.fits', '_readnoise.fits')))
             readnoise = self.make_readnoise_image(cal_data)
-            fits.writeto(readnoise_outfile, readnoise, overwrite=True)
-            logging.info('\tReadnoise image saved to {}'.format(readnoise_outfile))
+            # fits.writeto(readnoise_outfile, readnoise, overwrite=True)
+            # logging.info('\tReadnoise image saved to {}'.format(readnoise_outfile))
 
             # Calculate the full image readnoise stats
             clipped = sigma_clip(readnoise, sigma=3.0, maxiters=5)
@@ -451,8 +467,9 @@ class Readnoise():
                 readnoise_file = reffile_mapping['readnoise']
                 logging.info('\tPipeline readnoise reffile is {}'.format(readnoise_file))
                 pipeline_readnoise = fits.getdata(readnoise_file)
-            except:
+            except Exception as e:
                 logging.warning('\tError retrieving pipeline readnoise reffile - assuming all zeros.')
+                logging.warning('\tError {} was raised'.format(e))
                 pipeline_readnoise = np.zeros(readnoise.shape)
 
             # Find the difference between the current readnoise image and the pipeline readnoise reffile, and record image stats.
@@ -508,7 +525,8 @@ class Readnoise():
                     readnoise_db_entry[key] = amp_stats[key].astype(float)
 
             # Add this new entry to the readnoise database table
-            self.stats_table.__table__.insert().execute(readnoise_db_entry)
+            with engine.begin() as connection:
+                connection.execute(self.stats_table.__table__.insert(), readnoise_db_entry)
             logging.info('\tNew entry added to readnoise database table')
 
             # Remove the raw and calibrated files to save memory space
@@ -517,6 +535,7 @@ class Readnoise():
 
     @log_fail
     @log_info
+    @only_one(key='readnoise_monitor')
     def run(self):
         """The main method.  See module docstrings for further
         details.
@@ -548,10 +567,10 @@ class Readnoise():
                 self.aperture = aperture
 
                 # Locate the record of the most recent MAST search; use this time
-                # (plus a 30 day buffer to catch any missing files from the previous
+                # (plus a buffer to catch any missing files from the previous
                 # run) as the start time in the new MAST search.
                 most_recent_search = self.most_recent_search()
-                self.query_start = most_recent_search - 30
+                self.query_start = most_recent_search - 70
 
                 # Query MAST for new dark files for this instrument/aperture
                 logging.info('\tQuery times: {} {}'.format(self.query_start, self.query_end))
@@ -597,13 +616,20 @@ class Readnoise():
                             logging.info('\t{} does not exist in JWQL filesystem, even though {} does'.format(uncal_filename, filename))
                         else:
                             num_groups = fits.getheader(uncal_filename)['NGROUPS']
-                            if num_groups > 10:  # skip processing if the file doesnt have enough groups to calculate the readnoise
+                            num_ints = fits.getheader(uncal_filename)['NINTS']
+                            if instrument == 'miri':
+                                total_cds_frames = int((num_groups - 6) / 2) * num_ints
+                            else:
+                                total_cds_frames = int(num_groups / 2) * num_ints
+                            # Skip processing if the file doesnt have enough groups/ints to calculate the readnoise.
+                            # MIRI needs extra since they omit the first five and last group before calculating the readnoise.
+                            if total_cds_frames >= 10:
                                 shutil.copy(uncal_filename, self.data_dir)
                                 logging.info('\tCopied {} to {}'.format(uncal_filename, output_filename))
                                 set_permissions(output_filename)
                                 new_files.append(output_filename)
                             else:
-                                logging.info('\tNot enough groups to calculate readnoise in {}'.format(uncal_filename))
+                                logging.info('\tNot enough groups/ints to calculate readnoise in {}'.format(uncal_filename))
                     except FileNotFoundError:
                         logging.info('\t{} does not exist in JWQL filesystem'.format(file_entry['filename']))
 
@@ -624,7 +650,8 @@ class Readnoise():
                              'files_found': len(new_files),
                              'run_monitor': monitor_run,
                              'entry_date': datetime.datetime.now()}
-                self.query_table.__table__.insert().execute(new_entry)
+                with engine.begin() as connection:
+                    connection.execute(self.query_table.__table__.insert(), new_entry)
                 logging.info('\tUpdated the query history table')
 
         logging.info('Readnoise Monitor completed successfully.')

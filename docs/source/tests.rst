@@ -50,6 +50,12 @@ test_edb.py
     :members:
     :undoc-members:
 
+test_edb_telemetry_monitor.py
+-----------------------------
+.. automodule:: jwql.tests.test_edb_telemetry_monitor
+    :members:
+    :undoc-members:
+
 test_instrument_properties.py
 -----------------------------
 .. automodule:: jwql.tests.test_instrument_properties
@@ -68,9 +74,9 @@ test_logging_functions.py
     :members:
     :undoc-members:
 
-test_monitor_mast.py
+test_mast_utils.py
 --------------------
-.. automodule:: jwql.tests.test_monitor_mast
+.. automodule:: jwql.tests.test_mast_utils
     :members:
     :undoc-members:
 

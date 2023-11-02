@@ -1,8 +1,6 @@
 {
     "admin_account" : "",
     "auth_mast" : "",
-    "client_id" : "",
-    "client_secret" : "",
     "connection_string" : "",
     "database" : {
         "engine" : "",
@@ -11,6 +9,14 @@
         "password" : "",
         "host" : "",
         "port" : ""
+    },
+    "django_database" : {
+        "ENGINE" : "",
+        "NAME" : "",
+        "USER" : "",
+        "PASSWORD" : "",
+        "HOST" : "",
+        "PORT" : ""
     },
     "jwql_dir" : "",
     "jwql_version": "",
@@ -26,5 +32,8 @@
     "test_data" : "",
     "test_dir" : "",
     "thumbnail_filesystem" : "",
-    "cores" : ""
+    "cores" : "",
+    "redis_host": "",
+    "redis_port": "",
+    "transfer_dir": ""
 }

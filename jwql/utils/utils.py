@@ -27,18 +27,33 @@ References
     - JWST TR JWST-STScI-004800, SM-12
  """
 
-import datetime
 import getpass
 import glob
+import itertools
 import json
+import pyvo as vo
 import os
 import re
 import shutil
-
+import http
 import jsonschema
 
+from astropy.io import fits
+from astropy.stats import sigma_clipped_stats
+from bokeh.io import export_png
+from bokeh.models import LinearColorMapper, LogColorMapper
+from bokeh.plotting import figure
+import numpy as np
+from PIL import Image
+from selenium import webdriver
+
 from jwql.utils import permissions
-from jwql.utils.constants import FILE_SUFFIX_TYPES, JWST_INSTRUMENT_NAMES_SHORTHAND
+from jwql.utils.constants import FILE_AC_CAR_ID_LEN, FILE_AC_O_ID_LEN, FILE_ACT_LEN, \
+    FILE_DATETIME_LEN, FILE_EPOCH_LEN, FILE_GUIDESTAR_ATTMPT_LEN_MIN, \
+    FILE_GUIDESTAR_ATTMPT_LEN_MAX, FILE_OBS_LEN, FILE_PARALLEL_SEQ_ID_LEN, \
+    FILE_PROG_ID_LEN, FILE_SEG_LEN, FILE_SOURCE_ID_LEN, FILE_SUFFIX_TYPES, \
+    FILE_TARG_ID_LEN, FILE_VISIT_GRP_LEN, FILE_VISIT_LEN, FILETYPE_WO_STANDARD_SUFFIX, \
+    JWST_INSTRUMENT_NAMES_SHORTHAND
 
 __location__ = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
@@ -65,8 +80,6 @@ def _validate_config(config_file_dict):
         "properties": {  # List all the possible entries and their types
             "admin_account": {"type": "string"},
             "auth_mast": {"type": "string"},
-            "client_id": {"type": "string"},
-            "client_secret": {"type": "string"},
             "connection_string": {"type": "string"},
             "database": {
                 "type": "object",
@@ -100,7 +113,7 @@ def _validate_config(config_file_dict):
                      "preview_image_filesystem", "thumbnail_filesystem",
                      "outputs", "jwql_dir", "admin_account", "log_dir",
                      "test_dir", "test_data", "setup_file", "auth_mast",
-                     "client_id", "client_secret", "mast_token"]
+                     "mast_token"]
     }
 
     # Test that the provided config file dict matches the schema
@@ -111,6 +124,57 @@ def _validate_config(config_file_dict):
             'Provided config.json does not match the '
             'required JSON schema: {}'.format(e.message)
         )
+
+
+def create_png_from_fits(filename, outdir):
+    """Create and save a png file of the provided file. The file
+    will be saved with the same filename as the input file, but
+    with fits replaced by png
+
+    Parameters
+    ----------
+    filename : str
+        Fits file to be opened and saved as a png
+
+    outdir : str
+        Output directory to save the png file to
+
+    Returns
+    -------
+    png_file : str
+        Name of the saved png file
+    """
+    if os.path.isfile(filename):
+        image = fits.getdata(filename)
+        ny, nx = image.shape
+        img_mn, img_med, img_dev = sigma_clipped_stats(image[4: ny - 4, 4: nx - 4])
+
+        plot = figure(tools='')
+        plot.x_range.range_padding = plot.y_range.range_padding = 0
+        plot.toolbar.logo = None
+        plot.toolbar_location = None
+        plot.min_border = 0
+        plot.xgrid.visible = False
+        plot.ygrid.visible = False
+
+        # Create the color mapper that will be used to scale the image
+        mapper = LogColorMapper(palette='Greys256', low=(img_med - (5 * img_dev)), high=(img_med + (5 * img_dev)))
+
+        # Plot image
+        imgplot = plot.image(image=[image], x=0, y=0, dw=nx, dh=ny,
+                             color_mapper=mapper, level="image")
+
+        # Turn off the axes, in order to make embedding in another figure easier
+        plot.xaxis.visible = False
+        plot.yaxis.visible = False
+
+        # Save the plot in a png
+        output_filename = os.path.join(outdir, os.path.basename(filename).replace('fits', 'png'))
+        save_png(plot, filename=output_filename)
+        permissions.set_permissions(output_filename)
+        return output_filename
+    else:
+        return None
 
 
 def get_config():
@@ -210,7 +274,7 @@ def download_mast_data(query_results, output_dir):
 
     # Set up the https connection
     server = 'mast.stsci.edu'
-    conn = httplib.HTTPSConnection(server)
+    conn = http.client.HTTPSConnection(server)
 
     # Dowload the products
     print('Number of query results: {}'.format(len(query_results)))
@@ -275,18 +339,23 @@ def filename_parser(filename):
     """
 
     filename = os.path.basename(filename)
-    file_root_name = (len(filename.split('.')) < 2)
+    split_filename = filename.split('.')
+    file_root_name = (len(split_filename) < 2)
+    if file_root_name:
+        root_name = filename
+    else:
+        root_name = split_filename[0]
 
     # Stage 1 and 2 filenames
     # e.g. "jw80500012009_01101_00012_nrcalong_uncal.fits"
     stage_1_and_2 = \
         r"jw" \
-        r"(?P<program_id>\d{5})"\
-        r"(?P<observation>\d{3})"\
-        r"(?P<visit>\d{3})"\
-        r"_(?P<visit_group>\d{2})"\
-        r"(?P<parallel_seq_id>\d{1})"\
-        r"(?P<activity>\w{2})"\
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})"\
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})"\
+        r"_(?P<visit_group>\d{" + f"{FILE_VISIT_GRP_LEN}" + "})"\
+        r"(?P<parallel_seq_id>\d{" + f"{FILE_PARALLEL_SEQ_ID_LEN}" + "})"\
+        r"(?P<activity>\w{" f"{FILE_ACT_LEN}" + "})"\
         r"_(?P<exposure_id>\d+)"\
         r"_(?P<detector>((?!_)[\w])+)"
 
@@ -294,23 +363,32 @@ def filename_parser(filename):
     # e.g. "jw94015002002_02108_00001_mirimage_o002_crf.fits"
     stage_2c = \
         r"jw" \
-        r"(?P<program_id>\d{5})" \
-        r"(?P<observation>\d{3})" \
-        r"(?P<visit>\d{3})" \
-        r"_(?P<visit_group>\d{2})" \
-        r"(?P<parallel_seq_id>\d{1})" \
-        r"(?P<activity>\w{2})" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})" \
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})" \
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})" \
+        r"_(?P<visit_group>\d{" + f"{FILE_VISIT_GRP_LEN}" + "})" \
+        r"(?P<parallel_seq_id>\d{" + f"{FILE_PARALLEL_SEQ_ID_LEN}" + "})" \
+        r"(?P<activity>\w{" + f"{FILE_ACT_LEN}" + "})" \
         r"_(?P<exposure_id>\d+)" \
         r"_(?P<detector>((?!_)[\w])+)"\
-        r"_(?P<ac_id>(o\d{3}|(c|a|r)\d{4}))"
+        r"_(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"
+
+    # Stage 2 MSA metadata file. Created by APT and loaded in
+    # assign_wcs. e.g. "jw01118008001_01_msa.fits"
+    stage_2_msa = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})"\
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})"\
+        r"(_.._msa.fits)"
 
     # Stage 3 filenames with target ID
     # e.g. "jw80600-o009_t001_miri_f1130w_i2d.fits"
     stage_3_target_id = \
         r"jw" \
-        r"(?P<program_id>\d{5})"\
-        r"-(?P<ac_id>(o\d{3}|(c|a|r)\d{4}))"\
-        r"_(?P<target_id>(t)\d{3})"\
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
         r"_(?P<optical_elements>((?!_)[\w-])+)"
 
@@ -318,9 +396,9 @@ def filename_parser(filename):
     # e.g. "jw80600-o009_s00001_miri_f1130w_i2d.fits"
     stage_3_source_id = \
         r"jw" \
-        r"(?P<program_id>\d{5})"\
-        r"-(?P<ac_id>(o\d{3}|(c|a|r)\d{4}))"\
-        r"_(?P<source_id>(s)\d{5})"\
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<source_id>(s)\d{" + f"{FILE_SOURCE_ID_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
         r"_(?P<optical_elements>((?!_)[\w-])+)"
 
@@ -328,10 +406,10 @@ def filename_parser(filename):
     # e.g. "jw80600-o009_t001-epoch1_miri_f1130w_i2d.fits"
     stage_3_target_id_epoch = \
         r"jw" \
-        r"(?P<program_id>\d{5})"\
-        r"-(?P<ac_id>(o\d{3}|(c|a|r)\d{4}))"\
-        r"_(?P<target_id>(t)\d{3})"\
-        r"-epoch(?P<epoch>\d{1})"\
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"-epoch(?P<epoch>\d{" + f"{FILE_EPOCH_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
         r"_(?P<optical_elements>((?!_)[\w-])+)"
 
@@ -339,10 +417,10 @@ def filename_parser(filename):
     # e.g. "jw80600-o009_s00001-epoch1_miri_f1130w_i2d.fits"
     stage_3_source_id_epoch = \
         r"jw" \
-        r"(?P<program_id>\d{5})"\
-        r"-(?P<ac_id>(o\d{3}|(c|a|r)\d{4}))"\
-        r"_(?P<source_id>(s)\d{5})"\
-        r"-epoch(?P<epoch>\d{1})"\
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<source_id>(s)\d{" + f"{FILE_SOURCE_ID_LEN}" + "})"\
+        r"-epoch(?P<epoch>\d{" + f"{FILE_EPOCH_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
         r"_(?P<optical_elements>((?!_)[\w-])+)"
 
@@ -350,54 +428,86 @@ def filename_parser(filename):
     # e.g. "jw00733003001_02101_00002-seg001_nrs1_rate.fits"
     time_series = \
         r"jw" \
-        r"(?P<program_id>\d{5})"\
-        r"(?P<observation>\d{3})"\
-        r"(?P<visit>\d{3})"\
-        r"_(?P<visit_group>\d{2})"\
-        r"(?P<parallel_seq_id>\d{1})"\
-        r"(?P<activity>\w{2})"\
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})"\
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})"\
+        r"_(?P<visit_group>\d{" + f"{FILE_VISIT_GRP_LEN}" + "})"\
+        r"(?P<parallel_seq_id>\d{" + f"{FILE_PARALLEL_SEQ_ID_LEN}" + "})"\
+        r"(?P<activity>\w{" + f"{FILE_ACT_LEN}" + "})"\
         r"_(?P<exposure_id>\d+)"\
-        r"-seg(?P<segment>\d{3})"\
-        r"_(?P<detector>\w+)"
+        r"-seg(?P<segment>\d{" + f"{FILE_SEG_LEN}" + "})"\
+        r"_(?P<detector>((?!_)[\w])+)"
+
+    # Time series filenames for stage 2c
+    # e.g. "jw00733003001_02101_00002-seg001_nrs1_o001_crfints.fits"
+    time_series_2c = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})"\
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})"\
+        r"_(?P<visit_group>\d{" + f"{FILE_VISIT_GRP_LEN}" + "})"\
+        r"(?P<parallel_seq_id>\d{" + f"{FILE_PARALLEL_SEQ_ID_LEN}" + "})"\
+        r"(?P<activity>\w{" + f"{FILE_ACT_LEN}" + "})"\
+        r"_(?P<exposure_id>\d+)"\
+        r"-seg(?P<segment>\d{" + f"{FILE_SEG_LEN}" + "})"\
+        r"_(?P<detector>((?!_)[\w])+)"\
+        r"_(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"
 
     # Guider filenames
     # e.g. "jw00729011001_gs-id_1_image_cal.fits" or
     # "jw00799003001_gs-acq1_2019154181705_stream.fits"
     guider = \
         r"jw" \
-        r"(?P<program_id>\d{5})" \
-        r"(?P<observation>\d{3})" \
-        r"(?P<visit>\d{3})" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})" \
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})" \
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})" \
         r"_gs-(?P<guider_mode>(id|acq1|acq2|track|fg))" \
-        r"_((?P<date_time>\d{13})|(?P<guide_star_attempt_id>\d{1}))"
+        r"_((?P<date_time>\d{" + f"{FILE_DATETIME_LEN}" + r"})|(?P<guide_star_attempt_id>\d{" + f"{FILE_GUIDESTAR_ATTMPT_LEN_MIN},{FILE_GUIDESTAR_ATTMPT_LEN_MAX}" + "}))"
+
+    # Segment guider filenames
+    # e.g. "jw01118005001_gs-fg_2022150070312-seg002_uncal.fits"
+    guider_segment = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})" \
+        r"(?P<observation>\d{" + f"{FILE_OBS_LEN}" + "})" \
+        r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})" \
+        r"_gs-(?P<guider_mode>(id|acq1|acq2|track|fg))" \
+        r"_((?P<date_time>\d{" + f"{FILE_DATETIME_LEN}" + r"})|(?P<guide_star_attempt_id>\d{" + f"{FILE_GUIDESTAR_ATTMPT_LEN_MIN},{FILE_GUIDESTAR_ATTMPT_LEN_MAX}" + "}))" \
+        r"-seg(?P<segment>\d{" + f"{FILE_SEG_LEN}" + "})"
 
     # Build list of filename types
     filename_types = [
         stage_1_and_2,
         stage_2c,
+        stage_2_msa,
         stage_3_target_id,
         stage_3_source_id,
         stage_3_target_id_epoch,
         stage_3_source_id_epoch,
         time_series,
-        guider]
+        time_series_2c,
+        guider,
+        guider_segment]
 
     filename_type_names = [
         'stage_1_and_2',
         'stage_2c',
+        'stage_2_msa',
         'stage_3_target_id',
         'stage_3_source_id',
         'stage_3_target_id_epoch',
         'stage_3_source_id_epoch',
         'time_series',
-        'guider'
+        'time_series_2c',
+        'guider',
+        'guider_segment'
     ]
 
     # Try to parse the filename
     for filename_type, filename_type_name in zip(filename_types, filename_type_names):
 
-        # If full filename, try using suffix
-        if not file_root_name:
+        # If full filename, try using suffix, except for *msa.fits files
+        if not file_root_name and FILETYPE_WO_STANDARD_SUFFIX not in filename:
             filename_type += r"_(?P<suffix>{}).*".format('|'.join(FILE_SUFFIX_TYPES))
         # If not, make sure the provided regex matches the entire filename root
         else:
@@ -420,12 +530,25 @@ def filename_parser(filename):
 
         # Also, add the instrument if not already there
         if 'instrument' not in filename_dict.keys():
-            if name_match == 'guider':
+            if name_match in ['guider', 'guider_segment']:
                 filename_dict['instrument'] = 'fgs'
             elif 'detector' in filename_dict.keys():
                 filename_dict['instrument'] = JWST_INSTRUMENT_NAMES_SHORTHAND[
                     filename_dict['detector'][:3].lower()
                 ]
+            elif name_match == 'stage_2_msa':
+                filename_dict['instrument'] = 'nirspec'
+
+        # Also add detector, root name, and group root name
+        root_name = re.sub(rf"_{filename_dict.get('suffix', '')}$", '', root_name)
+        root_name = re.sub(rf"_{filename_dict.get('ac_id', '')}$", '', root_name)
+        filename_dict['file_root'] = root_name
+        if 'detector' not in filename_dict.keys():
+            filename_dict['detector'] = 'Unknown'
+            filename_dict['group_root'] = root_name
+        else:
+            group_root = re.sub(rf"_{filename_dict['detector']}$", '', root_name)
+            filename_dict['group_root'] = group_root
 
     # Raise error if unable to parse the filename
     except AttributeError:
@@ -473,7 +596,7 @@ def filesystem_path(filename, check_existence=True, search=None):
         if len(filenames_found) > 0:
             filename = os.path.basename(filenames_found[0])
         else:
-            raise FileNotFoundError('{} did not yeild any files in predicted location {}'.format(search, full_subdir))
+            raise FileNotFoundError('{} did not yield any files in predicted location {}'.format(search, full_subdir))
 
     full_path = os.path.join(subdir1, subdir2, filename)
 
@@ -514,6 +637,30 @@ def get_base_url():
     return base_url
 
 
+def get_rootnames_for_instrument_proposal(instrument, proposal):
+    """Return a list of rootnames for the given instrument and proposal
+
+    Parameters
+    ----------
+    instrument : str
+        Name of the JWST instrument, with first letter capitalized
+        (e.g. ``Fgs``)
+
+    proposal : int or str
+        Proposal ID number
+
+    Returns
+    -------
+    rootnames : list
+        List of rootnames for the given instrument and proposal number
+    """
+    tap_service = vo.dal.TAPService("https://vao.stsci.edu/caomtap/tapservice.aspx")
+    tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and maxLevel=2 and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
+    prop_table = tap_results.to_table()
+    rootnames = prop_table['observationID'].data
+    return rootnames.compressed()
+
+
 def check_config_for_key(key):
     """Check that the config.json file contains the specified key
     and that the entry is not empty
@@ -526,18 +673,36 @@ def check_config_for_key(key):
     try:
         get_config()[key]
     except KeyError:
-        raise KeyError(
-            'The key `{}` is not present in config.json. Please add it.'.format(key) +
-            ' See the relevant wiki page (https://github.com/spacetelescope/' +
-            'jwql/wiki/Config-file) for more information.'
-        )
+        msg = 'The key `{}` is not present in config.json. Please add it.'.format(key)
+        msg += ' See the relevant wiki page (https://github.com/spacetelescope/'
+        msg += 'jwql/wiki/Config-file) for more information.'
+        raise KeyError(msg)
 
     if get_config()[key] == "":
-        raise ValueError(
-            'Please complete the `{}` field in your config.json. '.format(key) + 
-            ' See the relevant wiki page (https://github.com/spacetelescope/' +
-            'jwql/wiki/Config-file) for more information.'
-        )
+        msg = 'Please complete the `{}` field in your config.json. '.format(key)
+        msg += ' See the relevant wiki page (https://github.com/spacetelescope/'
+        msg += 'jwql/wiki/Config-file) for more information.'
+        raise ValueError(msg)
+
+
+def delete_non_rate_thumbnails(extensions=['_rate_', '_dark']):
+    """This script will go through all the thumbnail directories and delete all
+    thumbnails that do not contain the given extensions. We currently create thumbnails
+    using only rate.fits and dark.fits files, so the default is to keep only those.
+
+    Parameters
+    ----------
+    extension : list
+        If a thumbnail filename contains any of these strings, it will not be deleted
+    """
+    base_dir = get_config()["thumbnail_filesystem"]
+    dir_list = sorted(glob.glob(os.path.join(base_dir, 'jw*')))
+
+    for dirname in dir_list:
+        files = glob.glob(os.path.join(dirname, '*.thumb'))
+        for file in files:
+            if not any([x in file for x in extensions]):
+                os.remove(file)
 
 
 def query_format(string):
@@ -553,3 +718,88 @@ def query_unformat(string):
     unsplit_string = string.replace(" ", "_")
 
     return unsplit_string
+
+
+def read_png(filename):
+    """Open the given png file and return as a 3D numpy array
+
+    Parameters
+    ----------
+    filename : str
+        png file to be opened
+
+    Returns
+    -------
+    data : numpy.ndarray
+        3D array representation of the data in the png file
+    """
+    if os.path.isfile(filename):
+        rgba_img = Image.open(filename).convert('RGBA')
+        xdim, ydim = rgba_img.size
+
+        # Create an array representation for the image, filled with
+        # dummy data to begin with
+        img = np.empty((ydim, xdim), dtype=np.uint32)
+
+        # Create a layer/RGBA" version with a set of 4, 8-bit layers.
+        # We will work with the data using 'view', and our changes
+        # will propagate back into the 2D 'img' version, which is
+        # what we will end up returning.
+        view = img.view(dtype=np.uint8).reshape((ydim, xdim, 4))
+
+        # Copy the RGBA image into view, flipping it so it comes right-side up
+        # with a lower-left origin
+        view[:, :, :] = np.flipud(np.asarray(rgba_img))
+    else:
+        view = None
+    # Return the 2D version
+    return img
+
+
+def save_png(fig, filename=''):
+    """Starting with selenium version 4.10.0, our testing has shown that on the JWQL
+    servers, we need to specify an instance of a web driver when exporting a Bokeh
+    figure as a png. This is a wrapper function that creates the web driver instance
+    and calls Bokeh's export_png function.
+
+    Parameters
+    ----------
+    fig : bokeh.plotting.figure
+        Bokeh figure to be saved as a png
+
+    filename : str
+        Filename to use for the png file
+    """
+    options = webdriver.FirefoxOptions()
+    options.add_argument('-headless')
+    driver = webdriver.Firefox(options=options)
+    export_png(fig, filename=filename, webdriver=driver)
+    driver.quit()
+
+
+def grouper(iterable, chunksize):
+    """
+    Take a list of items (iterable), and group it into chunks of chunksize, with the
+    last chunk being any remaining items. This allows you to batch-iterate through a
+    potentially very long list without missing any items, and where each individual
+    iteration can involve a much smaller number of files. Particularly useful for
+    operations that you want to execute in batches, but don't want the batches to be too
+    long.
+
+    Examples
+    --------
+
+    grouper([1, 2, 3, 4, 5], 2)
+    produces
+    (1, 2), (3, 4), (5, )
+
+    grouper([1, 2, 3, 4, 5], 6)
+    produces
+    (1, 2, 3, 4, 5)
+    """
+    it = iter(iterable)
+    while True:
+        chunk = tuple(itertools.islice(it, chunksize))
+        if not chunk:
+            return
+        yield chunk

@@ -924,10 +924,13 @@ def explore_image(request, inst, file_root, filetype):
     context = {'inst': inst,
                'file_root': file_root,
                'filetype': filetype,
+               'file_path': full_fits_file,
                'extensions': extensions,
                'extension_groups': extension_groups,
                'extension_ints': extension_ints,
                'base_url': get_base_url(),
+               'jdaviz_host': get_config()["jdaviz"]["host"],
+               'jdaviz_port': get_config()["jdaviz"]["port"],
                'anomaly_form': anomaly_form,
                'comment_form': comment_form}
 

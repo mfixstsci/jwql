@@ -40,7 +40,10 @@ if not os.environ.get("READTHEDOCS"):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_config()['django_debug']
 
+# Security settings to allow Jdaviz quicklook
+# Might well be avoidable if the Jdaviz Solara server were behind an SSH reverse proxy.
 X_FRAME_OPTIONS = "SAMEORIGIN"
+SECURE_CONTENT_TYPE_NOSNIFF = False
 
 ALLOWED_HOSTS = ['*']
 

@@ -40,6 +40,8 @@ if not os.environ.get("READTHEDOCS"):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_config()['django_debug']
 
+X_FRAME_OPTIONS = "SAMEORIGIN"
+
 ALLOWED_HOSTS = ['*']
 
 # Application definition

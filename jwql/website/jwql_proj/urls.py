@@ -47,9 +47,14 @@ Notes
 """
 
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from revproxy.views import ProxyView
 
 from ..apps.jwql import views
+from jwql.utils.utils import get_config
+
+jdaviz_host = get_config()["jdaviz"]["host"]
+jdaviz_port = get_config()["jdaviz"]["port"]
 
 # Define custom error page views
 handler404 = views.not_found  # Page not found
@@ -60,4 +65,5 @@ handler400 = views.not_found  # Bad request
 urlpatterns = [
     path('', include('jwql.website.apps.jwql.urls')),
     path('admin/', admin.site.urls),
+    path('quickview', ProxyView.as_view(upstream=f'http://{jdaviz_host}:{jdaviz_port}'))
 ]

@@ -40,10 +40,6 @@ if not os.environ.get("READTHEDOCS"):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_config()['django_debug']
 
-# SECURITY WARNING: This turns the default X_FRAME_OPTIONS value/header from 'DENY' to
-# 'SAMEORIGIN', which might potentially allow clickjacking.
-X_FRAME_OPTIONS = 'SAMEORIGIN'
-
 ALLOWED_HOSTS = ['*']
 
 # Application definition

@@ -65,5 +65,5 @@ handler400 = views.not_found  # Bad request
 urlpatterns = [
     path('', include('jwql.website.apps.jwql.urls')),
     path('admin/', admin.site.urls),
-    re_path(r'(?P<path>quickview)', ProxyView.as_view(upstream=f'http://{jdaviz_host}:{jdaviz_port}'))
+    re_path(r'quickview(?P<path>.*)', ProxyView.as_view(upstream=f'http://{jdaviz_host}:{jdaviz_port}'))
 ]

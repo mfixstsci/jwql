@@ -67,10 +67,10 @@
     <script>
         var xhr = new XMLHttpRequest();
 
-        xhr.open('GET', 'http://{{jdaviz_host|safe}}:{{jdaviz_port|safe}}?file={{file_path|safe}}');
+        xhr.open('GET', 'https://{{jdaviz_host|safe}}/jdaviz?file={{file_path|safe}}');
         xhr.onreadystatechange = handler;
         xhr.responseType = 'blob';
-        // xhr.setRequestHeader('X-Script-Name', '/jdaviz');
+        xhr.setRequestHeader('X-Script-Name', '/jdaviz');
         xhr.send();
 
         function handler() {

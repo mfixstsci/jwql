@@ -22,7 +22,7 @@
 		<div class="row">
             <!-- Display the image -->
     	    <div class="col-xl-9">
-                <iframe id="quickview" height="800px" width="750px" src="/quickview?file={{file_path|safe}}"></iframe>
+                <iframe id="quickview" height="800px" width="750px" src="/jdaviz?file={{file_path|safe}}"></iframe>
             </div>
         </div>
 
@@ -76,11 +76,13 @@
         function handler() {
             if (this.readyState === this.DONE) {
                 if (this.status === 200) {
-                // this.response is a Blob, because we set responseType above
-                var data_url = URL.createObjectURL(this.response);
-                document.querySelector('#quickview').src = data_url;
+                    // this.response is a Blob, because we set responseType above
+                    var data_url = URL.createObjectURL(this.response);
+                    document.querySelector('#quickview').src = data_url;
                 } else {
                     console.error('No quickview :(');
+                    console.error('Response status is' + this.status);
+                    console.error('Response is' + this.response);
                 }
             }
         }

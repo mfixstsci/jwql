@@ -64,30 +64,5 @@
     </main>
     <script>explore_image_update_enable_options('{{ extension_ints }}', '{{ extension_groups }}');</script>
     <script>update_explore_image_page('{{inst}}', '{{file_root}}', '{{filetype}}', '{{base_url}}');</script>
-    <script>
-        var xhr = new XMLHttpRequest();
-
-        var retrieve_url = 'https://dljwql.stsci.edu/jdaviz?file={{file_path}}';
-        console.log('Requesting ' + retrieve_url);
-        xhr.open('GET', retrieve_url);
-        xhr.onreadystatechange = handler;
-        xhr.responseType = 'blob';
-        xhr.setRequestHeader('X-Script-Name', '/jdaviz');
-        xhr.send();
-
-        function handler() {
-            if (this.readyState === this.DONE) {
-                if (this.status === 200) {
-                    // this.response is a Blob, because we set responseType above
-                    var data_url = URL.createObjectURL(this.response);
-                    document.querySelector('#quickview').src = data_url;
-                } else {
-                    console.error('No quickview :(');
-                    console.error('Response status is ' + this.status);
-                    console.error('Response is ' + this.response);
-                }
-            }
-        }
-    </script>
 
 {% endblock %}

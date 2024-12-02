@@ -188,7 +188,6 @@ class Monitor(models.Model):
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(blank=True, null=True)
     status = models.EnumField(StatusEnum)
-    #status = models.TextField(blank=True, null=True)  # This field type is a guess.
     log_file = models.CharField()
 
     class Meta:

@@ -176,9 +176,11 @@ References
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django_enum import EnumField
+from enum import StrEnum
 
 
-class StatusEnum(models.TextChoices):
+class StatusEnum(StrEnum):
     SUCCESS = "SUCCESS"
     FAILURE = "FAILURE"
 
@@ -187,7 +189,7 @@ class Monitor(models.Model):
     monitor_name = models.CharField()
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(blank=True, null=True)
-    status = models.EnumField(StatusEnum)
+    status = EnumField(StatusEnum)
     log_file = models.CharField()
 
     class Meta:

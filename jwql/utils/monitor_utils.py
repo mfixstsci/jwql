@@ -22,11 +22,11 @@ from astroquery.mast import Mast, Observations
 import numpy as np
 from django import setup
 
-from jwql.database.database_interface import Monitor, engine
 from jwql.utils.constants import ASIC_TEMPLATES, JWST_DATAPRODUCTS, MAST_QUERY_LIMIT
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.logging_functions import configure_logging, get_log_status
 from jwql.utils import mast_utils
+from jwql.website.apps.jwql.monitor_models.common import Monitor
 
 
 # Increase the limit on the number of entries that can be returned by
@@ -285,5 +285,5 @@ def update_monitor_table(module, start_time, log_file):
     new_entry['status'] = get_log_status(log_file)
     new_entry['log_file'] = os.path.basename(log_file)
 
-    with engine.begin() as connection:
-        connection.execute(Monitor.__table__.insert(), new_entry)
+    entry = Monitor(**new_entry)
+    entry.save()

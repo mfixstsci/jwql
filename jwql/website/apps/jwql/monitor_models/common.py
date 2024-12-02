@@ -178,11 +178,17 @@ from django.db import models
 from django.contrib.postgres.fields import ArrayField
 
 
+class StatusEnum(models.TextChoices):
+    SUCCESS = "SUCCESS"
+    FAILURE = "FAILURE"
+
+
 class Monitor(models.Model):
     monitor_name = models.CharField()
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(blank=True, null=True)
-    status = models.TextField(blank=True, null=True)  # This field type is a guess.
+    status = models.EnumField(StatusEnum)
+    #status = models.TextField(blank=True, null=True)  # This field type is a guess.
     log_file = models.CharField()
 
     class Meta:

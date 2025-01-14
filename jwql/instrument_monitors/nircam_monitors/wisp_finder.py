@@ -32,6 +32,7 @@ Overall flow:
 
 """
 
+import argparse
 import datetime
 import logging
 import os
@@ -51,7 +52,7 @@ import torchvision.models as models
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
 from jwql.website.apps.jwql.models import Anomalies, RootFileInfo
-from . import prepare_wisp_pngs
+from jwql.instrument_monitors.nircam_monitors import prepare_wisp_pngs
 
 if 1>0:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
@@ -137,6 +138,35 @@ def define_model_architecture():
     return model
 
 
+def define_options(parser=None, usage=None, conflict_handler='resolve'):
+    """Add command line options
+
+    Parrameters
+    -----------
+    parser : argparse.parser
+        Parser object
+
+    usage : str
+        Usage string
+
+    conflict_handler : str
+        Conflict handling strategy
+
+    Returns
+    -------
+    parser : argparse.parser
+        Parser object with added options
+    """
+    if parser is None:
+        parser = argparse.ArgumentParser(usage=usage, conflict_handler=conflict_handler)
+
+    parser.add_argument('-m', '--model_filename', type=str, default=None, help='Filename of saved ML model. (default=%(default)s)')
+    parser.add_argument('-s', '--starting_date', type=float, default=None, help='Earliest MJD to search for data. If None, date is retrieved from database.')
+    parser.add_argument('-e', '--ending_date', type=float, default=None, help='Latest MJD to search for data. If None, the current date is used.')
+    parser.add_argument('-f', '--file_list', type=str, nargs='+', default=None, help='List of full paths to files to run the monitor on.')
+    return parser
+
+
 def load_ml_model(model_filename):
     """Load the ML model for wisp prediction
 
@@ -145,13 +175,8 @@ def load_ml_model(model_filename):
     model_filename : str
         Location of file containing the model. e.g. /path/to/my_best_model.pth
     """
-
-    #model = torch.load(model_filename)
-
     model = define_model_architecture()
     model.load_state_dict(torch.load(model_filename))
-
-
     model.eval()  # Set model to evaluation mode
     return model
 
@@ -240,7 +265,7 @@ def remove_duplicate_files(file_list):
     return unique_files
 
 
-def run(model_filename, starting_date=None, ending_date=None, file_list=None):
+def run(model_filename=None, starting_date=None, ending_date=None, file_list=None):
     """Run the wisp finder monitor. From user-input dates or dates retrieved from
     the database, query MAST for all NIRCam NRCB4 full-frame imaging mode data. For
     each file, create a png file continaing an image of the rate file, scaled to a
@@ -264,6 +289,11 @@ def run(model_filename, starting_date=None, ending_date=None, file_list=None):
         to run the wisp prediction for. If this list is provided, the MAST query
         is skipped.
     """
+    # If no model_filename is given, the retrieve the default model_filename
+    # from the config file
+    if model_filename is None:
+        model_filename = get_config()['wisp_finder_ML_model']
+
     if file_list is None:
 
         # If ending_date is not provided, set it equal to the current time
@@ -308,7 +338,6 @@ def run(model_filename, starting_date=None, ending_date=None, file_list=None):
         # Create png
         working_dir = os.path.dirname(working_filepath)
         png_filename = prepare_wisp_pngs.run(working_filepath, out_dir=working_dir)
-        print(png_filename)
 
         # Predict
         prediction = predict_wisp(model, png_filename, transform)
@@ -339,3 +368,12 @@ def run(model_filename, starting_date=None, ending_date=None, file_list=None):
     else:
         print('What dates do we add to the database in this case?')
 
+
+if __name__ == '__main__':
+    parser = define_options()
+    args = parser.parse_args()
+
+    run(args.model_filename,
+        file_list=args.file_list,
+        starting_date=args.starting_date,
+        ending_date=args.ending_date)

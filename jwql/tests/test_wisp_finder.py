@@ -123,4 +123,3 @@ def test_resize_image():
     img = np.zeros((500, 500))
     resized = prepare_wisp_pngs.resize_image(img)
     assert resized.size == (256, 256)
-

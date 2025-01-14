@@ -14,7 +14,23 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 
-def rescale_array(arr, max_val=None, new_max=255):
+def create_figure(image, outfile):
+    """Create a figure of the scaled, resized image
+
+    Parameters
+    ----------
+    image : PIL.Image.Image
+        Image to be saved
+
+    outfile : str
+        Name of file it save the image into
+    """
+    plt.imshow(image, origin='lower')
+    plt.axis('off')
+    plt.savefig(outfile, bbox_inches='tight')
+
+
+def rescale_array(arr):
     """Rescales an array to the range 0-255.
 
     Parameters
@@ -22,21 +38,45 @@ def rescale_array(arr, max_val=None, new_max=255):
     arr : nump.ndarray
         2D image array
 
-    max_val : float
-        Maximum value to use in the input image
+    Returns
+    -------
+    adjusted_image : numpy.ndarray
+        Rescaled image
+    """
+    # Calculate basic stats on the image
+    mn, med, dev = sigma_clipped_stats(arr)
 
-    new_max : float
-        Maximum value in the rescaled image
+    # Don't worry about any pixels more than 2-sigma from the peak value
+    maximum_gray = med + dev * 1.
+    minimum_gray = med
+
+    # Calculate scaling factor and contrast adjustment
+    alpha = 255 / (maximum_gray - minimum_gray)
+    beta = -minimum_gray * alpha
+
+    # Rescale the image
+    adjusted_image = alpha * arr + beta
+    adjusted_image = np.clip(adjusted_image, 0, 255).astype(np.uint8)
+
+    return adjusted_image
+
+
+def resize_image(arr):
+    """Resize the input image to the size expected by the ML model
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        2D image to te resized
 
     Returns
     -------
-    arr : numpy.ndarray
-        Rescaled image
+    resized_image : PIL.Image.Image
+        Resized image
     """
-    min_val = np.nanmin(arr)
-    if max_val is None:
-        max_val = np.nanmax(arr)
-    return ((arr - min_val) / (max_val - min_val)) * new_max
+    img = Image.fromarray(arr)
+    resized_image = img.resize(size=(256, 256))
+    return resized_image
 
 
 def add_options(parser=None, usage='', conflict_handler='resolve'):
@@ -89,24 +129,11 @@ def run(filename, out_dir=None):
     # the output png file name
     outfile_base = os.path.basename(filename).split('.')[0]
 
-    # Calculate basic stats on the image
-    mn, med, dev = sigma_clipped_stats(data)
-
-    # Don't worry about any pixels more than 2-sigma from the peak value
-    maximum_gray = med + dev * 1.
-    minimum_gray = med
-
-    # Calculate scaling factor and contrast adjustment
-    alpha = 255 / (maximum_gray - minimum_gray)
-    beta = -minimum_gray * alpha
-
-    # Rescale the image
-    adjusted_image = alpha * data + beta
-    adjusted_image = np.clip(adjusted_image, 0, 255).astype(np.uint8)
+    # Rescale and adjust contrast of the image
+    adjusted_image = rescale_array(data)
 
     # Resize image to 256x256 pixels
-    img = Image.fromarray(adjusted_image)
-    shrunk_img = img.resize(size=(256, 256))
+    shrunk_img = resize_image(adjusted_image)
 
     # Create output filename
     output_file = f'{outfile_base}.png'
@@ -114,9 +141,7 @@ def run(filename, out_dir=None):
         output_file = os.path.join(out_dir, output_file)
 
     # Create image and save
-    plt.imshow(shrunk_img, origin='lower')
-    plt.axis('off')
-    plt.savefig(output_file, bbox_inches='tight')
+    create_figure(shrunk_img, output_file)
     return output_file
 
 

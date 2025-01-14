@@ -452,7 +452,7 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
     # staring and ending dates of the search. No need to keep the names of the files
     # that are found to contain a wisp, because that info will be in the  RootFileInfo
     # instances.
-    do_it()
+    #do_it()
 
 
 if __name__ == '__main__':

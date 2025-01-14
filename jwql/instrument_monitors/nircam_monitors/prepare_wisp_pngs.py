@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 
 """
-Given a fits file, prepare an image from the data that can be provided to the model
+Given a fits file, prepare an image of the data that can be provided to the ML wisp
+prediction model.
 """
 
 import argparse
@@ -13,12 +14,25 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 
-#file = 'jw01568001001_03101_00001_nrcb4_rate.fits'
-
-#min_val = 0
-
 def rescale_array(arr, max_val=None, new_max=255):
-    """Rescales an array to the range 0-255."""
+    """Rescales an array to the range 0-255.
+
+    Parameters
+    ----------
+    arr : nump.ndarray
+        2D image array
+
+    max_val : float
+        Maximum value to use in the input image
+
+    new_max : float
+        Maximum value in the rescaled image
+
+    Returns
+    -------
+    arr : numpy.ndarray
+        Rescaled image
+    """
     min_val = np.nanmin(arr)
     if max_val is None:
         max_val = np.nanmax(arr)
@@ -26,6 +40,25 @@ def rescale_array(arr, max_val=None, new_max=255):
 
 
 def add_options(parser=None, usage='', conflict_handler='resolve'):
+    """
+    Add command line options
+
+    Parrameters
+    -----------
+    parser : argparse.parser
+        Parser object
+
+    usage : str
+        Usage string
+
+    conflict_handler : str
+        Conflict handling strategy
+
+    Returns
+    -------
+    parser : argparse.parser
+        Parser object with added options
+    """
     if parser is None:
         parser = argparse.ArgumentParser(usage=usage, conflict_handler=conflict_handler)
 
@@ -34,56 +67,53 @@ def add_options(parser=None, usage='', conflict_handler='resolve'):
 
 
 def run(filename, out_dir=None):
+    """Main function. Read in fits file, create scaled and resized image. Save
+    as png.
+
+    Parameters
+    ----------
+    filename : str
+        Name of fits file
+
+    out_dir : str
+        Output directory in which to save the final png file
+
+    Returns
+    -------
+    output_file : str
+        Full path to the output png file
+    """
     data = fits.getdata(filename)
-    #data = rescale_array(data, max_val=255)
 
-    """
-    IQR = np.percentile(data, 75) - np.percentile(data, 25)
-    len_data = data.shape[-1] * data.shape[-2]
-    bin_width_fd = 2 * IQR / np.power(len_data, 1/3)
-
-
-    nbins = len(np.arange(0, 2, bin_width_fd))
-    hist, edges = np.histogram(data, range=(0, 3), bins=nbins)
-
-
-    peak_index = np.argmax(hist)
-
-    # Get the value of the peak
-    peak_value = hist[peak_index]
-    toolow = np.where(hist > peak_value*0.1)[0]
-
-
-    maximum_gray = edge[toolow[1]]
-    """
+    # Get the basename of the input file. This will be used to create
+    # the output png file name
     outfile_base = os.path.basename(filename).split('.')[0]
 
+    # Calculate basic stats on the image
     mn, med, dev = sigma_clipped_stats(data)
 
     # Don't worry about any pixels more than 2-sigma from the peak value
     maximum_gray = med + dev * 1.
-    minimum_gray = med #- dev * 2.
+    minimum_gray = med
 
-    #data = rescale_array(data, max_val=limit, new_max=255)
-    #data[np.where(data > 255)] = 255
-
+    # Calculate scaling factor and contrast adjustment
     alpha = 255 / (maximum_gray - minimum_gray)
     beta = -minimum_gray * alpha
 
+    # Rescale the image
     adjusted_image = alpha * data + beta
     adjusted_image = np.clip(adjusted_image, 0, 255).astype(np.uint8)
 
+    # Resize image to 256x256 pixels
     img = Image.fromarray(adjusted_image)
     shrunk_img = img.resize(size=(256, 256))
 
-    #h0 = fits.PrimaryHDU(shrunk_img)
-    #hl = fits.HDUList([h0])
-    #hl.writeto(f'{outfile_base}_adjusted.fits', overwrite=True)
-
+    # Create output filename
     output_file = f'{outfile_base}.png'
     if out_dir is not None:
         output_file = os.path.join(out_dir, output_file)
 
+    # Create image and save
     plt.imshow(shrunk_img, origin='lower')
     plt.axis('off')
     plt.savefig(output_file, bbox_inches='tight')

@@ -29,7 +29,11 @@ from jwql.instrument_monitors.nircam_monitors import wisp_finder, prepare_wisp_p
 from jwql.utils.constants import ON_GITHUB_ACTIONS
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
-from jwql.website.apps.jwql.models import RootFileInfo
+
+if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
+    setup()
+    from jwql.website.apps.jwql.models import RootFileInfo
 
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to database.')

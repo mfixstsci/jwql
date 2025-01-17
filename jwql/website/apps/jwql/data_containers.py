@@ -2084,7 +2084,7 @@ def text_scrape(prop_id):
 
         links = html.findAll('a')
 
-        proposal_type = links[0].contents[0]
+        proposal_type = links[3].contents[0]
 
         program_meta['prop_type'] = proposal_type
 

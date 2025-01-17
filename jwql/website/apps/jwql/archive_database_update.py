@@ -43,32 +43,45 @@ Dependencies
 import logging
 import os
 import argparse
+import re
 
 import numpy as np
 import django
 
 from django.apps import apps
 from jwql.utils.protect_module import lock_module
-from jwql.utils.constants import DEFAULT_MODEL_CHARFIELD
+from jwql.utils.constants import (DEFAULT_MODEL_CHARFIELD,
+                                  FILE_PROG_ID_LEN,
+                                  FILE_AC_O_ID_LEN,
+                                  FILE_AC_CAR_ID_LEN,
+                                  FILE_SOURCE_ID_LONG_LEN,
+                                  FILE_TARG_ID_LEN,
+                                  JWST_INSTRUMENT_NAMES_MIXEDCASE,
+                                  MAST_QUERY_LIMIT,
+                                  ON_GITHUB_ACTIONS,
+                                  ON_READTHEDOCS
+                                  )
+from jwql.utils.logging_functions import log_info, log_fail
+from jwql.utils.monitor_utils import initialize_instrument_monitor
+from jwql.utils.utils import filename_parser, filesystem_path, get_config
+from jwql.website.apps.jwql.data_containers import create_archived_proposals_context
+from jwql.website.apps.jwql.data_containers import get_instrument_proposals, get_filenames_by_instrument
+from jwql.website.apps.jwql.data_containers import (get_proposal_info,
+                                                    mast_query_filenames_by_instrument,
+                                                    mast_query_by_rootname
+                                                    )
 
-# These lines are needed in order to use the Django models in a standalone
-# script (as opposed to code run as a result of a webpage request). If these
-# lines are not run, the script will crash when attempting to import the
-# Django models in the line below.
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
-django.setup()
 
-from jwql.website.apps.jwql.models import Archive, Observation, Proposal, RootFileInfo  # noqa
-from jwql.utils.constants import JWST_INSTRUMENT_NAMES_MIXEDCASE  # noqa
-from jwql.utils.logging_functions import log_info, log_fail  # noqa
-from jwql.utils.monitor_utils import initialize_instrument_monitor  # noqa
-from jwql.utils.constants import MAST_QUERY_LIMIT  # noqa
-from jwql.utils.utils import filename_parser, filesystem_path, get_config  # noqa
-from jwql.website.apps.jwql.data_containers import create_archived_proposals_context  # noqa
-from jwql.website.apps.jwql.data_containers import get_instrument_proposals, get_filenames_by_instrument  # noqa
-from jwql.website.apps.jwql.data_containers import get_proposal_info, mast_query_filenames_by_instrument, mast_query_by_rootname  # noqa
+if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
+    # These lines are needed in order to use the Django models in a standalone
+    # script (as opposed to code run as a result of a webpage request). If these
+    # lines are not run, the script will crash when attempting to import the
+    # Django models in the line below.
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
+    django.setup()
 
-FILESYSTEM = get_config()['filesystem']
+    from jwql.website.apps.jwql.models import Archive, Observation, Proposal, RootFileInfo  # noqa
+    FILESYSTEM = get_config()['filesystem']
 
 
 @log_info
@@ -113,6 +126,11 @@ def get_updates(update_database):
 
             # Get set of unique rootnames
             all_rootnames = set(['_'.join(f.split('/')[-1].split('_')[:-1]) for f in filenames])
+
+            # Filter source-based level 2 files out of the rootnames and filenames
+            all_rootnames = filter_rootnames(all_rootnames)
+            filenames = filter_filenames(filenames, all_rootnames)
+
             rootnames = []
             for rootname in all_rootnames:
                 filename_dict = filename_parser(rootname)
@@ -508,6 +526,64 @@ def fill_empty_rootfileinfo(rootfileinfo_set):
             logging.warning(f'\tCould not save rootfileinfo {rootfileinfo_mod.root_name}')
             logging.warning(f'\tError {e} was raised')
     logging.info(f'\tSaved {saved_rootfileinfos} Root File Infos')
+
+
+def filter_filenames(fnames, roots):
+    """Filter out filenames from ``fnames`` that don't match the names in ``roots``
+
+    Parameters
+    ----------
+    fnames : list
+        List of filenames
+
+    roots : list
+        List of rootnames
+
+    Returns
+    -------
+    filtered_fnames : list
+        Filtered list of filenames
+    """
+    filtered_fnames = []
+    for fname in fnames:
+        for root in roots:
+            if root in fname:
+                filtered_fnames.append(fname)
+                break
+    return filtered_fnames
+
+
+def filter_rootnames(rootnames):
+    """Filter out rootnames that we know can't be parsed by the filename_parser. We use this
+    custom filter here rather than within the filename parser itself because in archive_database_update
+    we can end up providing thousands of unrecognized filenames (e.g. source-based WFSS files) to
+    the filename parser, which would result in thousands of logging statments and massive log files.
+    This way, we filter out the rootnames that obviously won't be parsed before calling the
+    filename_parser with the rest. jw06434-c1021_s000001510_nircam_f444w-grismr
+                                   jw06434-c1021_t000_nircam_clear-f090w_segm.fits
+
+    Parameters
+    ----------
+    rootnames : list
+        List of rootnames
+
+    Returns
+    -------
+    good_rootnames : list
+        List of rootnames that do not match the filters
+    """
+    stage_2_source = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + r"}|(t)\d{" + f"{FILE_TARG_ID_LEN}" + "}))"\
+        r"_(?P<instrument>(nircam|niriss|miri))"\
+        r"_(?P<optical_elements>((?!_)[\w-])+)"\
+        r"-"
+
+    elements = re.compile(stage_2_source)
+    good_rootnames = [e for e in rootnames if elements.match(e) is None]
+    return good_rootnames
 
 
 @lock_module

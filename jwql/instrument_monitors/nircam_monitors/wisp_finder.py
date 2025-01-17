@@ -49,7 +49,6 @@ import torch.nn as nn
 from torchvision import transforms
 import torchvision.models as models
 
-from jwql.shared_tasks.shared_tasks import only_one
 from jwql.utils import monitor_utils
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.logging_functions import log_info, log_fail
@@ -61,9 +60,7 @@ from jwql.instrument_monitors.nircam_monitors import prepare_wisp_pngs
 if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
     setup()
-
-    # once we have db models defined, uncoment this line
-    #from jwql.website.apps.jwql.monitor_models.wisp_finder import *
+    from jwql.website.apps.jwql.monitor_models.wisp_finder import WispFinderB4QueryHistory
 
 
 def add_wisp_flag(basename):
@@ -190,6 +187,26 @@ def define_options(parser=None, usage=None, conflict_handler='resolve'):
     parser.add_argument('-f', '--file_list', type=str, nargs='+', default=None,
                         help='List of full paths to files to run the monitor on.')
     return parser
+
+
+def get_latest_run():
+    """Retrieve the ending time of the latest successful run from the database
+
+    Returns
+    -------
+    latset_date : float
+        MJD of the ending time of the latest successful run of the monitor
+    """
+    filters = {"run_monitor": True}
+    record = WispFinderB4QueryHistory.objects.filter(**filters).order_by("-end_time_mjd").first()
+
+    if record is None:
+        query_result = 59607.0  # a.k.a. Jan 28, 2022 == First JWST images
+        logging.info(f'\tNo successful previous runs found. Beginning search date will be set to {query_result}.')
+    else:
+        query_result = record.end_time_mjd
+
+    return query_result
 
 
 def load_ml_model(model_filename):
@@ -333,7 +350,6 @@ def remove_duplicate_files(file_list):
     return unique_files
 
 
-#@only_one
 @log_fail
 @log_info
 def run(model_filename=None, starting_date=None, ending_date=None, file_list=None):
@@ -396,6 +412,8 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         ending_date = 0.0
 
     if len(rate_files) > 0:
+        monitor_run = True
+
         # Find the location in the filesystem for all files
         logging.info("Locating files in the filesystem")
         filepaths_public = files_in_filesystem(rate_files, 'public')
@@ -415,11 +433,6 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
 
         # For each fits file, create a png file, and have the ML model predict if there is a wisp
         for working_filepath in working_filepaths:
-
-
-            # we can probably find a way to simply create an Image instance and predict, rather than
-            # saving and then reading in a png...
-
             # Create png
             working_dir = os.path.dirname(working_filepath)
             png_filename = prepare_wisp_pngs.run(working_filepath, out_dir=working_dir)
@@ -445,14 +458,23 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
             os.remove(png_filename)
             os.remove(working_filepath)
     else:
-        # If no rate_files are found,
+        # If no rate_files are found
         logging.info(f"No rate files found. Ending monitor run.")
+        monitor_run = False
 
     # Update the database with info about this run of the monitor. We keep the
     # staring and ending dates of the search. No need to keep the names of the files
     # that are found to contain a wisp, because that info will be in the  RootFileInfo
     # instances.
-    #do_it()
+    new_entry = {'instrument': 'nircam',
+                 'start_time_mjd': starting_date,
+                 'end_time_mjd': ending_date,
+                 'run_monitor': monitor_run,
+                 'entry_date': datetime.datetime.now(datetime.timezone.utc)}
+    entry = WispFinderB4QueryHistory(**new_entry)
+    entry.save()
+
+    logging.info('Wisp Finder Monitor completed successfully.')
 
 
 if __name__ == '__main__':

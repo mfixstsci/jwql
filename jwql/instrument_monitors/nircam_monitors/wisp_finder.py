@@ -54,12 +54,12 @@ from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
-from jwql.website.apps.jwql.models import Anomalies, RootFileInfo
 from jwql.instrument_monitors.nircam_monitors import prepare_wisp_pngs
 
 if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
     setup()
+    from jwql.website.apps.jwql.models import Anomalies, RootFileInfo
     from jwql.website.apps.jwql.monitor_models.wisp_finder import WispFinderB4QueryHistory
 
 

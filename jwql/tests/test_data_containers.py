@@ -48,7 +48,7 @@ if not ON_GITHUB_ACTIONS:
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to django models.')
 def test_build_table():
-    tab = data_containers.build_table('filesystem_general')
+    tab = data_containers.build_table('FilesystemGeneral')
     assert isinstance(tab, pd.DataFrame)
     assert len(tab['date']) > 0
 

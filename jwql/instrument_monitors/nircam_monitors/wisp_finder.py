@@ -466,8 +466,7 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
     # staring and ending dates of the search. No need to keep the names of the files
     # that are found to contain a wisp, because that info will be in the  RootFileInfo
     # instances.
-    new_entry = {'instrument': 'nircam',
-                 'start_time_mjd': starting_date,
+    new_entry = {'start_time_mjd': starting_date,
                  'end_time_mjd': ending_date,
                  'run_monitor': monitor_run,
                  'entry_date': datetime.datetime.now(datetime.timezone.utc)}

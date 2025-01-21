@@ -42,3 +42,5 @@ if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     from jwql.website.apps.jwql.monitor_models.readnoise import NIRSpecReadnoiseQueryHistory, NIRSpecReadnoiseStats
 
     from jwql.website.apps.jwql.monitor_models.ta import MIRITaQueryHistory
+
+    from jwql.website.apps.jwql.monitor_models.wisp_finder import WispFinderB4QueryHistory

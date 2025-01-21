@@ -43,6 +43,7 @@
     "setup_file" : "",
     "test_data" : "",
     "test_dir" : "",
+    "wisp_finder_ML_model" : "",
     "thumbnail_filesystem" : "",
     "cores" : "",
     "redis_host": "",

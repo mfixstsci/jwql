@@ -177,27 +177,30 @@ References
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
-from django_enum import EnumField
-from enum import StrEnum
-
-
-class StatusEnum(StrEnum):
-    SUCCESS = "SUCCESS"
-    FAILURE = "FAILURE"
 
 from jwql.utils.constants import (
     DEFAULT_MODEL_CHARFIELD,
     MAX_LEN_FILTER,
     MAX_LEN_INSTRUMENT,
+    MAX_LEN_MONITOR,
+    MAX_LEN_PATH
 )
 
 
 class Monitor(models.Model):
-    monitor_name = models.CharField()
+    monitor_name = models.CharField(
+        max_length=MAX_LEN_MONITOR,
+        help_text="Monitor name",
+        default=DEFAULT_MODEL_CHARFIELD
+    )
     start_time = models.DateTimeField()
     end_time = models.DateTimeField(blank=True, null=True)
     status = models.TextField(blank=True, null=True)
-    log_file = models.CharField()
+    log_file = models.CharField(
+        max_length=MAX_LEN_PATH,
+        help_text="Log file name",
+        default=DEFAULT_MODEL_CHARFIELD
+    )
 
     class Meta:
         managed = True

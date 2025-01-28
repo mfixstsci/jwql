@@ -36,8 +36,11 @@ import re
 import numpy as np
 
 from jwql.utils import permissions
-from jwql.utils.constants import IGNORED_SUFFIXES, JWST_INSTRUMENT_NAMES_SHORTHAND, NIRCAM_LONGWAVE_DETECTORS, \
-    NIRCAM_SHORTWAVE_DETECTORS, PREVIEW_IMAGE_LISTFILE, THUMBNAIL_LISTFILE
+from jwql.utils.constants import (IGNORED_SUFFIXES,
+                                  JWST_INSTRUMENT_NAMES_SHORTHAND,
+                                  NIRCAM_LONGWAVE_DETECTORS,
+                                  NIRCAM_SHORTWAVE_DETECTORS
+                                  )
 from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.protect_module import lock_module
 from jwql.utils.preview_image import PreviewImage
@@ -616,22 +619,6 @@ def generate_preview_images(overwrite, programs=None):
         full_preview_files.extend(r[0])
         full_thumbnail_files.extend(r[1])
 
-    # Filter the preview and thumbnail images by instrument and update the listfiles.
-    # We do this by looking for instrument abbreviations in the filenames. But will
-    # this work for level 3 files?? If an instrument abbreviation is not in the filename,
-    # then the preview/thubnail images won't be caught and added here.
-    for abbrev, inst_name in JWST_INSTRUMENT_NAMES_SHORTHAND.items():
-        inst_previews = [ele for ele in full_preview_files if re.search(abbrev, ele, re.IGNORECASE)]
-        inst_thumbs = [ele for ele in full_thumbnail_files if abbrev in ele]
-
-        # Read in the preview image listfile and the thumbnail image list file
-        # and add these new files to each
-        preview_image_listfile = os.path.join(SETTINGS['preview_image_filesystem'], f"{PREVIEW_IMAGE_LISTFILE}_{inst_name}.txt")
-        update_listfile(preview_image_listfile, inst_previews, 'preview')
-
-        thumbnail_image_listfile = os.path.join(SETTINGS['thumbnail_filesystem'], f"{THUMBNAIL_LISTFILE}_{inst_name}.txt")
-        update_listfile(thumbnail_image_listfile, inst_thumbs, 'thumbnail')
-
     # Complete logging:
     logging.info("Completed.")
 
@@ -840,43 +827,6 @@ def process_program(program, overwrite):
     logging.info(f"Skipped {existing_preview_counter} previously-existing preview images.")
 
     return preview_image_files, thumbnail_files
-
-
-def update_listfile(filename, file_list, filetype):
-    """Add a list of files to a text file. Designed to add new files to the
-    file containing the list of all preview images and the file containing the
-    list of all thumbnail images.
-
-    Parameters
-    ----------
-    filename : str
-        Name, including path, of the file to be amended/created
-
-    file_list : list
-        List of filenames to be added to filename
-
-    filetype : str
-        Descriptor of the contents of the file being amended. Used only for
-        the logging statement
-    """
-    if len(file_list) > 0:
-        if not os.path.isfile(filename):
-            logging.warning(f"{filetype} image listfile not found!! Expected to be at {filename}. Creating a new file.")
-
-        with open(filename, 'a+') as fobj:
-            # Move read cursor to the start of file.
-            fobj.seek(0)
-
-            # If file is not empty then append '\n'
-            data = fobj.read(100)
-            if len(data) > 0:
-                fobj.write("\n")
-
-            # Append file_list at the end of file
-            for file_to_add in file_list:
-                fobj.write(f'{file_to_add}\n')
-
-        logging.info(f"{filetype} image listfile {filename} updated with new entries.")
 
 
 @lock_module

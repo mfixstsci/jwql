@@ -381,6 +381,7 @@ FILE_PARALLEL_SEQ_ID_LEN = 1
 FILE_PROG_ID_LEN = 5
 FILE_SEG_LEN = 3
 FILE_SOURCE_ID_LEN = 5
+FILE_SOURCE_ID_LONG_LEN = 9
 FILE_TARG_ID_LEN = 3
 FILE_VISIT_GRP_LEN = 2
 FILE_VISIT_LEN = 3
@@ -794,10 +795,6 @@ ON_GITHUB_ACTIONS = '/home/runner' in os.path.expanduser('~') or '/Users/runner'
 # Determine if the code is being run as part of a Readthedocs build
 ON_READTHEDOCS = os.environ.get('READTHEDOCS', False)
 
-# Base name for the file listing the preview images for a given instrument.
-# The complete name will have "_{instrument.lower}.txt" added to the end of this.
-PREVIEW_IMAGE_LISTFILE = "preview_image_inventory"
-
 # All possible proposal categories
 PROPOSAL_CATEGORIES = ["AR", "CAL", "COM", "DD", "ENG", "GO", "GTO", "NASA", "SURVEY"]
 
@@ -1006,10 +1003,6 @@ SUFFIXES_WITH_AVERAGED_INTS = ["rate", "cal", "crf", "i2d", "bsub"]
 
 # boolean accessed according to a viewed flag
 THUMBNAIL_FILTER_LOOK = ["New", "Viewed"]
-
-# Base name for the file listing the thumbnail images for a given instrument.
-# The complete name will have "_{instrument.lower}.txt" added to the end of this.
-THUMBNAIL_LISTFILE = "thumbnail_inventory"
 
 # Possible suffix types for time-series exposures
 TIME_SERIES_SUFFIX_TYPES = ["phot", "whtlt"]

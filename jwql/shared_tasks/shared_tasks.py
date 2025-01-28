@@ -184,7 +184,7 @@ def only_one(function=None, key="", timeout=None):
 
 
 def create_task_log_handler(logger, propagate):
-    log_file_name = configure_logging('shared_tasks')
+    log_file_name = configure_logging('shared_tasks', include_time=False)
     working_dir = os.path.join(get_config()['working'], 'calibrated_data')
     ensure_dir_exists(working_dir)
     celery_log_file_handler = FileHandler(log_file_name)

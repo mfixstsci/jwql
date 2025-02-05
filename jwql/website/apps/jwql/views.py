@@ -335,6 +335,8 @@ def archive_thumbnails_all_observations(request, inst, proposal):
 
     #obs_list = sorted(set(filename_parser(root)['observation'] for root in rootnames))
 
+    print(f"DEBUG: obs_list = {obs_list}")
+
     sort_type = request.session.get('image_sort', 'Recent')
     group_type = request.session.get('image_group', 'Exposure')
 

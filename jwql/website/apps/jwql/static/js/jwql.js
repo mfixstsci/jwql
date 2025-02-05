@@ -1500,13 +1500,18 @@ function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
 function update_thumbnail_array(data, targetDiv) {
     var targetElement = document.getElementById(targetDiv);
     if (!targetElement) {
-        console.error("Target element for thumbnails not found:", targetDiv);
+        console.error("Target div for thumbnails not found:", targetDiv);
         console.log("Available elements:", document.querySelectorAll(".thumbnail-array"));
         return;
     }
 
     var thumbnail_content = "";
     var image_updates = [];
+
+    /**for (var i = 0; i < Object.keys(data.file_data).length; i++) {
+        var rootname = Object.keys(data.file_data)[i];
+        var file = data.file_data[rootname];
+    **/
 
     Object.keys(data.file_data).forEach((rootname, i) => {
         var file = data.file_data[rootname];
@@ -1661,9 +1666,13 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
 function update_thumbnails_per_observation_page(inst, proposal, observation, base_url, sort, group, targetDiv = "thumbnail-array") {
     let url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/';
 
+    console.log("Making AJAX request to:", base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/');
+
+
     $.ajax({
         url: url,
         success: function(data) {
+            console.log("AJAX success: Data received for obs:", observation, data);
             var num_thumbnails = Object.keys(data.file_data).length;
             update_show_count(num_thumbnails, 'activities');
 

@@ -315,6 +315,43 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     return JsonResponse(data, json_dumps_params={'indent': 2})
 
 
+def archive_thumbnails_all_observations(request, inst, proposal):
+    """Generate the page listing all archived images for all observations within a proposal."""
+
+    # Ensure proper instrument formatting
+    inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
+    proposal_meta = text_scrape(proposal)
+
+    # Get all observation numbers for the proposal
+    rootnames = get_rootnames_for_instrument_proposal(inst, proposal)
+    all_obs = []
+    for root in rootnames:
+        try:
+            all_obs.append(filename_parser(root)['observation'])
+        except KeyError:
+            pass
+
+    obs_list = sorted(list(set(all_obs)))
+
+    #obs_list = sorted(set(filename_parser(root)['observation'] for root in rootnames))
+
+    sort_type = request.session.get('image_sort', 'Recent')
+    group_type = request.session.get('image_group', 'Exposure')
+
+    template = 'thumbnails_all_obs.html'
+    context = {
+        'base_url': get_base_url(),
+        'inst': inst,
+        'prop': proposal,
+        'prop_meta': proposal_meta,
+        'obs_list': obs_list,
+        'sort': sort_type,
+        'group': group_type
+    }
+
+    return render(request, template, context)
+
+
 def archive_thumbnails_per_observation(request, inst, proposal, observation=None):
     """Generate the page listing all archived images in the database
     for a certain proposal

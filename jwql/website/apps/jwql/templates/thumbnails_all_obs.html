@@ -1,14 +1,10 @@
 {% extends "base.html" %}
 
 {% block preamble %}
-
-    <!-- Custom styles and scripts for this template -->
     <style type="text/css">
-        div#thumbnail-array { display: none; }
+        .thumbnail-array { display: none; }
     </style>
-
-    <title>Unlooked {{ inst }} Images - JWQL</title>
-
+    <title>Archived {{ inst }} Images - JWQL</title>
 {% endblock %}
 
 {% block content %}
@@ -16,16 +12,13 @@
 <main role="main" class="container">
 
     <hr>
-
-    <!-- Page title -->
     <h3 id='title'>{{ inst }} Images</h3>
     <script>determine_page_title('{{ inst }}', '{{ prop }}');</script>
 
-    <!-- Show Count -->
     <div id='img_show_count'></div>
     <hr>
 
-    <!-- Filter and sort options -->
+    <!-- Filter and Sort Options -->
     <div class="d-flex flex-row">
         <div class="mr-4" id="thumbnail-filter"></div>
     </div>
@@ -37,8 +30,6 @@
     </div>
 
     <hr>
-
-    <!-- Program Meta Information -->
     <h4 id='proposal_meta'> Proposal Information for {{ prop }}</h4>
     <div class="d-flex flex-row">
         <div class="column">
@@ -46,46 +37,41 @@
             <p><b>Program Status:</b> {{ prop_meta['ps']|safe }}</p>
             <p><b>Principal Investigator:</b> {{ prop_meta['pi'] }}</p>
         </div>
-        <div class="column" style="display: inline-block; text-align: right; width: 100%">
-            <p><b>Program Coordinator:</b> {{ prop_meta['pc']|safe }}</p>
+        <div class="column" style="text-align: right; width: 100%">
+            <p><b>Proposal Coordinator:</b> {{ prop_meta['pc'] }}</p>
             <p><b>Proposal Type:</b> {{ prop_meta['prop_type'] }}</p>
             <p><b>Phase Two:</b> {{ prop_meta['phase_two']|safe }}</p>
         </div>
     </div>
-
     <hr>
 
-    <!-- Loading animation -->
+
+    <!--Loading Animation-->
     <div id="loading">
         <div class="lds-css ng-scope">
             <div style="width:100%;height:100%" class="lds-magnify">
-                <div>
-                    <div>
-                        <div></div>
-                        <div></div>
-                    </div>
-                </div>
+                <div><div><div></div><div></div></div></div>
             </div>
             Loading ...
         </div>
     </div>
 
-    <!-- Display thumbnails for each observation -->
-    {% for observation_num in obs_list %}
-        <div class="observation-section">
-            <h5>Observation {{ observation_num }}</h5>
-            <div id='thumbnail-array-{{ observation }}' class="thumbnail-array" style="display: none;"></div>
-        </div>
+
+    <!-- Display Thumbnails for Each Observation -->
+    <p>Debug: obs_list = {{ obs_list }}</p>
+    {% for obs in obs_list %}
+        <h5>Observation {{ obs }}</h5>
+        <div id="thumbnail-array-{{ obs }}" class="thumbnail-array"></div>
     {% endfor %}
 
-    <a id="no_thumbnails_msg" style='display: none'>No data match the selected criteria.</a>
+    <a id="no_thumbnails_msg" style="display: none">No data match the selected criteria.</a>
 
 </main>
 
 <script>
-    {% for observation_num in obs_list %}
-        update_thumbnails_per_observation_page('{{ inst }}', '{{ prop }}', '{{ observation_num }}', '{{ base_url }}', '{{ sort }}', '{{ group }}', 'thumbnail-array-{{ observation_num }}');
-    {% endfor %}
+        {% for obs in obs_list %}
+                update_thumbnails_per_observation_page('{{ inst }}', '{{ prop }}', '{{ obs }}', '{{ base_url }}', '{{ sort }}', '{{ group }}', 'thumbnail-array-{{ obs }}');
+        {% endfor %}
 </script>
 
 {% endblock %}

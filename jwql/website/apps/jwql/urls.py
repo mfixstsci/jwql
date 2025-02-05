@@ -96,8 +96,13 @@ urlpatterns = [
     re_path(r'^(?P<inst>({}))/(?P<filename>.+)_(?P<filetype>.+)/header/'.format(instruments), views.view_header, name='view_header'),
     re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/obs(?P<observation>[\d]{{1,3}})/$'.format(instruments),
             views.archive_thumbnails_per_observation, name='archive_thumb_per_obs'),
-    re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_obs/$'.format(instruments),
-            views.archive_thumbnails_per_observation, name='archive_thumb_per_obs'),
+
+
+    re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_observations/$'.format(instruments),
+            views.archive_thumbnails_all_observations, name='archive_thumb_all_obs'),
+
+    #re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_obs/$'.format(instruments),
+    #        views.archive_thumbnails_per_observation, name='archive_thumb_per_obs'),
     re_path(r'^(?P<inst>({}))/exposure/(?P<group_root>[\w-]+)/$'.format(instruments), views.view_exposure, name='view_exposure'),
 
     # AJAX views

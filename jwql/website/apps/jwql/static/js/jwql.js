@@ -1259,7 +1259,7 @@ function update_obs_options(data, inst, prop, observation) {
     content += '<div class="dropdown">';
     content += '<button class="btn btn-primary dropdown-toggle" type="button" id="obs_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Obs' + observation + '</button>';
     content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
-    content += '<a class="dropdown-item" href="/' + inst + '/archive/' + prop + '/all_obs/" > All_Obs</a>';
+    content += '<a class="dropdown-item" href="/' + inst + '/archive/' + prop + '/all_observations/" > All Obs</a>';
     for (var i = 0; i < data.obs_list.length; i++) {
         content += '<a class="dropdown-item" href="/' + inst + '/archive/' + prop + '/obs' + data.obs_list[i] + '/" > Obs' + data.obs_list[i] + '</a>';
     }
@@ -1412,6 +1412,8 @@ function update_thumbnail_array(data) {
  * Updates the thumbnail-array div with interactive images of thumbnails
  * @param {Object} data - The data returned by the update_thumbnails_per_observation_page/update_thumbnails_query_page AJAX methods
  */
+/*
+THIS IS THE ORIGINAL VERSION
 function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
     var targetElement = document.getElementById(targetDiv);
 
@@ -1488,7 +1490,90 @@ function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
     // Insert the actual thumbnail images
     insert_thumbnail_images(image_updates);
 }
+*/
 
+
+/**
+ * Updates the thumbnail-array div with interactive images of thumbnails
+ * @param {Object} data - The data returned by the update_thumbnails_per_observation_page/update_thumbnails_query_page AJAX methods
+ */
+function update_thumbnail_array(data, targetDiv) {
+    var targetElement = document.getElementById(targetDiv);
+    if (!targetElement) {
+        console.error("Target element for thumbnails not found:", targetDiv);
+        console.log("Available elements:", document.querySelectorAll(".thumbnail-array"));
+        return;
+    }
+
+    var thumbnail_content = "";
+    var image_updates = [];
+
+    Object.keys(data.file_data).forEach((rootname, i) => {
+        var file = data.file_data[rootname];
+
+        // Extract relevant file properties
+        var viewed = file.viewed;
+        var exp_type = file.exp_type;
+        var filename_dict = file.filename_dict;
+        var filter_type = file.filter;
+        var pupil_type = file.pupil;
+        var grating_type = file.grating;
+        var observation_num = filename_dict.observation; // Extract observation number
+
+        // Determine the instrument name
+        var instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
+
+        // Build the thumbnail container
+        var content = `<div class="thumbnail"
+                          data-instrument="${instrument}"
+                          data-detector="${filename_dict.detector}"
+                          data-proposal="${filename_dict.program_id}"
+                          data-file_root="${rootname}"
+                          data-group_root="${filename_dict.group_root}"
+                          data-exp_start="${file.expstart}"
+                          data-look="${viewed}"
+                          data-exp_type="${exp_type}"
+                          data-visit="${filename_dict.visit}"
+                          data-filter="${filter_type}"
+                          data-pupil="${pupil_type}"
+                          data-grating="${grating_type}">`;
+
+        content += `<div class="thumbnail-group">
+                        <a class="thumbnail-link" href="/${instrument}/${rootname}/"
+                           data-image-href="/${instrument}/${rootname}/"
+                           data-group-href="/${instrument}/exposure/${filename_dict.group_root}">
+                            <span class="helper"></span>
+                            <img id="thumbnail${i}"
+                                 src="/static/img/default_thumb.png"
+                                 alt="Thumbnail for file ${rootname}">
+                            <div class="thumbnail-color-fill"></div>
+                            <div class="thumbnail-info">
+                                Proposal: ${filename_dict.program_id} <br>
+                                Observation: ${observation_num} <br>
+                                Visit: ${filename_dict.visit} <br>
+                                Detector: ${filename_dict.detector} <br>
+                                Exp_Start: ${file.expstart_iso} <br>
+                            </div>
+                        </a>
+                    </div>
+                </div>`;
+
+        // Append content
+        thumbnail_content += content;
+
+        // Store image paths for later updates
+        if (file.thumbnail !== 'none') {
+            var jpg_path = `/static/thumbnails/${filename_dict.program_id}/${file.thumbnail}`;
+            image_updates.push([i, jpg_path]);
+        }
+    });
+
+    // Insert thumbnails into the correct section
+    targetElement.innerHTML = thumbnail_content;
+
+    // Update the thumbnail images with correct sources
+    insert_thumbnail_images(image_updates);
+}
 
 
 
@@ -1511,6 +1596,7 @@ function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
  * @param {String} sort - Sort method string saved in session data image_sort
  * @param {String} group - Group method string saved in session data image_group
  */
+/*
 function update_thumbnails_per_observation_page(inst, proposal, observation, base_url, sort, group, targetDiv = "thumbnail-array") {
     observations.forEach(function(observation) {
         let targetDiv = "thumbnail-array-" + observation;  // Dynamically determine target div
@@ -1531,8 +1617,7 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             // If handling multiple observations, target the correct div dynamically
             var targetElement = document.getElementById(targetDiv);
             if (!targetElement) {
-                /* console.error("Target element for thumbnails not found:", targetDiv);
-                */
+                console.error("Target element for thumbnails not found:", targetDiv);
                 console.error("Target element for thumbnails not found. Checking DOM...");
                 console.log(document.body.innerHTML);  // Print the entire DOM for debugging
 
@@ -1557,6 +1642,71 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             document.getElementById("thumbnail-array").style.display = "block";
         }});
 }
+*/
+
+
+
+
+
+
+/**
+ * Updates various components on the thumbnails page
+ * @param {String} inst - The instrument of interest (e.g. "FGS")
+ * @param {String} proposal - The proposal number of interest (e.g. "88660")
+ * @param {String} observation - The observation number within the proposal (e.g. "001")
+ * @param {String} base_url - The base URL for gathering data from the AJAX view.
+ * @param {String} sort - Sort method string saved in session data image_sort
+ * @param {String} group - Group method string saved in session data image_group
+ */
+function update_thumbnails_per_observation_page(inst, proposal, observation, base_url, sort, group, targetDiv = "thumbnail-array") {
+    let url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/';
+
+    $.ajax({
+        url: url,
+        success: function(data) {
+            var num_thumbnails = Object.keys(data.file_data).length;
+            update_show_count(num_thumbnails, 'activities');
+
+            var targetElement = document.getElementById(targetDiv);
+            if (!targetElement) {
+                console.error("Target element for thumbnails not found:", targetDiv);
+                return;
+            }
+
+            targetElement.style.display = "block";
+            targetElement.innerHTML = ""; // Clear before updating
+
+            update_thumbnail_array(data, targetElement);
+            update_obs_options(data, inst, proposal, observation);
+            update_filter_options(data, base_url, 'thumbnail');
+            update_group_options(data, base_url);
+            update_sort_options(data, base_url);
+
+            group_by_thumbnails(group, base_url);
+            sort_by_thumbnails(sort, base_url);
+
+            document.getElementById("loading").style.display = "none";
+        },
+        error: function(xhr, status, error) {
+            console.error("Error fetching thumbnails:", error);
+        }
+    });
+}
+
+
+
+function waitForElement(selector, callback) {
+    var checkExist = setInterval(function() {
+        var element = document.getElementById(selector);
+        if (element) {
+            clearInterval(checkExist);
+            callback(element);
+        }
+    }, 100); // Check every 100ms
+}
+
+
+
 
 /**
  * Updates various components on the thumbnails anomaly query page

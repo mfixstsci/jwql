@@ -1529,39 +1529,31 @@ function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
         var instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
 
         // Build the thumbnail container
-        var content = `<div class="thumbnail"
-                          data-instrument="${instrument}"
-                          data-detector="${filename_dict.detector}"
-                          data-proposal="${filename_dict.program_id}"
-                          data-file_root="${rootname}"
-                          data-group_root="${filename_dict.group_root}"
-                          data-exp_start="${file.expstart}"
-                          data-look="${viewed}"
-                          data-exp_type="${exp_type}"
-                          data-visit="${filename_dict.visit}"
-                          data-filter="${filter_type}"
-                          data-pupil="${pupil_type}"
-                          data-grating="${grating_type}">`;
+        var content = '<div class="thumbnail" data-instrument="' + instrument +
+                      '" data-detector="' + filename_dict.detector + '" data-proposal="' + filename_dict.program_id +
+                      '" data-file_root="' + rootname + '" data-group_root="' + filename_dict.group_root +
+                      '" data-exp_start="' + file.expstart + '" data-look="' + viewed + '" data-exp_type="' + exp_type +
+                      '" data-visit="' + filename_dict.visit + '" data-filter="' + filter_type + '" data-pupil="' + pupil_type +
+                      '" data-grating="' + grating_type + '">';
 
-        content += `<div class="thumbnail-group">
-                        <a class="thumbnail-link" href="/${instrument}/${rootname}/"
-                           data-image-href="/${instrument}/${rootname}/"
-                           data-group-href="/${instrument}/exposure/${filename_dict.group_root}">
-                            <span class="helper"></span>
-                            <img id="thumbnail${i}"
-                                 src="/static/img/default_thumb.png"
-                                 alt="Thumbnail for file ${rootname}">
-                            <div class="thumbnail-color-fill"></div>
-                            <div class="thumbnail-info">
-                                Proposal: ${filename_dict.program_id} <br>
-                                Observation: ${observation_num} <br>
-                                Visit: ${filename_dict.visit} <br>
-                                Detector: ${filename_dict.detector} <br>
-                                Exp_Start: ${file.expstart_iso} <br>
-                            </div>
-                        </a>
-                    </div>
-                </div>`;
+        content += '<div class="thumbnail-group">'
+        content += '<a class="thumbnail-link" href="#" data-image-href="/' +
+                   instrument + '/' + rootname + '/" data-group-href="/' +
+                   instrument + '/exposure/' + filename_dict.group_root +  '">';
+        content += '<span class="helper"></span>'
+
+        // Make sure thumbnail img always has a src and alt
+        content += '<img id="thumbnail' + i +
+                   '" src="/static/img/default_thumb.png" ' +
+                   'alt="Thumbnail for file ' + rootname + '">';
+        content += '<div class="thumbnail-color-fill" ></div>';
+        content += '<div class="thumbnail-info">';
+        content += 'Proposal: ' + filename_dict.program_id + '<br>';
+        content += 'Observation: ' + filename_dict.observation + '<br>';
+        content += 'Visit: ' + filename_dict.visit + '<br>';
+        content += 'Detector: ' + filename_dict.detector + '<br>';
+        content += 'Exp_Start: ' + file.expstart_iso + '<br>';
+        content += '</div></a></div></div>';
 
         // Append content
         thumbnail_content += content;
@@ -1571,13 +1563,12 @@ function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
             // var jpg_path = `/static/thumbnails/${filename_dict.program_id}/${file.thumbnail}`;
             var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
             image_updates.push([i, jpg_path]);
-
-            image_updates.push([i, jpg_path]);
         }
     });
 
     // Insert thumbnails into the correct section
     targetElement.innerHTML = thumbnail_content;
+    //$("#thumbnail-array")[0].innerHTML = thumbnail_content;
 
     // Update the thumbnail images with correct sources
     insert_thumbnail_images(image_updates);

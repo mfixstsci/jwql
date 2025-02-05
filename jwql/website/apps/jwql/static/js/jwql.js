@@ -1497,7 +1497,7 @@ function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
  * Updates the thumbnail-array div with interactive images of thumbnails
  * @param {Object} data - The data returned by the update_thumbnails_per_observation_page/update_thumbnails_query_page AJAX methods
  */
-function update_thumbnail_array(data, targetDiv) {
+function update_thumbnail_array(data, targetDiv = "thumbnail-array") {
     var targetElement = document.getElementById(targetDiv);
     if (!targetElement) {
         console.error("Target div for thumbnails not found:", targetDiv);
@@ -1568,7 +1568,10 @@ function update_thumbnail_array(data, targetDiv) {
 
         // Store image paths for later updates
         if (file.thumbnail !== 'none') {
-            var jpg_path = `/static/thumbnails/${filename_dict.program_id}/${file.thumbnail}`;
+            // var jpg_path = `/static/thumbnails/${filename_dict.program_id}/${file.thumbnail}`;
+            var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
+            image_updates.push([i, jpg_path]);
+
             image_updates.push([i, jpg_path]);
         }
     });
@@ -1685,7 +1688,7 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             targetElement.style.display = "block";
             targetElement.innerHTML = ""; // Clear before updating
 
-            update_thumbnail_array(data, targetElement);
+            update_thumbnail_array(data, targetDiv);
             update_obs_options(data, inst, proposal, observation);
             update_filter_options(data, base_url, 'thumbnail');
             update_group_options(data, base_url);

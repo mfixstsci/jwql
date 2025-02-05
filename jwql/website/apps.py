@@ -28,3 +28,4 @@ class JwqlAppConfig(AppConfig):
         import jwql.website.apps.jwql.monitor_models.dark_current
         import jwql.website.apps.jwql.monitor_models.readnoise
         import jwql.website.apps.jwql.monitor_models.ta
+        import jwql.website.apps.jwql.monitor_models.wisp_finder

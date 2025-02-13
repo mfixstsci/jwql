@@ -114,7 +114,7 @@ urlpatterns = [
             views.explore_image_ajax, name='explore_image_ajax'),
     re_path(r'^ajax/(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/obs(?P<observation>[\d]{{1,3}})/$'.format(instruments),
             views.archive_thumbnails_ajax, name='archive_thumb_ajax'),
-    re_path(r'^ajax/(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_obs/$'.format(instruments),
+    re_path(r'^ajax/(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_observations/$'.format(instruments),
             views.archive_thumbnails_ajax, name='archive_thumb_ajax'),
     re_path(r'^ajax/viewed/(?P<file_root>.+)/$', views.toggle_viewed_ajax, name='toggle_viewed_ajax'),
     re_path(r'^ajax/viewed_group/(?P<group_root>.+)/(?P<status>(viewed|new|Viewed|New))/$',

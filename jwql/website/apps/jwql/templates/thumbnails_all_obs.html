@@ -58,6 +58,11 @@
 
 
     <!-- Display Thumbnails for Each Observation -->
+
+    <!-- Create hidden div for initial sorting -->
+    <div hidden id='thumbnail-array'></div>
+
+
     <p>Debug: obs_list = {{ obs_list }}</p>
     {% for obs in obs_list %}
         <h5>Observation {{ obs }}</h5>
@@ -69,9 +74,9 @@
 </main>
 
 <script>
-        {% for obs in obs_list %}
-                update_thumbnails_per_observation_page('{{ inst }}', '{{ prop }}', '{{ obs }}', '{{ base_url }}', '{{ sort }}', '{{ group }}', 'thumbnail-array-{{ obs }}');
-        {% endfor %}
+
+        update_thumbnails_all_observations_page('{{ inst }}', '{{ prop }}', '{{ base_url }}', '{{ sort }}', '{{ group }}', '{{ obs_list }}');
+
 </script>
 
 {% endblock %}

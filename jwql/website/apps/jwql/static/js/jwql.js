@@ -1254,10 +1254,15 @@ function update_header_display(extension, num_extensions) {
  * @param {List} obslist - List of observation number strings
  */
 function update_obs_options(data, inst, prop, observation) {
+    if (observation=='all') {
+        button_text = 'All Obs'
+    } else {
+        button_text = 'Obs'+observation
+    }
     // Build div content
     var content = 'Available obs:';
     content += '<div class="dropdown">';
-    content += '<button class="btn btn-primary dropdown-toggle" type="button" id="obs_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Obs' + observation + '</button>';
+    content += '<button class="btn btn-primary dropdown-toggle" type="button" id="obs_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + button_text + '</button>';
     content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
     content += '<a class="dropdown-item" href="/' + inst + '/archive/' + prop + '/all_observations/" > All Obs</a>';
     for (var i = 0; i < data.obs_list.length; i++) {
@@ -1698,6 +1703,85 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
 
 
 
+
+/**
+ * Updates various components on the thumbnails page
+ * @param {String} inst - The instrument of interest (e.g. "FGS")
+ * @param {String} proposal - The proposal number of interest (e.g. "88660")
+ * @param {String} base_url - The base URL for gathering data from the AJAX view.
+ * @param {String} sort - Sort method string saved in session data image_sort
+ * @param {String} group - Group method string saved in session data image_group
+ */
+function update_thumbnails_all_observations_page(inst, proposal, base_url, sort, group, obs_list) {
+    $.ajax({
+        url: base_url + '/ajax/' + inst + '/archive/' + proposal + '/' + 'all_observations/',
+        success: function(data){
+            console.log("AJAX success: Data received for all obs:", data);
+            var num_thumbnails = Object.keys(data.file_data).length;
+            update_show_count(num_thumbnails, 'activities');
+
+            // First, create dummy div with all thumbnails for all obs, so we can sort
+            var targetElement = document.getElementById("thumbnail-array");
+            if (!targetElement) {
+                console.error("Target element for thumbnails not found");
+                return;
+            }
+
+            targetElement.style.display = "block";
+            targetElement.innerHTML = ""; // Clear before updating
+
+            // Populate the dummy div with all thumbanail entries
+            update_thumbnail_array(data, 'thumbnail-array');
+
+            // Populate the text options for the drop down menus
+            update_obs_options(data, inst, proposal, 'all');
+            update_filter_options(data, base_url, 'thumbnail');
+            update_group_options(data, base_url);
+            update_sort_options(data, base_url);
+
+            // Group by exposure or file
+            group_by_thumbnails(group, base_url);
+
+            // Sort by desired property - this function hardwired to work on thumbnail-array div
+            sort_by_thumbnails(sort, base_url);
+
+            // Now split the thumbnails up into a separate div for each observation
+            // divs have already been created, in the html file prior to calling
+            // this script
+            var thumbs = $('div#thumbnail-array>div')
+            console.log(Object.keys(thumbs))
+            console.log(thumbs)
+            console.log(thumbs[10])
+            const type = typeof thumbs;
+            console.log(type)
+
+            thumbs.each(function () {
+                var groupRoot = $(this).data('group_root'); // Get the full filename root string
+                var obsNumber = groupRoot.substring(7, 10); // Extract characters at index 6 to 8 (7th-9th characters)
+                console.log('ObsNumber is '+obsNumber)
+
+                if (obsNumber) {
+                    var targetDiv = $('#thumbnail-array-' + obsNumber); // Find the corresponding target div
+
+                    if (targetDiv.length) {
+                        targetDiv.append(this); // Move the element into the correct div
+                    } else {
+                        console.warn('Target div not found for observation:', obsNumber);
+                    }
+                } else {
+                    console.warn('Missing data-group-root attribute for:', this);
+                }
+            });
+
+            document.getElementById("loading").style.display = "none";
+        },
+        error: function(xhr, status, error) {
+            console.error("Error fetching thumbnails:", error);
+        }
+    });
+}
+
+
 function waitForElement(selector, callback) {
     var checkExist = setInterval(function() {
         var element = document.getElementById(selector);
@@ -1707,8 +1791,6 @@ function waitForElement(selector, callback) {
         }
     }, 100); // Check every 100ms
 }
-
-
 
 
 /**

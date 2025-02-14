@@ -581,6 +581,9 @@ INSTRUMENT_SERVICE_MATCH = {
     "NIRSpec": "Mast.Jwst.Filtered.Nirspec",
 }
 
+# Database tables to exclude from the JWQLDB page
+JWQLDB_EXCLUDED = ['RootFileInfo', 'Archive', 'Observation']
+
 # JWST data products
 JWST_DATAPRODUCTS = [
     "IMAGE",

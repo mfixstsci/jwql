@@ -1166,13 +1166,13 @@ def save_page_navigation_data(request, data):
         when viewing an image, will the next/previous buttons be sorted by date? (the other option is rootname)
     """
     navigate_data = {}
-    #try:
-    #    for rootname in data['file_data']:
-    #        navigate_data[rootname] = data['file_data'][rootname]['expstart']
-    #except:
-    for obs in data['file_data']:
-        for rootname in data['file_data'][obs]['files']:
-            navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
+    try:
+        for rootname in data['file_data']:
+            navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    except:
+        for obs in data['file_data']:
+            for rootname in data['file_data'][obs]['files']:
+                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
 
     request.session['navigation_data'] = navigate_data
     return

@@ -581,25 +581,14 @@ function unhide_file(detector) {
  */
 function insert_thumbnail_images(updates) {
     // Update the thumbnail image source
-    console.log("Inserting thumbnail images...");
-
     if (updates.length === 0) {
         console.warn("No thumbnail images to insert!");
         return;
     }
 
-    updates.forEach(update => {
-        console.log("Thumbnail update:", update);
-    });
-
-
-
     for (var i = 0; i < updates.length; i++) {
         var thumb_id = updates[i][0];
         var jpg_path = updates[i][1];
-
-        console.log(`Updating thumbnail ${thumb_id} with path: ${jpg_path}`);
-
         set_thumbnail_image_source(thumb_id, jpg_path);
 
     }
@@ -620,9 +609,6 @@ function set_thumbnail_image_source(thumb_id, jpg_path) {
             console.error(`Thumbnail image element not found: thumbnail${thumb_id}`);
             return;
         }
-
-        console.log(`Setting image source for thumbnail${thumb_id}`);
-
 
         img.src = jpg_path;
     }).fail(function() {
@@ -1429,15 +1415,6 @@ function update_thumbnail_array_all_obs(data) {
     var thumbnail_content = "";
     var image_updates = [];
 
-    console.log('what is data:', data);
-
-    // CHECK FOR DEVELOPMENT ONLY: obs in this case is an integer
-    Object.keys(data.obs_list).forEach(obs => {
-        console.log('obs check is', obs);
-    });
-
-    console.log('obs_list is:', data.obs_list)
-
     //Object.keys(data.obs_list).forEach(obs => {
     Object.keys(data.file_data).forEach(obs => {
 
@@ -1448,18 +1425,10 @@ function update_thumbnail_array_all_obs(data) {
         thumbnail_content += `<div class='observation-group' data-obs='${obs}' data-exp_start='${obs_expstart}'>`;
         thumbnail_content += `<h4>Observation ${obs}</h4>`;
 
-        console.log('obs is', obs);
-
         Object.keys(data.file_data[obs]['files']).forEach((rootname, i) => {
-            console.log('CHECK: ', rootname)
-            console.log('CHECK2: ', data.file_data[obs]['files'][rootname])
-            console.log('CHECK3: ', data.file_data[obs]['files'][rootname].filename_dict.observation)
-
             let file = data.file_data[obs]['files'][rootname];
 
             // Extract metadata
-            //var rootname = file.rootname;
-
             let viewed = file.viewed;
             let exp_type = file.exp_type;
             let exp_time = file.expstart;  // Timestamp for sorting
@@ -1504,7 +1473,6 @@ function update_thumbnail_array_all_obs(data) {
             thumbnail_content += content;
             if (file.thumbnail !== 'none') {
                 var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
-                console.log(`Adding to image_updates: rootname=${rootname}, jpg_path=${jpg_path}`);
                 image_updates.push([`${obs}_${i}`, jpg_path]);
                 //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
             }
@@ -1598,7 +1566,6 @@ function update_thumbnail_array(data) {
  * @param {String} group - Group method string saved in session data image_group
  */
 function update_thumbnails_per_observation_page(inst, proposal, observation, base_url, sort, group) {
-    console.log('observation is: ', observation);
     if (observation !== 'all') {
         url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/'
     } else {
@@ -1612,12 +1579,8 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             //var num_thumbnails = Object.keys(data.file_data).length;
             var num_thumbnails = 0
             for (key in data.file_data) {
-                console.log('inside loop');
-                console.log(key)
-                console.log(data.file_data[key]);
                 num_thumbnails += Object.keys(data.file_data[key]['files']).length;
             }
-            console.log('num_thumbnails is:', num_thumbnails);
             update_show_count(num_thumbnails, 'activities');
             update_thumbnail_array_all_obs(data);
             update_obs_options(data, inst, proposal, observation);

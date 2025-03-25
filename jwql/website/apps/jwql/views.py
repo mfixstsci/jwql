@@ -84,7 +84,6 @@ from .data_containers import (
     random_404_page,
     text_scrape,
     thumbnails_ajax,
-    #thumbnails_ajax_all_obs,
     thumbnails_query_ajax,
 )
 from .forms import FileSearchForm, JwqlQueryForm
@@ -352,9 +351,9 @@ def archive_thumbnails_all_obs_ajax(request, inst, proposal, observation=None):
     return JsonResponse(data, json_dumps_params={'indent': 2})
 """
 
-
+"""
 def archive_thumbnails_all_observations(request, inst, proposal):
-    """Generate the page listing all archived images for all observations within a proposal.
+    Generate the page listing all archived images for all observations within a proposal.
 
 
     I think we can delete this, and use archive_thumbnails_per_observation below for the
@@ -362,7 +361,7 @@ def archive_thumbnails_all_observations(request, inst, proposal):
 
 
 
-    """
+
 
     # Ensure proper instrument formatting
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
@@ -394,7 +393,7 @@ def archive_thumbnails_all_observations(request, inst, proposal):
     }
 
     return render(request, template, context)
-
+"""
 
 def archive_thumbnails_per_observation(request, inst, proposal, observation=None):
     """Generate the page listing all archived images in the database
@@ -1167,13 +1166,13 @@ def save_page_navigation_data(request, data):
         when viewing an image, will the next/previous buttons be sorted by date? (the other option is rootname)
     """
     navigate_data = {}
-    try:
-        for rootname in data['file_data']:
-            navigate_data[rootname] = data['file_data'][rootname]['expstart']
-    except:
-        for obs in data['file_data']:
-            for rootname in data['file_data'][obs]['files']:
-                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
+    #try:
+    #    for rootname in data['file_data']:
+    #        navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    #except:
+    for obs in data['file_data']:
+        for rootname in data['file_data'][obs]['files']:
+            navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
 
     request.session['navigation_data'] = navigate_data
     return

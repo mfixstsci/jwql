@@ -872,17 +872,16 @@ function sort_by_proposals(sort_type) {
  * @param {String} sort_type - The sort type by file name
  * @param {String} base_url - The base URL for gathering data from the AJAX view.
  *
- * THIS IS THE ORIGINAL AND WORKS FOR SINGLE OBSERVATION PAGES
+ * This function is used to sort query page results
 */
-/*
 function sort_by_thumbnails(sort_type, base_url) {
     console.log("Sorting thumbnails by:", sort_type);
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
 
     // Sort the thumbnails accordingly.
-    // Note: Because thumbnails will sort relating to their current order (when the exp_start is the same between thumbnails), we need to do multiple sorts to guarantee consistency.
-
+    // Note: Because thumbnails will sort relating to their current order (when the exp_start is
+    //the same between thumbnails), we need to do multiple sorts to guarantee consistency.
     var thumbs = $('div#thumbnail-array>div')
     if (sort_type == 'Descending') {
         tinysort(thumbs, {attr:'data-file_root', order:'desc'});
@@ -904,9 +903,15 @@ function sort_by_thumbnails(sort_type, base_url) {
         }
     });
 }
+
+/**
+ * Sort thumbnail display on observation level page by a given sort type, save sort type
+ * in session for use in previous/next buttons
+ * @param {String} sort_type - The sort type by file name
+ * @param {String} base_url - The base URL for gathering data from the AJAX view.
+ *
+ * This function is used to sort thumbnails on observation level pages.
 */
-
-
 function sort_by_thumbnails_all_obs(sort_type, base_url) {
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
@@ -923,14 +928,16 @@ function sort_by_thumbnails_all_obs(sort_type, base_url) {
     }
 
     // Sort thumbnails within each observation group
+    // Note: Because thumbnails will sort relating to their current order (when the exp_start is
+    //the same between thumbnails), we need to do multiple sorts to guarantee consistency.
     obs_groups.each(function() {
         var thumbs = $(this).children('div.thumbnail');
         if (sort_type == 'Descending') {
             tinysort(thumbs, {attr: 'data-file_root', order:'desc' });
         } else if (sort_type === 'Recent') {
-            tinysort(thumbs, { attr: 'data-exp_start', order: 'desc' });
+            tinysort(thumbs, { attr: 'data-exp_start', order: 'desc' }, {attr:'data-file_root', order:'asc'});
         } else if (sort_type === "Oldest") {
-            tinysort(thumbs, { attr: 'data-exp_start', order: 'asc' });
+            tinysort(thumbs, { attr: 'data-exp_start', order: 'asc' }, {attr:'data-file_root', order:'asc'});
         } else {
             tinysort(thumbs, { attr: 'data-file_root', order: 'asc' });
         }
@@ -944,7 +951,7 @@ function sort_by_thumbnails_all_obs(sort_type, base_url) {
 }
 
 
-
+/*
 function sort_by_thumbnails(sort_type, base_url) {
     console.log("Sorting thumbnails by:", sort_type);
 
@@ -995,7 +1002,7 @@ function sort_by_thumbnails(sort_type, base_url) {
 
     console.log("Sorting complete.");
 }
-
+*/
 
 
 /*  not working, designed for multi-observation case but supposed to work for single obs case as well
@@ -1976,7 +1983,12 @@ function update_thumbnail_array_all_obs(data) {
 
 
 
-
+/**
+ * Updates the thumbnail-array div with interactive images of thumbnails
+ * @param {Object} data - The data returned by the update_thumbnails_per_observation_page/update_thumbnails_query_page AJAX methods
+ *
+ * This is used when working with query page results
+ */
 function update_thumbnail_array(data) {
 
     // Add content to the thumbnail array div
@@ -2340,8 +2352,15 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
  * @param {String} group - Group method string saved in session data image_group
  */
 function update_thumbnails_per_observation_page(inst, proposal, observation, base_url, sort, group) {
+    console.log('observation is: ', observation);
+    if (observation !== 'all') {
+        url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/'
+    } else {
+        url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/' + 'all_observations/'
+    }
+
     $.ajax({
-        url: base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/',
+        url: url,
         success: function(data){
             // Perform various updates to divs
             //var num_thumbnails = Object.keys(data.file_data).length;
@@ -2372,7 +2391,9 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
 
 
 
-
+/*
+I think we don't need this anymore, with update_thumbnails_per_observation_page able to handle
+both single and all observation pages
 function update_thumbnails_per_program_page(inst, proposal, base_url, sort, group) {
     $.ajax({
         url: base_url + '/ajax/' + inst + '/archive/' + proposal + '/' + 'all_observations/',
@@ -2404,7 +2425,7 @@ function update_thumbnails_per_program_page(inst, proposal, base_url, sort, grou
 
     });
 }
-
+*/
 
 /**
  * Updates various components on the thumbnails page

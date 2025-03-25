@@ -98,11 +98,14 @@ urlpatterns = [
             views.archive_thumbnails_per_observation, name='archive_thumb_per_obs'),
 
 
-    re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_observations/$'.format(instruments),
-            views.archive_thumbnails_all_observations, name='archive_thumb_all_obs'),
+    #re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_observations/$'.format(instruments),
+    #        views.archive_thumbnails_all_observations, name='archive_thumb_all_obs'),
 
-    #re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_obs/$'.format(instruments),
-    #        views.archive_thumbnails_per_observation, name='archive_thumb_per_obs'),
+
+    re_path(r'^(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_observations/$'.format(instruments),
+            views.archive_thumbnails_per_observation, name='archive_thumb_all_obs'),
+
+
     re_path(r'^(?P<inst>({}))/exposure/(?P<group_root>[\w-]+)/$'.format(instruments), views.view_exposure, name='view_exposure'),
 
     # AJAX views
@@ -112,10 +115,16 @@ urlpatterns = [
             name='explore_image_ajax'),
     re_path(r'^ajax/(?P<inst>({}))/(?P<file_root>.+)_(?P<filetype>.+)/explore_image/plot_(?P<line_plots>(true|false))/ext_(?P<ext_name>.+)/int1_(?P<int1_nr>.+)/grp1_(?P<grp1_nr>.+)/int2_(?P<int2_nr>.+)/grp2_(?P<grp2_nr>.+)/$'.format(instruments),
             views.explore_image_ajax, name='explore_image_ajax'),
+
+
+
     re_path(r'^ajax/(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/obs(?P<observation>[\d]{{1,3}})/$'.format(instruments),
             views.archive_thumbnails_ajax, name='archive_thumb_ajax'),
     re_path(r'^ajax/(?P<inst>({}))/archive/(?P<proposal>[\d]{{1,5}})/all_observations/$'.format(instruments),
             views.archive_thumbnails_ajax, name='archive_thumb_ajax'),
+
+
+
     re_path(r'^ajax/viewed/(?P<file_root>.+)/$', views.toggle_viewed_ajax, name='toggle_viewed_ajax'),
     re_path(r'^ajax/viewed_group/(?P<group_root>.+)/(?P<status>(viewed|new|Viewed|New))/$',
             views.set_viewed_ajax, name='set_viewed_ajax'),

@@ -84,6 +84,7 @@ from .data_containers import (
     random_404_page,
     text_scrape,
     thumbnails_ajax,
+    #thumbnails_ajax_all_obs,
     thumbnails_query_ajax,
 )
 from .forms import FileSearchForm, JwqlQueryForm
@@ -307,6 +308,7 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
+    # Create nested dictionary of information needed for the page
     data = thumbnails_ajax(inst, proposal, obs_num=observation)
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
@@ -314,9 +316,53 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     save_page_navigation_data(request, data)
     return JsonResponse(data, json_dumps_params={'indent': 2})
 
+"""
+def archive_thumbnails_all_obs_ajax(request, inst, proposal, observation=None):
+    Generate the page listing archived images by proposal.
+
+
+    SHOULD BE ABLE TO DELETE THIS
+
+
+
+    Parameters
+    ----------
+    request : HttpRequest object
+        Incoming request from the webpage
+    inst : str
+        Name of JWST instrument
+    proposal : str
+        Number of observing proposal
+    observation : str
+        Observation number within the proposal
+
+    Returns
+    -------
+    JsonResponse object
+        Outgoing response sent to the webpage
+
+    # Ensure the instrument is correctly capitalized
+    inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
+
+    data = thumbnails_ajax_all_obs(inst, proposal, obs_num=observation)
+    data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
+    data['thumbnail_group'] = request.session.get("image_group", "Exposure")
+
+    save_page_navigation_data(request, data)
+    return JsonResponse(data, json_dumps_params={'indent': 2})
+"""
+
 
 def archive_thumbnails_all_observations(request, inst, proposal):
-    """Generate the page listing all archived images for all observations within a proposal."""
+    """Generate the page listing all archived images for all observations within a proposal.
+
+
+    I think we can delete this, and use archive_thumbnails_per_observation below for the
+    all_obs case.
+
+
+
+    """
 
     # Ensure proper instrument formatting
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
@@ -333,14 +379,10 @@ def archive_thumbnails_all_observations(request, inst, proposal):
 
     obs_list = sorted(list(set(all_obs)))
 
-    #obs_list = sorted(set(filename_parser(root)['observation'] for root in rootnames))
-
-    print(f"DEBUG: obs_list = {obs_list}")
-
     sort_type = request.session.get('image_sort', 'Recent')
     group_type = request.session.get('image_group', 'Exposure')
 
-    template = 'thumbnails_all_obs.html'
+    template = 'thumbnails_all_obs_v2.html'
     context = {
         'base_url': get_base_url(),
         'inst': inst,
@@ -393,10 +435,13 @@ def archive_thumbnails_per_observation(request, inst, proposal, observation=None
 
     sort_type = request.session.get('image_sort', 'Recent')
     group_type = request.session.get('image_group', 'Exposure')
+
+    # Different templates for the single observation versus all observation cases
     template = 'thumbnails_per_obs.html'
     if observation is None:
         template = 'thumbnails_all_obs.html'
         observation = 'none'
+
     context = {'base_url': get_base_url(),
                'inst': inst,
                'obs': observation,
@@ -1122,8 +1167,13 @@ def save_page_navigation_data(request, data):
         when viewing an image, will the next/previous buttons be sorted by date? (the other option is rootname)
     """
     navigate_data = {}
-    for rootname in data['file_data']:
-        navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    try:
+        for rootname in data['file_data']:
+            navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    except:
+        for obs in data['file_data']:
+            for rootname in data['file_data'][obs]['files']:
+                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
 
     request.session['navigation_data'] = navigate_data
     return

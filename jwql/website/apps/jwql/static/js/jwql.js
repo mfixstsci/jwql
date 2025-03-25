@@ -604,7 +604,6 @@ function set_thumbnail_image_source(thumb_id, jpg_path) {
     $.get(jpg_path, function() {
         var img = document.getElementById('thumbnail' + thumb_id);
 
-
         if (!img) {
             console.error(`Thumbnail image element not found: thumbnail${thumb_id}`);
             return;
@@ -867,7 +866,7 @@ function sort_by_thumbnails(sort_type, base_url) {
 
     // Sort the thumbnails accordingly.
     // Note: Because thumbnails will sort relating to their current order (when the exp_start is
-    //the same between thumbnails), we need to do multiple sorts to guarantee consistency.
+    // the same between thumbnails), we need to do multiple sorts to guarantee consistency.
     var thumbs = $('div#thumbnail-array>div')
     if (sort_type == 'Descending') {
         tinysort(thumbs, {attr:'data-file_root', order:'desc'});
@@ -1596,17 +1595,6 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             document.getElementById("loading").style.display = "none";
             document.getElementById("thumbnail-array").style.display = "block";
         }});
-}
-
-
-function waitForElement(selector, callback) {
-    var checkExist = setInterval(function() {
-        var element = document.getElementById(selector);
-        if (element) {
-            clearInterval(checkExist);
-            callback(element);
-        }
-    }, 100); // Check every 100ms
 }
 
 

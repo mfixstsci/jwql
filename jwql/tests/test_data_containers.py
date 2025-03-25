@@ -654,6 +654,15 @@ def test_thumbnails_ajax():
 
     assert isinstance(thumbnail_dict, dict)
 
-    keys = ['inst', 'file_data', 'tools', 'dropdown_menus', 'prop']
+    keys = ['inst', 'file_data', 'tools', 'dropdown_menus', 'prop', 'obs_list', 'exp_groups']
     for key in keys:
         assert key in thumbnail_dict
+
+    file_data_keys = ['001', '002', '003', '004', '005', '006', '007']
+    for key in file_data_keys:
+        assert key in thumbnail_dict['file_data']
+
+    obs_keys = ['files', 'obs_exp_time']
+    for key in obs_keys:
+        assert key in thumbnail_dict['file_data']['007']
+

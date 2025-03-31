@@ -203,19 +203,20 @@ class PreviewImage():
         # Ignore any pixels that are NaN
         finite = np.isfinite(data)
 
-        # If all non-science pixels are NaN then we're sunk. Scale
+        # If all pixels are NaN then we're sunk. Scale
         # from 0 to 1.
         if not np.any(finite):
             logging.info('No pixels with finite signal. Scaling from 0 to 1')
             return (0., 1.)
 
         # Combine maps of science pixels and finite pixels
-        pixmap = self.dq & finite
+        # self.dq can have values of 1 (science pixel) or 0 (non-science pixel)
+        pixmap = (self.dq & finite > 0)
 
         # If all non-science pixels are NaN then we're sunk. Scale
         # from 0 to 1.
         if not np.any(pixmap):
-            logging.info('No pixels with finite signal. Scaling from 0 to 1')
+            logging.info('No good science pixels with finite signal. Scaling from 0 to 1')
             return (0., 1.)
 
         sorted_pix = np.sort(data[pixmap], axis=None)
@@ -347,6 +348,12 @@ class PreviewImage():
 
         if dq.shape != data.shape[-2:]:
             raise ValueError(f'DQ array does not have the same shape as the data in {filename}')
+
+        # In some cases (e.g. MIRI suabrray TA files) all pixels will be flagged as non-science.
+        # In cases where dq shows all non-science pixels, let's zero out the flags and use all
+        # the pixels for image scaling.
+        if np.sum(dq) == 0:
+            dq = np.ones(dq.shape, dtype=int)
 
         return data, dq
 
@@ -491,10 +498,6 @@ class PreviewImage():
                 format_string = "%.{}f".format(dig)
                 tlabelstr = [format_string % number for number in tlabelflt]
 
-                # This seems to correctly remove the ticks and labels we want to remove. It gives a warning that
-                # it doesn't work on log scales, which we don't care about. So let's ignore that warning.
-                warnings.filterwarnings("ignore", message="AutoMinorLocator does not work with logarithmic scale")
-
                 xyratio = xsize / ysize
                 if xyratio < 1.6:
                     # For apertures that are taller than they are wide, square, or that are wider than
@@ -517,7 +520,9 @@ class PreviewImage():
                                               ax.get_position().height
                                               ])
                     cbar = self.fig.colorbar(cax, cax=cbax, ticks=tickvals, orientation='vertical')
-                    cbar.ax.yaxis.set_minor_locator(AutoMinorLocator(n=0))
+
+                    if self.scaling == 'linear':
+                        cbar.ax.yaxis.set_minor_locator(AutoMinorLocator(n=0))
                     cbar.ax.set_yticklabels(tlabelstr)
                     cbar.ax.set_ylabel(self.units, labelpad=7, rotation=270)
                 else:
@@ -534,7 +539,8 @@ class PreviewImage():
                                               ax.get_position().width,
                                               cb_height])
                     cbar = self.fig.colorbar(cax, cax=cbax, ticks=tickvals, orientation='horizontal')
-                    cbar.ax.xaxis.set_minor_locator(AutoMinorLocator(n=0))
+                    if self.scaling == 'linear':
+                        cbar.ax.xaxis.set_minor_locator(AutoMinorLocator(n=0))
                     cbar.ax.set_xticklabels(tlabelstr)
                     cbar.ax.set_xlabel(self.units, labelpad=7, rotation=0)
 
@@ -555,7 +561,7 @@ class PreviewImage():
             plt.gca().invert_yaxis()
 
             if not thumbnail:
-                cbar = fig.colorbar(cax)
+                cbar = self.fig.colorbar(cax)
                 ax.set_xlabel('Pixels')
                 ax.set_ylabel('Pixels')
 
@@ -684,6 +690,20 @@ class PreviewImage():
         else:
             logging.info('\tSaved image to {}'.format(fname))
             self.thumbnail_filename = None
+
+    def set_scaling(self):
+        """Determine the scaling (e.g. log, linear) to use for the preview image.
+        NIRSpec WATA TA images and non-full-frame MIRI target acq images are set to linear,
+        while everything else is set to log.
+        """
+        header = fits.getheader(self.file)
+        self.scaling = 'log'
+        if ((header['EXP_TYPE'] == 'NRS_WATA') & (header['SUBSIZE1'] == 32) & (header['SUBSIZE2'] == 32)):
+            self.scaling = 'linear'
+        #if ((header['APERNAME'] in ['MIRIM_TA1550_CUR', 'MIRIM_TA1550_UR', 'MIRIM_TA1140_CUR', 'MIRIM_TA1065_CUR', 'MIRIM_TASLITLESSPRISM'])):
+        #    self.scaling = 'linear'
+        if ((header['EXP_TYPE'] == 'MIRI_TACQ') & (header['SUBARRAY'] != 'FULL')):
+            self.scaling = 'linear'
 
 
 def create_nir_nonsci_map():

@@ -51,7 +51,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa
 import matplotlib.colors as colors  # noqa
-from matplotlib.ticker import AutoMinorLocator, LogLocator  # noqa
+from matplotlib.ticker import AutoMinorLocator  # noqa
 
 if not ON_READTHEDOCS:
     from jwst.datamodels import dqflags

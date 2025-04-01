@@ -37,7 +37,6 @@ Use:
 import logging
 import os
 import socket
-import warnings
 
 from astropy.io import fits
 import numpy as np
@@ -672,7 +671,6 @@ class PreviewImage():
             True if saving a thumbnail image, false for the full
             preview image.
         """
-        warnings.filterwarnings("ignore", message="AutoMinorLocator does not work with logarithmic scale")
         plt.savefig(fname, bbox_inches='tight', pad_inches=0)
         permissions.set_permissions(fname)
 

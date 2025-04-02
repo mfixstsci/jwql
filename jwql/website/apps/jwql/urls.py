@@ -45,6 +45,7 @@ Notes
 
 from django.urls import path
 from django.urls import re_path
+from django.views.generic import TemplateView
 
 from . import api_views
 from . import monitor_views

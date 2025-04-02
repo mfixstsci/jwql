@@ -102,7 +102,7 @@ def filter_maker(level):
     return filter
 
 
-def configure_logging(module):
+def configure_logging(module, include_time=True):
     """
     Configure the log file with a standard logging format. The format in question is
     set up as follows:
@@ -116,11 +116,8 @@ def configure_logging(module):
     ----------
     module : str
         The name of the module being logged.
-    production_mode : bool
-        Whether or not the output should be written to the production
-        environement.
-    path : str
-        Where to write the log if user-supplied path; default to working dir.
+    include_time : bool, default True
+        Whether or not the file name should include the time as well as the date.
 
     Returns
     -------
@@ -129,7 +126,7 @@ def configure_logging(module):
     """
 
     # Determine log file location
-    log_file = make_log_file(module)
+    log_file = make_log_file(module, include_time=include_time)
 
     # Get the logging configuration dictionary
     logging_config = get_config()['logging']
@@ -171,7 +168,7 @@ def get_log_status(log_file):
         return 'FAILURE'
 
 
-def make_log_file(module):
+def make_log_file(module, include_time=True):
     """Create the log file name based on the module name.
 
     The name of the ``log_file`` is a combination of the name of the
@@ -181,12 +178,8 @@ def make_log_file(module):
     ----------
     module : str
         The name of the module being logged.
-    production_mode : bool
-        Whether or not the output should be written to the production
-        environment.
-    path : str
-        Where to write the log if user-supplied path; default to
-        working dir.
+    include_time : bool, default True
+        Whether or not the file name should include the time as well as the date.
 
     Returns
     -------
@@ -195,7 +188,10 @@ def make_log_file(module):
     """
 
     # Build filename
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
+    if include_time:
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
+    else:
+        timestamp = datetime.datetime.now().strftime('%Y-%m-%d')
     hostname = socket.gethostname()
     filename = '{0}_{1}_{2}.log'.format(module, hostname, timestamp)
 

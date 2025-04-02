@@ -22,7 +22,6 @@ from astroquery.mast import Mast, Observations
 import numpy as np
 from django import setup
 
-from jwql.database.database_interface import Monitor, engine
 from jwql.utils.constants import ASIC_TEMPLATES, JWST_DATAPRODUCTS, MAST_QUERY_LIMIT
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.logging_functions import configure_logging, get_log_status
@@ -41,6 +40,7 @@ if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
     setup()
     from jwql.website.apps.jwql.models import RootFileInfo
+    from jwql.website.apps.jwql.monitor_models.common import Monitor
 
 
 def exclude_asic_tuning(mast_results):
@@ -285,5 +285,5 @@ def update_monitor_table(module, start_time, log_file):
     new_entry['status'] = get_log_status(log_file)
     new_entry['log_file'] = os.path.basename(log_file)
 
-    with engine.begin() as connection:
-        connection.execute(Monitor.__table__.insert(), new_entry)
+    entry = Monitor(**new_entry)
+    entry.save()

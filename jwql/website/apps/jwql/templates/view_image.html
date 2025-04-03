@@ -148,7 +148,7 @@
 
             // Show the appropriate image
             var frame = document.getElementById("quickview");
-            var newURL = "https://jwqlquickview.stsci.edu?file=${file_path}";
+            var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
 

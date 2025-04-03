@@ -65,7 +65,7 @@
 	    </a><br>
 	    <form class="my-2">
 	    	{% for suffix in suffixes %}
-	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='change_filetype("{{suffix}}", "{{file_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}", {{file_paths}});'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
+	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='change_filetype("{{suffix}}", "{{file_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}", {{ file_paths | tojson | safe }});'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
 	    	{% endfor %}
 		</form>
 		<br>
@@ -82,7 +82,7 @@
 
             <!-- Display the image and integration buttons/slider -->
     	    <div class="col-xl-9 text-center">
-                <iframe id="quickview" height=auto width=1000rem src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
+                <iframe id="quickview" height=1200px width=1000rem src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
 
                 <div class="previous-next-buttons">
                     <span class="step-links">
@@ -145,13 +145,13 @@
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
         {% if 'rate' in suffixes %}
-            <script>change_filetype('rate', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{file_paths}});</script>
+            <script>change_filetype('rate', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{ file_paths | tojson | safe }});</script>
         {% elif 'dark' in suffixes %}
-            <script>change_filetype('dark', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{file_paths}});</script>
+            <script>change_filetype('dark', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{ file_paths | tojson | safe }});</script>
         {% elif 'uncal' in suffixes %}
-            <script>change_filetype('uncal', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{file_paths}});</script>
+            <script>change_filetype('uncal', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{ file_paths | tojson | safe }});</script>
         {% elif suffixes|length == 1 %}
-            <script>change_filetype('{{suffixes.0}}', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{file_paths}});</script>
+            <script>change_filetype('{{suffixes.0}}', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', {{ file_paths | tojson | safe }});</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

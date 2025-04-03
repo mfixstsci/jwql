@@ -94,7 +94,7 @@
  *                                filetype.
  * @param {String} inst - The instrument for the given file
  */
- function change_filetype(type, file_root, num_ints, available_ints, total_ints, inst) {
+ function change_filetype(type, file_root, num_ints, available_ints, total_ints, inst, paths) {
 
     // Change the radio button to check the right filetype
     document.getElementById(type).checked = true;
@@ -132,8 +132,7 @@
 
     // Show the appropriate image
     var frame = document.getElementById("quickview");
-    var file_path = "{{file_paths[type] | safe}}";
-    var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
+    var newURL = "https://jwqlquickview.stsci.edu?file=" + paths[type];
     frame.contentWindow.location.replace(newURL);
     frame.contentWindow.location.reload;
 

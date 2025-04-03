@@ -82,11 +82,7 @@
 
             <!-- Display the image and integration buttons/slider -->
     	    <div class="col-xl-9 text-center">
-    		    <span class="image_preview">
-    		    	<img class="image_preview_viewer" id="image_viewer"
-                         onerror="image_error(this, true);"
-                         title="Preview image for {{ file_root }}" width=1000rem height=auto>
-    		    </span>
+                <iframe id="quickview" height=auto width=1000rem src="/quickview/"></iframe>
 
                 <div class="int_changer">
                     <button id="int_before" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}", "{{available_ints}}", "button", "left");' disabled>&#9664;</button>

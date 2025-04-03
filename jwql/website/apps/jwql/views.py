@@ -1298,6 +1298,13 @@ def view_image(request, inst, file_root):
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
 
+    file_paths = {}
+    for file_path in image_info_list['all_files']:
+        for suffix in suffixes:
+            if f"{file_root}_{suffix}" in file_path:
+                if suffix not in file_paths:
+                    file_paths[suffix] = file_path
+
     anomaly_form = get_anomaly_form(request, inst, file_root)
     comment_form = get_comment_form(request, file_root)
 
@@ -1341,6 +1348,7 @@ def view_image(request, inst, file_root):
     # Build the context
     context = {'base_url': get_base_url(),
                'file_root_list': file_root_list,
+               'file_paths': file_paths,
                'inst': inst,
                'prop_id': prop_id,
                'obsnum': file_root[7:10],

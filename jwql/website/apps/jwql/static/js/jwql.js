@@ -131,12 +131,11 @@
          fits_filename + '.fits');
 
     // Show the appropriate image
-    var img = document.getElementById("image_viewer");
-    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
-    img.src = jpg_filepath;
-    img.alt = jpg_filepath;
-    // if previous image had error, remove error sizing
-    img.classList.remove("thumbnail");
+    var frame = document.getElementById("quickview");
+    var file_path = "{{file_paths[type] | safe}}";
+    var newURL = "/quickview/?file=" + file_path;
+    frame.contentWindow.location.replace(newURL);
+    frame.contentWindow.location.reload;
 
     // Reset the slider values
     reset_integration_slider(num_ints[type], total_ints[type])

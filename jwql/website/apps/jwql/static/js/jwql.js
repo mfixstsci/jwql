@@ -94,7 +94,7 @@
  *                                filetype.
  * @param {String} inst - The instrument for the given file
  */
- function change_filetype(type, file_root, num_ints, available_ints, total_ints, inst, paths) {
+ function change_filetype(type, file_root, num_ints, available_ints, total_ints, inst) {
 
     // Change the radio button to check the right filetype
     document.getElementById(type).checked = true;
@@ -129,12 +129,6 @@
      document.getElementById("fits_filename").setAttribute('href',
          'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
          fits_filename + '.fits');
-
-    // Show the appropriate image
-    var frame = document.getElementById("quickview");
-    var newURL = "https://jwqlquickview.stsci.edu?file=" + paths[type];
-    frame.contentWindow.location.replace(newURL);
-    frame.contentWindow.location.reload;
 
     // Reset the slider values
     reset_integration_slider(num_ints[type], total_ints[type])

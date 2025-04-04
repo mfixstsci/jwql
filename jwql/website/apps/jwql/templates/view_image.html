@@ -140,6 +140,13 @@
         
         <script>
         function handle_change(type, file_root, num_ints, available_ints, total_ints, inst) {
+            console.log("Type: " + type);
+            console.log("File Root: " + file_root);
+            console.log("Num Integrations: " + num_ints);
+            console.log("Available Integrations: " + available_ints);
+            console.log("Total Integrations: " + total_ints);
+            console.log("Instrument: " + inst);
+
             change_filetype(rate, file_root, num_ints, available_ints, total_ints, inst);            
 
             var type_dict = {{ file_paths | tojson | safe }};

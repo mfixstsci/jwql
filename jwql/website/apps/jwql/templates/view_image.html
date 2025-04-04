@@ -140,6 +140,8 @@
         
         <script>
         function handle_change(type, file_root, num_ints, available_ints, total_ints, inst) {
+            change_filetype(rate, file_root, num_ints, available_ints, total_ints, inst);            
+
             var type_dict = {{ file_paths | tojson | safe }};
             console.log(type_dict);
             console.log(type);
@@ -152,9 +154,7 @@
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
             
-            document.getElementById(type).checked = true;
-
-            change_filetype(rate, file_root, num_ints, available_ints, total_ints, inst);            
+            // document.getElementById(type).checked = true;
         }
         </script>
 

@@ -147,8 +147,6 @@
             console.log("Total Integrations: " + total_ints);
             console.log("Instrument: " + inst);
 
-            change_filetype(rate, file_root, num_ints, available_ints, total_ints, inst);            
-
             var type_dict = {{ file_paths | tojson | safe }};
             console.log(type_dict);
             console.log(type);
@@ -161,7 +159,42 @@
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
             
-            // document.getElementById(type).checked = true;
+            document.getElementById(type).checked = true;
+
+            // Store the currently displayed suffix
+            document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
+
+            // Clean the input parameters
+            num_ints = clean_input_parameter(num_ints);
+            num_ints = JSON.parse(num_ints);
+
+            // Get the available integration jpg numbers
+            available_ints = clean_input_parameter(available_ints);
+            available_ints = JSON.parse(available_ints)[type];
+
+            // Get the total number of integrations
+            total_ints = clean_input_parameter(total_ints);
+            total_ints = JSON.parse(total_ints);
+
+            // Propagate the text fields showing the filename and APT parameters
+            var fits_filename = file_root + '_' + type;
+            var parsed_name = parse_filename(file_root);
+
+            document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
+            document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
+            document.getElementById("proposal").innerHTML = parsed_name.proposal;
+            document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
+            document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
+            document.getElementById("detector").innerHTML = file_root.split('_')[3];
+
+            // Add a link to download the file from MAST
+            document.getElementById("fits_filename").setAttribute('href',
+                'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
+                fits_filename + '.fits');
+
+            // Update the image exploration and header links
+            document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
+            document.getElementById("explore_image").href = '/' + inst + '/' + file_root + '_' + type + '/explore_image/';
         }
         </script>
 

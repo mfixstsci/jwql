@@ -151,6 +151,8 @@
             var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
+            
+            document.getElementById(type).checked = true;
 
             change_filetype(rate, file_root, num_ints, available_ints, total_ints, inst);            
         }

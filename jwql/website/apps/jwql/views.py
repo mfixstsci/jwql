@@ -1308,7 +1308,7 @@ def view_image(request, inst, file_root, suffix=""):
             file_search = list(source_path.rglob(f"{file_root}*{suffix}*.fits"))
             if len(file_search) > 0:
                 if suffix not in file_paths:
-                    file_paths[suffix] = file_search[0]
+                    file_paths[suffix] = file_search[0].as_posix()
 
     anomaly_form = get_anomaly_form(request, inst, file_root)
     comment_form = get_comment_form(request, file_root)

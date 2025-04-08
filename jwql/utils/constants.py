@@ -552,7 +552,7 @@ GUIDER_SUFFIX_TYPES = [
 ]
 
 # JWQL should ignore some filetypes in the filesystem.
-IGNORED_SUFFIXES = ["original", "stream", "x1d", "x1dints", "c1d", "pre-image"]
+IGNORED_SUFFIXES = ["original", "stream", "x1d", "x1dints", "c1d", "pre-image", "ami"]
 
 # Instrument monitor database tables
 INSTRUMENT_MONITOR_DATABASE_TABLES = {

@@ -1321,7 +1321,7 @@ def view_image(request, inst, file_root, suffix=""):
     for file_path in image_info['all_files']:
         for suffix in suffixes:
             if f"{file_root}_{suffix}.fits" in file_path:
-                source_path = Path(file_path).parent.to_posix()
+                source_path = Path(file_path).parent.as_posix()
                 if suffix not in file_paths:
                     file_paths[suffix] = file_path
 

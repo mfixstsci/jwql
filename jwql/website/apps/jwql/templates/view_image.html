@@ -152,16 +152,19 @@
 
             // Propagate the text fields showing the filename and APT parameters
             var fits_filename = file_root + '_' + type;
-            if ((inst == "nis") && (type == "ami")) {
-                type = type + "-oi"
-            }
             var parsed_name = parse_filename(file_root);
 
             // Show the appropriate image
             var source_path = "{{ file_path }}";
             console.log("Source Path: " + source_path);
             var frame = document.getElementById("quickview");
-            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "/" + fits_filename + ".fits";
+            var source_file = fits_filename;
+            if (type == "ami") {
+                source_file = source_file + "-oi.fits";
+            } else {
+                source_file = source_file + ".fits";
+            }
+            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "/" + source_file;
             console.log("Frame loading: " + newURL);
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;

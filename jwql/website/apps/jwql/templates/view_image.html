@@ -150,11 +150,15 @@
             var file_path = type_dict[type];
             console.log(file_path);
 
+            // Propagate the text fields showing the filename and APT parameters
+            var fits_filename = file_root + '_' + type;
+            var parsed_name = parse_filename(file_root);
+
             // Show the appropriate image
             var source_path = "{{ file_path }}";
             console.log("Source Path: " + source_path);
             var frame = document.getElementById("quickview");
-            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "${file_root}_${type}.fits";
+            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "/" + fits_filename + ".fits";
             console.log("Frame loading: " + newURL);
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
@@ -163,10 +167,6 @@
 
             // Store the currently displayed suffix
             document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
-
-            // Propagate the text fields showing the filename and APT parameters
-            var fits_filename = file_root + '_' + type;
-            var parsed_name = parse_filename(file_root);
 
             document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
             document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';

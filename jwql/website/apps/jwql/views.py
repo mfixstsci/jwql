@@ -1301,14 +1301,14 @@ def view_image(request, inst, file_root, suffix=""):
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
 
-    source_path = ""
     file_paths = {}
     for file_path in image_info['all_files']:
+        source_path = Path(file_path).parent
         for suffix in suffixes:
-            if f"{file_root}_{suffix}.fits" in file_path:
-                source_path = Path(file_path).parent.as_posix()
+            file_search = list(source_path.rglob(f"{file_root}*{suffix}*.fits"))
+            if len(file_search) > 0:
                 if suffix not in file_paths:
-                    file_paths[suffix] = file_path
+                    file_paths[suffix] = file_search[0]
 
     anomaly_form = get_anomaly_form(request, inst, file_root)
     comment_form = get_comment_form(request, file_root)

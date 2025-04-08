@@ -155,16 +155,8 @@
             var parsed_name = parse_filename(file_root);
 
             // Show the appropriate image
-            var source_path = "{{ file_path }}";
-            console.log("Source Path: " + source_path);
             var frame = document.getElementById("quickview");
-            var source_file = fits_filename;
-            if (type == "ami") {
-                source_file = source_file + "-oi.fits";
-            } else {
-                source_file = source_file + ".fits";
-            }
-            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "/" + source_file;
+            var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
             console.log("Frame loading: " + newURL);
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;

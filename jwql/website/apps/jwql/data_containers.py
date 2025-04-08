@@ -584,8 +584,9 @@ def get_available_suffixes(all_suffixes, return_untracked=True):
     # that specifies the order to use, add them to the end of the
     # suffixes list. Their order will be random since they are not in
     # EXPOSURE_PAGE_SUFFIX_ORDER.
-    if len(untracked_suffixes) > 0:
-        suffixes.extend(untracked_suffixes)
+    for suffix in untracked_suffixes:
+        if suffix not in IGNORED_SUFFIXES:
+            suffixes.append(suffix)
 
     if return_untracked:
         return suffixes, untracked_suffixes

@@ -357,7 +357,7 @@ EXPOSURE_PAGE_SUFFIX_ORDER = [
     "psfsub",
     "amiavg",
     "aminorm",
-    "ami",
+#    "ami",
     "psf-amiavg",
     "phot",
     "whtlt",

@@ -154,7 +154,7 @@
             var source_path = "{{ file_path }}";
             console.log("Source Path: " + source_path);
             var frame = document.getElementById("quickview");
-            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "_" + type + ".fits";
+            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "${file_root}_${type}.fits";
             console.log("Frame loading: " + newURL);
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
@@ -192,8 +192,8 @@
             <script>update_viewed_button(false)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if initial_suffix != "" %}
-            <script>handle_change({{ initial_suffix }}, '{{file_root}}', '{{inst}}');</script>
+        {% if initial_suffix|length > 0 %}
+            <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}');</script>
         {% elif 'rate' in suffixes %}
             <script>handle_change('rate', '{{file_root}}', '{{inst}}');</script>
         {% elif 'dark' in suffixes %}

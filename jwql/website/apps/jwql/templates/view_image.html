@@ -151,7 +151,7 @@
             console.log(file_path);
 
             // Show the appropriate image
-            var source_path = {{ file_path }};
+            var source_path = "{{ file_path }}";
             console.log("Source Path: " + source_path);
             var frame = document.getElementById("quickview");
             var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "_" + type + ".fits";

@@ -65,7 +65,7 @@
 	    </a><br>
 	    <form class="my-2">
 	    	{% for suffix in suffixes %}
-	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='handle_change("{{suffix}}", "{{file_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
+	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='handle_change("{{suffix}}", "{{file_root}}", "{{inst}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
 	    	{% endfor %}
 		</form>
 		<br>
@@ -139,12 +139,9 @@
         </div>
         
         <script>
-        function handle_change(type, file_root, num_ints, available_ints, total_ints, inst) {
+        function handle_change(type, file_root, inst) {
             console.log("Type: " + type);
             console.log("File Root: " + file_root);
-            console.log("Num Integrations: " + num_ints);
-            console.log("Available Integrations: " + available_ints);
-            console.log("Total Integrations: " + total_ints);
             console.log("Instrument: " + inst);
 
             var type_dict = {{ file_paths | tojson | safe }};
@@ -154,8 +151,11 @@
             console.log(file_path);
 
             // Show the appropriate image
+            var source_path = {{ file_path }};
+            console.log("Source Path: " + source_path);
             var frame = document.getElementById("quickview");
-            var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
+            var newURL = "https://jwqlquickview.stsci.edu?file=" + source_path + "_" + type + ".fits";
+            console.log("Frame loading: " + newURL);
             frame.contentWindow.location.replace(newURL);
             frame.contentWindow.location.reload;
             
@@ -163,18 +163,6 @@
 
             // Store the currently displayed suffix
             document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
-
-            // Clean the input parameters
-            num_ints = clean_input_parameter(num_ints);
-            num_ints = JSON.parse(num_ints);
-
-            // Get the available integration jpg numbers
-            available_ints = clean_input_parameter(available_ints);
-            available_ints = JSON.parse(available_ints)[type];
-
-            // Get the total number of integrations
-            total_ints = clean_input_parameter(total_ints);
-            total_ints = JSON.parse(total_ints);
 
             // Propagate the text fields showing the filename and APT parameters
             var fits_filename = file_root + '_' + type;
@@ -204,14 +192,16 @@
             <script>update_viewed_button(false)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if 'rate' in suffixes %}
-            <script>handle_change('rate', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+        {% if initial_suffix != "" %}
+            <script>handle_change({{ initial_suffix }}, '{{file_root}}', '{{inst}}');</script>
+        {% elif 'rate' in suffixes %}
+            <script>handle_change('rate', '{{file_root}}', '{{inst}}');</script>
         {% elif 'dark' in suffixes %}
-            <script>handle_change('dark', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('dark', '{{file_root}}', '{{inst}}');</script>
         {% elif 'uncal' in suffixes %}
-            <script>handle_change('uncal', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('uncal', '{{file_root}}', '{{inst}}');</script>
         {% elif suffixes|length == 1 %}
-            <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}');</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

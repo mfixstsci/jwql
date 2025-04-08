@@ -49,6 +49,7 @@ import json
 import logging
 import operator
 import os
+from pathlib import Path
 import socket
 
 from astropy.time import Time
@@ -1216,6 +1217,20 @@ def view_exposure(request, inst, group_root):
         if other_group_root not in group_root_list:
             group_root_list.append(other_group_root)
 
+    # Create full path information sorted by group root and detector
+    file_paths = {}
+    for group_root in group_root_list:
+        for detector in sorted(image_info['detectors']):
+            prefix = f"{group_root}_{detector}"
+            for suffix in suffixes:
+                file_pattern = f"{prefix}_{suffix}.fits"
+                for file in image_info['all_files']:
+                    if file_pattern in file:
+                        if prefix not in file_paths:
+                            file_paths[prefix] = {}
+                        if suffix not in file_paths[prefix]:
+                            file_paths[prefix][suffix] = file_path
+
     # Get our current views RootFileInfo model and send our "viewed/new" information
     root_file_info = RootFileInfo.objects.filter(root_name__startswith=group_root)
     if len(root_file_info) == 0:
@@ -1239,6 +1254,7 @@ def view_exposure(request, inst, group_root):
     # Build the context
     context = {'base_url': get_base_url(),
                'group_root_list': group_root_list,
+               'file_paths': file_paths,
                'inst': inst,
                'prop_id': prop_id,
                'obsnum': obsnum,
@@ -1259,7 +1275,7 @@ def view_exposure(request, inst, group_root):
     return render(request, template, context)
 
 
-def view_image(request, inst, file_root):
+def view_image(request, inst, file_root, suffix=""):
     """Generate the image view page
 
     Parameters
@@ -1270,6 +1286,8 @@ def view_image(request, inst, file_root):
         Name of JWST instrument
     file_root : str
         FITS filename of selected image in filesystem
+    suffix : str, default ""
+        Suffix to start by loading (supplied from view_exposure)
 
     Returns
     -------
@@ -1298,10 +1316,12 @@ def view_image(request, inst, file_root):
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
 
+    source_path = ""
     file_paths = {}
     for file_path in image_info['all_files']:
         for suffix in suffixes:
             if f"{file_root}_{suffix}.fits" in file_path:
+                source_path = Path(file_path).parent.to_posix()
                 if suffix not in file_paths:
                     file_paths[suffix] = file_path
 
@@ -1347,6 +1367,8 @@ def view_image(request, inst, file_root):
 
     # Build the context
     context = {'base_url': get_base_url(),
+               'initial_suffix': suffix,
+               'file_path': source_path,
                'file_root_list': file_root_list,
                'file_paths': file_paths,
                'inst': inst,

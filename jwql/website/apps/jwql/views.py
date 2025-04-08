@@ -1217,20 +1217,6 @@ def view_exposure(request, inst, group_root):
         if other_group_root not in group_root_list:
             group_root_list.append(other_group_root)
 
-    # Create full path information sorted by group root and detector
-    file_paths = {}
-    for group_root in group_root_list:
-        for detector in sorted(image_info['detectors']):
-            prefix = f"{group_root}_{detector}"
-            for suffix in suffixes:
-                file_pattern = f"{prefix}_{suffix}.fits"
-                for file in image_info['all_files']:
-                    if file_pattern in file:
-                        if prefix not in file_paths:
-                            file_paths[prefix] = {}
-                        if suffix not in file_paths[prefix]:
-                            file_paths[prefix][suffix] = file_path
-
     # Get our current views RootFileInfo model and send our "viewed/new" information
     root_file_info = RootFileInfo.objects.filter(root_name__startswith=group_root)
     if len(root_file_info) == 0:
@@ -1254,7 +1240,6 @@ def view_exposure(request, inst, group_root):
     # Build the context
     context = {'base_url': get_base_url(),
                'group_root_list': group_root_list,
-               'file_paths': file_paths,
                'inst': inst,
                'prop_id': prop_id,
                'obsnum': obsnum,

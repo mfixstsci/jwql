@@ -152,6 +152,9 @@
 
             // Propagate the text fields showing the filename and APT parameters
             var fits_filename = file_root + '_' + type;
+            if ((inst == "nis") && (type == "ami")) {
+                type = type + "-oi"
+            }
             var parsed_name = parse_filename(file_root);
 
             // Show the appropriate image

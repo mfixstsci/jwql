@@ -169,4 +169,6 @@ CSRF_TRUSTED_ORIGINS = ['https://jwql.stsci.edu',
                         'https://jwql-test.stsci.edu',
                         'https://jwql-dev.stsci.edu',
                         'https://127.0.0.1',
-                        'http://dljwql.stsci.edu']
+                        'http://dljwql9.stsci.edu',
+                        'http://tljwql9.stsci.edu',
+                        'http://pljwql.stsci.edu']

@@ -52,7 +52,7 @@ from jwql.utils import permissions
 from jwql.utils.constants import FILE_AC_CAR_ID_LEN, FILE_AC_O_ID_LEN, FILE_ACT_LEN, \
     FILE_DATETIME_LEN, FILE_EPOCH_LEN, FILE_GUIDESTAR_ATTMPT_LEN_MIN, \
     FILE_GUIDESTAR_ATTMPT_LEN_MAX, FILE_OBS_LEN, FILE_PARALLEL_SEQ_ID_LEN, \
-    FILE_PROG_ID_LEN, FILE_SEG_LEN, FILE_SOURCE_ID_LEN, FILE_SUFFIX_TYPES, \
+    FILE_PROG_ID_LEN, FILE_SEG_LEN, FILE_SOURCE_ID_LEN, FILE_SOURCE_ID_LONG_LEN, FILE_SUFFIX_TYPES, \
     FILE_TARG_ID_LEN, FILE_VISIT_GRP_LEN, FILE_VISIT_LEN, FILETYPE_WO_STANDARD_SUFFIX, \
     JWST_INSTRUMENT_NAMES_SHORTHAND, ON_GITHUB_ACTIONS
 __location__ = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -457,6 +457,68 @@ def filename_parser(filename):
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
         r"_(?P<optical_elements>((?!_)[\w-])+)"
 
+    # Stage 3 WFSS filenames
+    # e.g. jw01076-o124_s000001220_nircam_f322w2-grismr_x1d.fits cal.fits c1d.fits
+    stage_3_wfss_source_id = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nircam|niriss|miri)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,7})"\
+
+    # NIRSpec IFU and MOS level 3 products
+    # e.g. jw09230-o004_t001_nirspec_g395h_f290lp_s3d.fits x1d.fits
+    stage_3_nirspec_ifu_mos = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>(nirspec))"\
+        r"_(?P<optical_elements>([a-zA-Z0-9]{4,6}_[a-zA-Z0-9]{4,6})+)"
+
+
+
+
+    '''
+
+
+    aspects of the returned dictionary that other parts of the code need:
+
+    1. get_proposal_info, thumbnails_ajax, forms, redirect_to_files, archive_thumbnails_per_observation - observation
+    2. view_exposure, thumbnails_query_ajax - group_root
+    3. get_image_info = suffix, filename_type, detector - HARDWIRED FOR LEVEL 2 filenames. won't work with level 3
+        called in explore_image (should be going away),
+        view_exposure for creating the exposure level page (only suffixes list is used)
+        and view_image for creating the image level page. (uses suffixes, num_ints, available_ints, total_ints)
+
+
+
+    4. gather_statistics - filename_type
+    '''
+
+    # Nirspec fixedslit
+    # e.g. jw01309-o022_s000000021_nirspec_f290lp-g395h-s200a1-allslits_cal.fits crf.fits s2d.fits x1d.fits
+    stage_3_nirspec_fixed_slit = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
+        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{4,8})"
+
+    # NIRCam imaging and coronagraphy level 3 subarray data
+    # e.g. jw01189-c1009_t006_nircam_f300m-maskrnd-sub320a335r_i2d.fits, jw01068-o002_t005_nircam_clear-f356w-sub320_i2d.fits
+    stage_3_subarray_based = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<target_id>t\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,})"\
+        r"-(?P<subarray>[\w]+)"
+
     # Stage 3 filenames with source ID and epoch
     # e.g. "jw80600-o009_s00001-epoch1_miri_f1130w_i2d.fits"
     stage_3_source_id_epoch = \
@@ -524,10 +586,14 @@ def filename_parser(filename):
         stage_1_and_2,
         stage_2c,
         stage_2_msa,
+        stage_3_subarray_based,
+        stage_3_wfss_source_id,
         stage_3_target_id,
         stage_3_source_id,
         stage_3_target_id_epoch,
         stage_3_source_id_epoch,
+        stage_3_nirspec_ifu_mos,
+        stage_3_nirspec_fixed_slit,
         time_series,
         time_series_2c,
         guider,
@@ -538,10 +604,14 @@ def filename_parser(filename):
         'stage_1_and_2',
         'stage_2c',
         'stage_2_msa',
+        'stage_3_subarray_based',
+        'stage_3_wfss_source_id',
         'stage_3_target_id',
         'stage_3_source_id',
         'stage_3_target_id_epoch',
         'stage_3_source_id_epoch',
+        'stage_3_nirspec_ifu_mos',
+        'stage_3_nirspec_fixed_slit',
         'time_series',
         'time_series_2c',
         'guider',

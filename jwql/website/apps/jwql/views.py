@@ -1283,21 +1283,24 @@ def view_image(request, inst, file_root, suffix=""):
     HttpResponse object
         Outgoing response sent to the webpage
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.info(f"Running through view_image() for {inst} {file_root} suffix={suffix}")
 
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
     template = 'view_image.html'
     image_info = get_image_info(file_root)
+    logging.info(f"image_info: {image_info}")
 
     # Put suffixes in a consistent order. Check if any of the
     # suffixes are not in the list that specifies order.
+    logging.info(f"Initial set of suffixes: {image_info['suffixes']}")
     suffixes, untracked_suffixes = get_available_suffixes(
         image_info['suffixes'], return_untracked=True)
+    logging.info(f"Final suffixes: {suffixes}")
 
     if len(untracked_suffixes) > 0:
-        module = os.path.basename(__file__).strip('.py')
-        monitor_utils.initialize_instrument_monitor(module)
         logging.warning((f'In view_image(), for {inst}, {file_root}, '
                          f'the following suffixes are present in the data, '
                          f'but not in EXPOSURE_PAGE_SUFFIX_ORDER in '
@@ -1307,11 +1310,14 @@ def view_image(request, inst, file_root, suffix=""):
 
     file_paths = {}
     for file_path in image_info['all_files']:
+        logging.info(f"Checking input file {file_path}")
         source_path = Path(file_path).parent
         for suffix in suffixes:
+            logging.info(f"\tChecking suffix {suffix}")
             file_search = list(source_path.rglob(f"{file_root}*_{suffix}.fits"))
             if len(file_search) > 0:
                 if suffix not in file_paths:
+                    logging.info(f"\tAdding {suffix} to file paths")
                     file_paths[suffix] = file_search[0].as_posix()
 
     anomaly_form = get_anomaly_form(request, inst, file_root)

@@ -1383,6 +1383,8 @@ def get_image_info(file_root):
         A dictionary containing various information for the given
         ``file_root``.
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.info(f"Getting image info for {file_root}")
 
     # Initialize dictionary to store information
     image_info = {}
@@ -1403,10 +1405,12 @@ def get_image_info(file_root):
         os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
                      observation_dir, '{}*.fits'.format(file_root))))
 
+    logging.info(f"Files before filtering: {filenames}")
     # Certain suffixes are always ignored
     filenames = [filename for filename in filenames
                  if os.path.splitext(filename)[0].split('_')[-1]
                  not in IGNORED_SUFFIXES]
+    logging.info(f"Files after filtering: {filenames}")
     image_info['all_files'] = filenames
 
     # Determine the jpg directory
@@ -1414,6 +1418,7 @@ def get_image_info(file_root):
     jpg_dir = os.path.join(prev_img_filesys, proposal_dir)
 
     for filename in image_info['all_files']:
+        logging.info(f"Checking file {filename}")
 
         parsed_fn = filename_parser(filename)
 
@@ -1425,6 +1430,7 @@ def get_image_info(file_root):
             logging.warning((f'While running get_image_info() on {filename}, the '
                              'filename_parser() failed to recognize the file pattern.'))
             continue
+        logging.info(f"\tGot suffix {suffix}")
 
         # For crf or crfints suffixes, we need to also include the association value
         # in the suffix, so that preview images can be found later.

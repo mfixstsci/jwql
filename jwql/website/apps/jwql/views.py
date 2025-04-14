@@ -1309,7 +1309,7 @@ def view_image(request, inst, file_root, suffix=""):
     for file_path in image_info['all_files']:
         source_path = Path(file_path).parent
         for suffix in suffixes:
-            file_search = list(source_path.rglob(f"{file_root}*_{suffix}*.fits"))
+            file_search = list(source_path.rglob(f"{file_root}*_{suffix}.fits"))
             if len(file_search) > 0:
                 if suffix not in file_paths:
                     file_paths[suffix] = file_search[0].as_posix()

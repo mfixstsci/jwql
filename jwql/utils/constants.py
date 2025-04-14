@@ -500,6 +500,7 @@ FULL_FRAME_APERTURES = {
 # Possible suffix types for nominal files
 GENERIC_SUFFIX_TYPES = [
     "uncal",
+    "calints",
     "cal",
     "rateints",
     "rate",

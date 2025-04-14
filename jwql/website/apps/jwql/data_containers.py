@@ -71,6 +71,7 @@ from jwql.utils.constants import (
     QueryConfigKeys,
 )
 from jwql.utils.credentials import get_mast_token
+from jwql.utils.logging_functions import configure_logging
 from jwql.utils.permissions import set_permissions
 from jwql.utils.utils import (
     check_config_for_key,
@@ -1900,6 +1901,8 @@ def get_thumbnail_by_rootname(rootname):
     thumbnail_basename : str
         A thumbnail_basename available in the filesystem for the given ``rootname``.
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.info(f"Getting thumbnails for {rootname}")
 
     proposal = rootname.split('_')[0].split('jw')[-1][0:5]
     thumbnails = sorted(glob.glob(os.path.join(
@@ -2123,6 +2126,8 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     data_dict : dict
         Dictionary of data needed for the ``thumbnails`` template
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.info(f"Collecting thumbnails for {inst} {proposal} {obs_num}")
     # generate the list of all obs of the proposal here, so that the list can be
     # properly packaged up and sent to the js scripts. but to do this, we need to call
     # get_rootnames_for_instrument_proposal, which is largely repeating the work done by
@@ -2130,28 +2135,37 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # filter results by obs_num after the call and after obs_list is created.
     # But we need the filename list below...hmmm...so maybe we need to do both
     all_rootnames = get_rootnames_for_instrument_proposal(inst, proposal)
+    logging.info(f"Associated roots are {all_rootnames}")
     all_obs = []
     for root in all_rootnames:
-        # Wrap in try/except because level 3 rootnames won't have an observation
-        # number returned by the filename_parser. That's fine, we're not interested
-        # in those files anyway.
-        file_info = filename_parser(root)
-        if file_info['recognized_filename']:
-            try:
-                all_obs.append(file_info['observation'])
-            except KeyError:
-                pass
-        else:
-            logging.warning((f'While running thumbnails_ajax() on root {root}, '
-                             'filename_parser() failed to recognize the file pattern.'))
+        logging.info(f"Collecting info for {root}")
+        try:
+            # Wrap in try/except because level 3 rootnames won't have an observation
+            # number returned by the filename_parser. That's fine, we're not interested
+            # in those files anyway.
+            file_info = filename_parser(root)
+            if file_info['recognized_filename']:
+                try:
+                    all_obs.append(file_info['observation'])
+                except KeyError:
+                    pass
+            else:
+                logging.warning((f'While running thumbnails_ajax() on root {root}, '
+                                 'filename_parser() failed to recognize the file pattern.'))
+        except Exception as e:
+            logging.warning(f"{root} failed filename parser with {e}")
 
     obs_list = sorted(list(set(all_obs)))
 
     # Get the available files for the instrument
-    filenames, columns = get_filenames_by_instrument(inst, proposal, observation_id=obs_num, other_columns=['expstart', 'exp_type'])
+    filenames, columns = get_filenames_by_instrument(
+        inst, proposal, observation_id=obs_num, other_columns=['expstart', 'exp_type']
+    )
+    logging.info(f"filenames are {filenames}")
 
     # Get set of unique rootnames
     rootnames = set(['_'.join(f.split('/')[-1].split('_')[:-1]) for f in filenames])
+    logging.info(f"rootnames are {rootnames}")
 
     # Initialize dictionary that will contain all needed data
     data_dict = {'inst': inst,
@@ -2162,6 +2176,7 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # Gather data for each rootname, and construct a list of all observations
     # in the proposal
     for rootname in rootnames:
+        logging.info(f"Gathering data for {rootname}")
         # Skip over unsupported filenames
         # e.g. jw02279-o001_s000... are spec2 products for WFSS with one file per source
         # Any filename with a dash after the proposal number is either this spec2 product

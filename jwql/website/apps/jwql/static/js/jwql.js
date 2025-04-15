@@ -1464,7 +1464,7 @@ function update_thumbnails_query_page(base_url, page) {
  * Construct the URL for viewing/exploring a selected image on the exposure page
  */
 function update_view_explore_link() {
-    var types = ['header', 'explore_image'];
+    var types = ['header'];
     for (var i = 0; i < types.length; i++) {
         var type = types[i];
         var file_selected = document.getElementById('fits_file_select');

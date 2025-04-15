@@ -1264,7 +1264,7 @@ def view_exposure(request, inst, group_root):
     return render(request, template, context)
 
 
-def view_image(request, inst, file_root, suffix=""):
+def view_image(request, inst, file_root):
     """Generate the image view page
 
     Parameters
@@ -1283,6 +1283,7 @@ def view_image(request, inst, file_root, suffix=""):
     HttpResponse object
         Outgoing response sent to the webpage
     """
+    suffix = request.POST.get("suffix")
     log_file = configure_logging("django", include_time=False)
     logging.info(f"Running through view_image() for {inst} {file_root} suffix={suffix}")
 

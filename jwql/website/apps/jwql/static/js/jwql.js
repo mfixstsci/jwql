@@ -25,7 +25,7 @@
  *                                filetype.
  * @param {String} inst - The instrument for the given file
  */
- function change_all_filetypes(type, group_root, num_ints, available_ints, total_ints, inst, detectors) {
+ function change_all_filetypes(type, group_root, num_ints, available_ints, total_ints, inst, detectors, base_url) {
 
     // Change the radio button to check the right filetype
     document.getElementById(type).checked = true;
@@ -51,8 +51,6 @@
     document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
     
-    var base_url = {{ base_url }};
-
     var detector_list = detectors.split(',');
     for (let i = 0; i < detector_list.length; i++) {
         var detector = detector_list[i];

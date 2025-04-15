@@ -81,7 +81,7 @@
 	    <form class="my-2">
 	    	{% for suffix in suffixes %}
 	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}"
-                       onclick='change_all_filetypes("{{suffix}}", "{{group_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}", "{{detectors|join(",")}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
+                       onclick='change_all_filetypes("{{suffix}}", "{{group_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}", "{{detectors|join(",")}}", "{{base_url}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
 	    	{% endfor %}
 		</form>
 		<br>
@@ -273,13 +273,13 @@
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
         {% if 'rate' in suffixes %}
-            <script>change_all_filetypes('rate', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('rate', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'dark' in suffixes %}
-            <script>change_all_filetypes('dark', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('dark', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'uncal' in suffixes %}
-            <script>change_all_filetypes('uncal', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('uncal', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif suffixes|length == 1 %}
-            <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

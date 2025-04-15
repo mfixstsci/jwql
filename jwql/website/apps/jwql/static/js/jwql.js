@@ -50,6 +50,8 @@
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
     document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
+    
+    var base_url = {{ base_url }};
 
     var detector_list = detectors.split(',');
     for (let i = 0; i < detector_list.length; i++) {
@@ -66,6 +68,14 @@
                            '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
         img.src = jpg_filepath;
         img.alt = jpg_filepath;
+        
+        var main_link = document.getElementById(detector + "_view");
+        var new_url = base_url + "/" + inst + "/" + group_root + "/" + detector + "/" + type;
+        main_link.setAttribute('href', new_url);
+
+        var fallback_link = document.getElementById(detector + "_view_fallback");
+        var new_url = base_url + "/" + inst + "/" + group_root + "/" + detector + "/" + type;
+        fallback_link.setAttribute('href', new_url);
 
         // Show/hide the viewer as appropriate
         show_viewer(detector, jpg_filepath);
@@ -135,7 +145,6 @@
 
     // Update the image exploration and header links
     document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
-    document.getElementById("explore_image").href = '/' + inst + '/' + file_root + '_' + type + '/explore_image/';
 }
 
 

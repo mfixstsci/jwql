@@ -68,11 +68,11 @@
         img.alt = jpg_filepath;
         
         var main_link = document.getElementById("view_" + detector);
-        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "/" + type;
+        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "_suffix_" + type;
         main_link.setAttribute('href', new_url);
 
         var fallback_link = document.getElementById("view_" + detector + "_fallback");
-        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "/" + type;
+        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "_suffix_" + type;
         fallback_link.setAttribute('href', new_url);
 
         // Show/hide the viewer as appropriate

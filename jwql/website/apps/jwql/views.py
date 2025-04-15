@@ -1283,8 +1283,13 @@ def view_image(request, inst, file_root):
     HttpResponse object
         Outgoing response sent to the webpage
     """
+    default_suffix = ""
+    if "_suffix_" in file_root:
+        file_bits = file_root.split("_")
+        file_root = "_".join(file_bits[:-2])
+        default_suffix = file_bits[-1]
     log_file = configure_logging("django", include_time=False)
-    logging.info(f"Running through view_image() for {inst} {file_root}")
+    logging.info(f"Running through view_image() for {inst} {file_root} {default_suffix}")
 
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
@@ -1362,7 +1367,7 @@ def view_image(request, inst, file_root):
 
     # Build the context
     context = {'base_url': get_base_url(),
-               'initial_suffix': suffix,
+               'initial_suffix': default_suffix,
                'file_path': source_path,
                'file_root_list': file_root_list,
                'file_paths': file_paths,

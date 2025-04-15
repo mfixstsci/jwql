@@ -73,7 +73,7 @@
 		<!-- Buttons for viewing header, downloading files -->
         <p>
             <a id="view_header" class="btn btn-primary mx-2" role="button" href="#">View Header</a>
-            <a id="explore_image" class="btn btn-primary mx-2" role="button" href="#">Explore Image</a>
+            <a id="view_exposure" class="btn btn-primary mx-2" role="button" href="#">View Exposure</a>
             <!-- <a id="download_fits" class="btn btn-primary my-2 mx-2" role="button" href='{{ static("") }}preview_images/{{ file_root[:7] }}/{{ file_root }}' download>Download FITS</a>
             <a id="download_jpg" class="btn btn-primary my-2 mx-2" role="button" href='{{ static("") }}preview_images/{{ file_root[:7] }}/{{ jpg }}' download>Download JPEG</a> -->
         </p>
@@ -177,9 +177,13 @@
                 'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
                 fits_filename + '.fits');
 
+            var exposure_array = file_root.split("_");
+            exposure_array.pop();
+            var exposure_str = exposure_array.join("_");
+
             // Update the image exploration and header links
             document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
-            document.getElementById("explore_image").href = '/' + inst + '/' + file_root + '_' + type + '/explore_image/';
+            document.getElementById("view_exposure").href = '/' + inst + '/' + exposure_str;
         }
         </script>
 

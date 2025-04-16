@@ -865,7 +865,7 @@ def view_header(request, inst, filename, filetype):
                'filename': filename,
                'file_root': file_root,
                'file_type': filetype,
-               'extended_root': f"{file_root}_suffix_{file_type}",
+               'extended_root': f"{file_root}_suffix_{filetype}",
                'header_info': get_header_info(filename, filetype)}
 
     return render(request, template, context)

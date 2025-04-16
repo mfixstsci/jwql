@@ -1292,9 +1292,9 @@ def view_image(request, inst, file_root):
     log_file = configure_logging("django", include_time=False)
     logging.info(f"Running through view_image() for {inst} {file_root} {default_suffix}")
 
-    logging.info("Checking Request Object")
-    logging.info(f"POST: {request.POST}")
-    logging.info(f"GET: {request.GET}")
+    if "suffix" in request.GET:
+        default_suffix = request.GET["suffix"][0]
+        logging.info(f"Setting suffix via request object to {default_suffix}")
 
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]

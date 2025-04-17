@@ -1265,7 +1265,7 @@ def view_exposure(request, inst, group_root):
     return render(request, template, context)
 
 
-def view_image(request, inst, file_root):
+def view_image(request, inst, file_root, initial_suffix=None):
     """Generate the image view page
 
     Parameters
@@ -1276,7 +1276,7 @@ def view_image(request, inst, file_root):
         Name of JWST instrument
     file_root : str
         FITS filename of selected image in filesystem
-    suffix : str, default ""
+    initial_suffix : str, default ""
         Suffix to start by loading (supplied from view_exposure)
 
     Returns
@@ -1284,17 +1284,29 @@ def view_image(request, inst, file_root):
     HttpResponse object
         Outgoing response sent to the webpage
     """
-    default_suffix = ""
+    url_suffix = None
     if "_suffix_" in file_root:
         file_bits = file_root.split("_")
         file_root = "_".join(file_bits[:-2])
-        default_suffix = file_bits[-1]
+        url_suffix = file_bits[-1]
     log_file = configure_logging("django", include_time=False)
-    logging.info(f"Running through view_image() for {inst} {file_root} {default_suffix}")
+    logging.info(f"Running through view_image() for {inst} {file_root}")
 
+    request_suffix = None
     if "suffix" in request.GET:
-        default_suffix = request.GET["suffix"]
-        logging.info(f"Setting suffix via request object to {default_suffix}")
+        request_suffix = request.GET["suffix"]
+
+    if initial_suffix is not None:
+        logging.info(f"Setting suffix via initial suffix to {initial_suffix}")
+        default_suffix = initial_suffix
+    elif request_suffix is not None:
+        logging.info(f"Setting suffix via request object to {request_suffix}")
+        default_suffix = request_suffix
+    elif url_suffix is not None:
+        logging.info(f"Setting suffix via URL apped to {url_suffix}")
+        default_suffix = url_suffix
+    else:
+        default_suffix = ""
 
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]

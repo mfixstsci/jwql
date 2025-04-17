@@ -186,7 +186,7 @@
             document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str;
             
             var file_root_list = {{ file_root_list | tojson | safe }};
-            var index = int({{ index }});
+            var index = Number({{ index }});
             document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + '/?suffix=' + type;
             document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + '/?suffix=' + type;
         }

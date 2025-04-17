@@ -12,7 +12,7 @@
     	<h4>{{ filename }}_{{file_type}}</h4><h>
 
     	<p>
-            <a class="btn btn-primary my-2 mx-2" role="button" href={{ url('jwql:view_image', args=[inst, file_root, file_type]) }}>View Image</a>
+            <a class="btn btn-primary my-2 mx-2" role="button" href="/{{inst}}/{{file_root}}?suffix={{file_type}}">View Image</a>
             <a class="btn btn-primary my-2 mx-2" role="button" href={{ url('jwql:archive_thumb_per_obs', args=[inst, file_root[2:7], file_root[7:10]]) }}> View Proposal</a>
 	    </p>
 

@@ -1293,7 +1293,7 @@ def view_image(request, inst, file_root):
     logging.info(f"Running through view_image() for {inst} {file_root} {default_suffix}")
 
     if "suffix" in request.GET:
-        default_suffix = request.GET["suffix"][0]
+        default_suffix = request.GET["suffix"]
         logging.info(f"Setting suffix via request object to {default_suffix}")
 
     # Ensure the instrument is correctly capitalized

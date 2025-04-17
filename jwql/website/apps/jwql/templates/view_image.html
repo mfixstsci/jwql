@@ -89,11 +89,11 @@
                         {% if file_root in file_root_list %}
                             {% set index = file_root_list.index(file_root) %}
                             {% if index != 0 %}
-                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
+                                <a id="prev_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
                             {% endif %}
 
                             {% if index != file_root_list|length - 1 %}
-                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
+                                <a id="next_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
                             {% endif %}
                         {% endif %}
                     </span>
@@ -184,6 +184,11 @@
             // Update the image exploration and header links
             document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
             document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str;
+            
+            var file_root_list = {{ file_root_list | tojson | safe }};
+            var index = int({{ index }});
+            document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + '/?suffix=' + type;
+            document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + '/?suffix=' + type;
         }
         </script>
 

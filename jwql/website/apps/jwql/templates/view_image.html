@@ -198,7 +198,7 @@
             <script>update_viewed_button(false)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if initial_suffix|length > 0 %}
+        {% if (initial_suffix|length > 0) and (initial_suffix in file_paths) %}
             <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}');</script>
         {% elif 'rate' in suffixes %}
             <script>handle_change('rate', '{{file_root}}', '{{inst}}');</script>

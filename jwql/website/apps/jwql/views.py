@@ -1308,6 +1308,10 @@ def view_image(request, inst, file_root, initial_suffix=None):
     else:
         default_suffix = ""
 
+    default_preview = ""
+    if "preview" in request.GET:
+        default_preview = request.GET["preview"]
+
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
@@ -1385,6 +1389,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
     # Build the context
     context = {'base_url': get_base_url(),
                'initial_suffix': default_suffix,
+               'initial_preview': default_preview,
                'file_path': source_path,
                'file_root_list': file_root_list,
                'file_paths': file_paths,

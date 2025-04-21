@@ -78,11 +78,14 @@
             <a id="download_jpg" class="btn btn-primary my-2 mx-2" role="button" href='{{ static("") }}preview_images/{{ file_root[:7] }}/{{ jpg }}' download>Download JPEG</a> -->
         </p>
 
-        <p>
-            View Preview As: 
-            <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick="set_view('jdaviz')" checked>JDAViz &nbsp;&nbsp;
-            <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick="set_view('jpeg')">JPEG &nbsp;&nbsp;
-        </p>
+    	<!-- Allow the user to change the preview format that is being displayed -->
+    	<a id="view_preview_type" data-current-preview="jpeg">View Preview As:</a>
+        <br>
+	    <form class="my-2">
+            <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick="set_view('jpeg')" checked>JPEG &nbsp;&nbsp;
+            <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick="set_view('jdaviz')">JDAViz &nbsp;&nbsp;
+		</form>
+		<br>
 
 
         <div class="row">
@@ -226,13 +229,22 @@
             document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
             document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str;
             
+            var preview_type = document.getElementById("view_preview_type").getAttribute("data-current-preview");
+            var get_string = "?suffix=" + type + "&preview=" + preview_type;
+            
             var file_root_list = {{ file_root_list | tojson | safe }};
             var index = Number({{ index }});
-            document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + '/?suffix=' + type;
-            document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + '/?suffix=' + type;
+            document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
+            document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
         }
         
         function set_view(view) {
+            var suffix = document.getElementById("view_file_type").getAttribute("data-current-suffix");
+            var get_string = "?suffix=" + suffix + "&preview=" + view;
+            var inst = "{{ inst }}";
+            var file_root_list = {{ file_root_list | tojson | safe }};
+            var index = Number({{ index }});
+
             if (view == 'jpeg') {
                 document.getElementById("jdaviz_preview").style.display = 'none';
                 document.getElementById("jpeg_preview").style.display = 'block';
@@ -240,6 +252,9 @@
                 document.getElementById("jdaviz_preview").style.display = 'block';
                 document.getElementById("jpeg_preview").style.display = 'none';
             }
+
+            document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
+            document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
         }
         </script>
 
@@ -261,6 +276,10 @@
             <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}');</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
+        {% endif %}
+        <!-- Determine which preview should be shown on load -->
+        {% if (initial_preview|length > 0) %}
+            <script>set_view("{{ initial_preview }}");</script>
         {% endif %}
 
     </main>

@@ -259,6 +259,10 @@
 
             document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
             document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
+
+            var CookieDate = new Date;
+            CookieDate.setFullYear(CookieDate.getFullYear() +1);
+            document.cookie = 'preview=' + view + '; expires=' + CookieDate.toUTCString() + ';';
         }
         </script>
 

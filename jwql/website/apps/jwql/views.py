@@ -1309,7 +1309,11 @@ def view_image(request, inst, file_root, initial_suffix=None):
         default_suffix = ""
 
     default_preview = ""
-    if "preview" in request.GET:
+    preview_cookie = request.COOKIES.get('preview')
+    if preview_cookie:
+        logging.info(f"Found cookie value {preview_cookie}")
+        default_preview = preview_cookie
+    elif "preview" in request.GET:
         default_preview = request.GET["preview"]
 
     # Ensure the instrument is correctly capitalized

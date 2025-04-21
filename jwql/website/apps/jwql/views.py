@@ -1225,23 +1225,23 @@ def view_exposure(request, inst, group_root):
             matching_rootfiles = list(navigation_data.keys())
         else:
             matching_rootfiles = sorted(navigation_data)
+
+        # pick out group names from matching root files
+        group_root_list = []
+        for rootname in matching_rootfiles:
+            try:
+                other_group_root = filename_parser(rootname)['group_root']
+            except ValueError:
+                continue
+            if other_group_root not in group_root_list:
+                group_root_list.append(other_group_root)
     else:
-        matching_rootfiles = []
+        group_root_list = []
         for file in image_info['all_files']:
             name = Path(file).name
             obs = name.split("_")[0]
-            if obs not in matching_rootfiles:
-                matching_rootfiles.append(obs)
-
-    # pick out group names from matching root files
-    group_root_list = []
-    for rootname in matching_rootfiles:
-        try:
-            other_group_root = filename_parser(rootname)['group_root']
-        except ValueError:
-            continue
-        if other_group_root not in group_root_list:
-            group_root_list.append(other_group_root)
+            if obs not in group_root_list:
+                group_root_list.append(obs)
 
     # Get our current views RootFileInfo model and send our "viewed/new" information
     root_file_info = RootFileInfo.objects.filter(root_name__startswith=group_root)

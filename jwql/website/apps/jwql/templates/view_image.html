@@ -230,7 +230,9 @@
             document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str;
             
             var preview_type = document.getElementById("view_preview_type").getAttribute("data-current-preview");
+            console.log("Preview type: " + preview_type);
             var get_string = "?suffix=" + type + "&preview=" + preview_type;
+            console.log("Get String: " + get_string);
             
             var file_root_list = {{ file_root_list | tojson | safe }};
             var index = Number({{ index }});

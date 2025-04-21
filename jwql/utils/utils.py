@@ -381,7 +381,7 @@ def filename_parser(filename):
     ValueError
         When the provided file does not follow naming conventions
     """
-    logging.info(f"Running filename_parser() on {filename}")
+    logging.debug(f"Running filename_parser() on {filename}")
 
     filename = os.path.basename(filename)
     split_filename = filename.split('.')
@@ -551,11 +551,11 @@ def filename_parser(filename):
 
     # Try to parse the filename
     for filename_type, filename_type_name in zip(filename_types, filename_type_names):
-        logging.info(f"Checking {filename_type_name} against file {filename}")
+        logging.debug(f"Checking {filename_type_name} against file {filename}")
 
         # If full filename, try using suffix, except for *msa.fits files
         if not file_root_name and FILETYPE_WO_STANDARD_SUFFIX not in filename:
-            logging.info(f"\tAdding suffix to match string")
+            logging.debug(f"\tAdding suffix to match string")
             filename_type += r"_(?P<suffix>{}).*".format('|'.join(FILE_SUFFIX_TYPES))
         # If not, make sure the provided regex matches the entire filename root
         else:
@@ -566,7 +566,7 @@ def filename_parser(filename):
 
         # Stop when you find a format that matches
         if jwst_file is not None:
-            logging.info(f"Matched")
+            logging.debug(f"Matched")
             name_match = filename_type_name
             break
 

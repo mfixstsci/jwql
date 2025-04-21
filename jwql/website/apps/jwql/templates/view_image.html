@@ -247,6 +247,8 @@
             var file_root_list = {{ file_root_list | tojson | safe }};
             var index = Number({{ index }});
 
+            document.getElementById(view).checked = true;
+
             if (view == 'jpeg') {
                 document.getElementById("jdaviz_preview").style.display = 'none';
                 document.getElementById("jpeg_preview").style.display = 'block';

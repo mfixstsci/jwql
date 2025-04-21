@@ -80,9 +80,32 @@
 
         <div class="row">
 
-            <!-- Display the image and integration buttons/slider -->
-    	    <div class="col-xl-9 text-center">
-                <iframe id="quickview" height="750px" width="900px" src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
+            <div class="col-xl-9 text-center" id="preview-div">
+
+                <p>
+                    View Preview As: 
+                    <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick="set_view('jpeg_preview')">JPEG &nbsp;&nbsp;
+                    <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick="set_view('jdaviz_preview')">JDAViz &nbsp;&nbsp;
+                </p>
+
+                <div id="jdaviz_preview">
+                    <iframe id="quickview" height="750px" width="900px" src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
+                </div>
+                
+                <div id="jpeg_preview">
+        		    <span class="image_preview">
+        		    	<img class="image_preview_viewer" id="image_viewer"
+                             onerror="image_error(this, true);"
+                             title="Preview image for {{ file_root }}" width=1000rem height=auto>
+    		        </span>
+
+                    <div class="int_changer">
+                        <button id="int_before" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}", "{{available_ints}}", "button", "left");' disabled>&#9664;</button>
+                        <input type="range" min="1" max="5" value="1" class="slider" id="slider_range" onchange='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "slider")'>
+                        <button id="int_after" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "button", "right");' disabled>&#9658;</button>
+                        <p>Integration: <span id="slider_val"></span>/<span id="total_ints"></span></p>
+                    </div>
+                </div>
 
                 <div class="previous-next-buttons">
                     <span class="step-links">
@@ -98,7 +121,28 @@
                         {% endif %}
                     </span>
                 </div>
+
             </div>
+
+            <!-- Display the JPEG preview and integration buttons/slider -->
+    	    <div class="col-xl-9 text-center">
+
+                <div class="previous-next-buttons">
+                    <span class="step-links">
+                        {% if file_root in file_root_list %}
+                            {% set index = file_root_list.index(file_root) %}
+                            {% if index != 0 %}
+                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
+                            {% endif %}
+
+                            {% if index != file_root_list|length - 1 %}
+                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
+                            {% endif %}
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
 
             <!-- Display the anomaly form -->
             <div class="col-xl-3 text-left">
@@ -137,13 +181,16 @@
                 </div>
             </div>
         </div>
-        
+
         <script>
         function handle_change(type, file_root, inst) {
             console.log("Type: " + type);
             console.log("File Root: " + file_root);
             console.log("Instrument: " + inst);
 
+            var num_ints = Number({{ num_ints }});
+            var available_ints = Number({{ available_ints }});
+            var total_ints = Number({{ total_ints }});
             var type_dict = {{ file_paths | tojson | safe }};
             console.log(type_dict);
             console.log(type);
@@ -180,6 +227,17 @@
             var exposure_array = file_root.split("_");
             exposure_array.pop();
             var exposure_str = exposure_array.join("_");
+
+            // Show the appropriate image
+            var img = document.getElementById("image_viewer");
+            var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+            img.src = jpg_filepath;
+            img.alt = jpg_filepath;
+            // if previous image had error, remove error sizing
+            img.classList.remove("thumbnail");
+
+            // Reset the slider values
+            reset_integration_slider(num_ints[type], total_ints[type])
 
             // Update the image exploration and header links
             document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';

@@ -92,11 +92,11 @@
 
             <div class="col-xl-9 text-center" id="preview-div">
 
-                <div id="jdaviz_preview">
+                <div id="jdaviz_preview" style="display: none">
                     <iframe id="quickview" height="750px" width="900px" src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
                 </div>
                 
-                <div id="jpeg_preview" style="display: none">
+                <div id="jpeg_preview">
         		    <span class="image_preview">
         		    	<img class="image_preview_viewer" id="image_viewer"
                              onerror="image_error(this, true);"
@@ -117,11 +117,11 @@
                         {% if file_root in file_root_list %}
                             {% set index = file_root_list.index(file_root) %}
                             {% if index != 0 %}
-                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
+                                <a id="prev_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
                             {% endif %}
 
                             {% if index != file_root_list|length - 1 %}
-                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
+                                <a id="next_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
                             {% endif %}
                         {% endif %}
                     </span>

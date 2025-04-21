@@ -1242,6 +1242,10 @@ def view_exposure(request, inst, group_root):
                                    If this observation is over a day old please contact JWQL support.",
                                    exception_message=f"Received Error: '{e}'")
 
+    logging.info(f"Group Root is {group_root}")
+    logging.info(f"Group Root List is {group_root_list}")
+    logging.info(f"Group Root in List: {group_root in group_root_list}")
+
     # Build the context
     context = {'base_url': get_base_url(),
                'group_root_list': group_root_list,
@@ -1389,6 +1393,10 @@ def view_image(request, inst, file_root, initial_suffix=None):
     # Create one dict of info to show at the top of the page, and another dict of info
     # to show in the collapsible text box.
     basic_info, additional_info = get_additional_exposure_info(root_file_info, image_info)
+
+    logging.info(f"File root is {source_path}")
+    logging.info(f"File root list is {file_root_list}")
+    logging.info(f"File root in file_root_list: {source_path in file_root_list}")
 
     # Build the context
     context = {'base_url': get_base_url(),

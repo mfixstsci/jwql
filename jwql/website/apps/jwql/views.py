@@ -58,6 +58,7 @@ from bokeh.layouts import layout
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from pathlib import Path
 from sqlalchemy import inspect
 
 from jwql.database.database_interface import load_connection
@@ -1199,23 +1200,38 @@ def view_exposure(request, inst, group_root):
 
     # if we get to this page without any navigation data,
     # previous/next buttons will be hidden
-    navigation_data = request.session.get('navigation_data', {})
+    navigation_data = request.session.get('navigation_data')
 
     # For time based sorting options, sort to "Recent" first to create sorting consistency when times are the same.
     # This is consistent with how Tinysort is utilized in jwql.js->sort_by_thumbnails
-    sort_type = request.session.get('image_sort', 'Recent')
-    if sort_type in ['Descending']:
-        matching_rootfiles = sorted(navigation_data, reverse=True)
-    elif sort_type in ['Recent']:
-        navigation_data = dict(sorted(navigation_data.items()))
-        navigation_data = dict(sorted(navigation_data.items(), key=operator.itemgetter(1), reverse=True))
-        matching_rootfiles = list(navigation_data.keys())
-    elif sort_type in ['Oldest']:
-        navigation_data = dict(sorted(navigation_data.items()))
-        navigation_data = dict(sorted(navigation_data.items(), key=operator.itemgetter(1)))
-        matching_rootfiles = list(navigation_data.keys())
+    if navigation_data:
+        sort_type = request.session.get('image_sort', 'Recent')
+        if sort_type in ['Descending']:
+            matching_rootfiles = sorted(navigation_data, reverse=True)
+        elif sort_type in ['Recent']:
+            navigation_data = dict(sorted(navigation_data.items()))
+            navigation_data = dict(
+                sorted(navigation_data.items(),
+                key=operator.itemgetter(1),
+                reverse=True)
+            )
+            matching_rootfiles = list(navigation_data.keys())
+        elif sort_type in ['Oldest']:
+            navigation_data = dict(sorted(navigation_data.items()))
+            navigation_data = dict(
+                sorted(navigation_data.items(),
+                key=operator.itemgetter(1))
+            )
+            matching_rootfiles = list(navigation_data.keys())
+        else:
+            matching_rootfiles = sorted(navigation_data)
     else:
-        matching_rootfiles = sorted(navigation_data)
+        matching_rootfiles = []
+        for file in image_info['all_files']:
+            name = Path(file).name
+            obs = name.split("_")[0]
+            if obs not in matching_rootfiles:
+                matching_rootfiles.append(obs)
 
     # pick out group names from matching root files
     group_root_list = []

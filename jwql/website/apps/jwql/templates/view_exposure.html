@@ -272,7 +272,9 @@
             <script>update_viewed_button(false, true)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if 'rate' in suffixes %}
+        {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
+            <script>change_all_filetypes('{{initial_suffix}}', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
+        {% elif 'rate' in suffixes %}
             <script>change_all_filetypes('rate', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'dark' in suffixes %}
             <script>change_all_filetypes('dark', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>

@@ -36,6 +36,7 @@ import tempfile
 from collections import defaultdict, OrderedDict
 from datetime import datetime
 from operator import getitem, itemgetter
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -1653,6 +1654,34 @@ def get_preview_images_by_rootname(rootname):
     preview_images = [item for item in preview_images if os.path.splitext(item)[0].split('_')[-1] not in IGNORED_SUFFIXES]
 
     return preview_images
+
+
+def get_detectors_by_rootname(rootname):
+    """
+    Return a list of exposures with the same rootname as the provided rootname, but
+    including all available detectors.
+    
+    Parameters
+    ----------
+    rootname : str
+        The rootname of interest (e.g.
+        ``jw86600008001_02101_00007_guider2``).
+
+    Returns
+    -------
+    detector_list : list
+        A list of images that are part of the same exposure but with all detectors.
+    """
+    detector_list = []
+    search_rootname = rootname[:25]
+    filenames = get_filenames_by_rootname(search_rootname)
+    for filename in filesnames:
+        bare_name = Path(filename).name
+        name_items = bare_name.split("_")
+        detector_name = "_".join(name_items[:4])
+        if detector_name not in detector_list:
+            detector_list.append(detector_name)
+    return detector_list
 
 
 def get_proposals_by_category(instrument):

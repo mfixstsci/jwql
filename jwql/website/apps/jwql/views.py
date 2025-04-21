@@ -74,6 +74,7 @@ from .data_containers import (
     get_anomaly_form,
     get_available_suffixes,
     get_comment_form,
+    get_detectors_by_rootname,
     get_exp_comment_form,
     get_dashboard_components,
     get_edb_components,
@@ -1173,6 +1174,10 @@ def view_exposure(request, inst, group_root):
         Outgoing response sent to the webpage
     """
 
+    default_suffix = ''
+    if "suffix" in request.GET:
+        default_suffix = request.GET["suffix"]
+
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
@@ -1254,6 +1259,7 @@ def view_exposure(request, inst, group_root):
                'obsnum': obsnum,
                'group_root': group_root,
                'suffixes': suffixes,
+               'initial_suffix': default_suffix,
                'num_ints': image_info['num_ints'],
                'available_ints': image_info['available_ints'],
                'total_ints': image_info['total_ints'],
@@ -1362,27 +1368,30 @@ def view_image(request, inst, file_root, initial_suffix=None):
     # if we get to this page without any navigation data (i.e. direct link),
     # just use the file_root with no expstart time
     # navigate_data is dict of format rootname:expstart
-    navigation_data = request.session.get('navigation_data', {file_root: 0})
+    navigation_data = request.session.get('navigation_data')
 
     # For time based sorting options, sort to "Recent" first to create
     # sorting consistency when times are the same.
     # This is consistent with how Tinysort is utilized in
     # jwql.js->sort_by_thumbnails
-    sort_type = request.session.get('image_sort', 'Recent')
-    if sort_type in ['Descending']:
-        file_root_list = sorted(navigation_data, reverse=True)
-    elif sort_type in ['Recent']:
-        navigation_data = dict(sorted(navigation_data.items()))
-        navigation_data = dict(sorted(navigation_data.items(),
-                                      key=operator.itemgetter(1), reverse=True))
-        file_root_list = list(navigation_data.keys())
-    elif sort_type in ['Oldest']:
-        navigation_data = dict(sorted(navigation_data.items()))
-        navigation_data = dict(sorted(navigation_data.items(),
-                                      key=operator.itemgetter(1)))
-        file_root_list = list(navigation_data.keys())
+    if navigation_data:
+        sort_type = request.session.get('image_sort', 'Recent')
+        if sort_type in ['Descending']:
+            file_root_list = sorted(navigation_data, reverse=True)
+        elif sort_type in ['Recent']:
+            navigation_data = dict(sorted(navigation_data.items()))
+            navigation_data = dict(sorted(navigation_data.items(),
+                                          key=operator.itemgetter(1), reverse=True))
+            file_root_list = list(navigation_data.keys())
+        elif sort_type in ['Oldest']:
+            navigation_data = dict(sorted(navigation_data.items()))
+            navigation_data = dict(sorted(navigation_data.items(),
+                                          key=operator.itemgetter(1)))
+            file_root_list = list(navigation_data.keys())
+        else:
+            file_root_list = sorted(navigation_data)
     else:
-        file_root_list = sorted(navigation_data)
+        file_root_list = sorted(get_detectors_by_rootname(file_root))
 
     # Get our current views RootFileInfo model and send our "viewed/new" information
     root_file_info = RootFileInfo.objects.get(root_name=file_root)
@@ -1394,9 +1403,9 @@ def view_image(request, inst, file_root, initial_suffix=None):
     # to show in the collapsible text box.
     basic_info, additional_info = get_additional_exposure_info(root_file_info, image_info)
 
-    logging.info(f"File root is {source_path}")
+    logging.info(f"File root is {file_root}")
     logging.info(f"File root list is {file_root_list}")
-    logging.info(f"File root in file_root_list: {source_path in file_root_list}")
+    logging.info(f"File root in file_root_list: {file_root in file_root_list}")
 
     # Build the context
     context = {'base_url': get_base_url(),

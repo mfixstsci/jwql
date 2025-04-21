@@ -188,9 +188,9 @@
             console.log("File Root: " + file_root);
             console.log("Instrument: " + inst);
 
-            var num_ints = JSON.parse(clean_input_parameter({{ num_ints }}));
-            var available_ints = JSON.parse(clean_input_parameter({{ available_ints }}));
-            var total_ints = JSON.parse(clean_input_parameter({{ total_ints }}));
+            var num_ints = JSON.parse(clean_input_parameter("{{ num_ints }}"));
+            var available_ints = JSON.parse(clean_input_parameter("{{ available_ints }}"));
+            var total_ints = JSON.parse(clean_input_parameter("{{ total_ints }}"));
 
             var type_dict = {{ file_paths | tojson | safe }};
             console.log(type_dict);

@@ -262,7 +262,7 @@
 
             var CookieDate = new Date;
             CookieDate.setFullYear(CookieDate.getFullYear() +1);
-            document.cookie = 'preview=' + view + '; expires=' + CookieDate.toUTCString() + ';';
+            document.cookie = 'preview=' + view + '; expires=' + CookieDate.toUTCString() + '; path=/;';
         }
         </script>
 

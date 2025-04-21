@@ -78,21 +78,22 @@
             <a id="download_jpg" class="btn btn-primary my-2 mx-2" role="button" href='{{ static("") }}preview_images/{{ file_root[:7] }}/{{ jpg }}' download>Download JPEG</a> -->
         </p>
 
+        <p>
+            View Preview As: 
+            <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick="set_view('jdaviz')" checked>JDAViz &nbsp;&nbsp;
+            <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick="set_view('jpeg')">JPEG &nbsp;&nbsp;
+        </p>
+
+
         <div class="row">
 
             <div class="col-xl-9 text-center" id="preview-div">
-
-                <p>
-                    View Preview As: 
-                    <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick="set_view('jpeg_preview')">JPEG &nbsp;&nbsp;
-                    <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick="set_view('jdaviz_preview')">JDAViz &nbsp;&nbsp;
-                </p>
 
                 <div id="jdaviz_preview">
                     <iframe id="quickview" height="750px" width="900px" src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
                 </div>
                 
-                <div id="jpeg_preview">
+                <div id="jpeg_preview" style="display: none">
         		    <span class="image_preview">
         		    	<img class="image_preview_viewer" id="image_viewer"
                              onerror="image_error(this, true);"
@@ -107,26 +108,7 @@
                     </div>
                 </div>
 
-                <div class="previous-next-buttons">
-                    <span class="step-links">
-                        {% if file_root in file_root_list %}
-                            {% set index = file_root_list.index(file_root) %}
-                            {% if index != 0 %}
-                                <a id="prev_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
-                            {% endif %}
-
-                            {% if index != file_root_list|length - 1 %}
-                                <a id="next_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
-                            {% endif %}
-                        {% endif %}
-                    </span>
-                </div>
-
-            </div>
-
-            <!-- Display the JPEG preview and integration buttons/slider -->
-    	    <div class="col-xl-9 text-center">
-
+                <!-- Display the Previous/Next buttons -->
                 <div class="previous-next-buttons">
                     <span class="step-links">
                         {% if file_root in file_root_list %}
@@ -248,6 +230,16 @@
             var index = Number({{ index }});
             document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + '/?suffix=' + type;
             document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + '/?suffix=' + type;
+        }
+        
+        function set_view(view) {
+            if (view == 'jpeg') {
+                document.getElementById("jdaviz_preview").style.display = 'none';
+                document.getElementById("jpeg_preview").style.display = 'block';
+            } else {
+                document.getElementById("jdaviz_preview").style.display = 'block';
+                document.getElementById("jpeg_preview").style.display = 'none';
+            }
         }
         </script>
 

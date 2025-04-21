@@ -307,12 +307,12 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
         Outgoing response sent to the webpage
     """
     log_file = configure_logging("django", include_time=False)
-    logging.info(f"Generating thumbnails for {inst} {proposal} {observation}")
+    logging.debug(f"Generating thumbnails for {inst} {proposal} {observation}")
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
     data = thumbnails_ajax(inst, proposal, obs_num=observation)
-    logging.info(f"Ajax returned: {data}")
+    logging.debug(f"Ajax returned: {data}")
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
 
@@ -1294,20 +1294,20 @@ def view_image(request, inst, file_root, initial_suffix=None):
         file_root = "_".join(file_bits[:-2])
         url_suffix = file_bits[-1]
     log_file = configure_logging("django", include_time=False)
-    logging.info(f"Running through view_image() for {inst} {file_root}")
+    logging.debug(f"Running through view_image() for {inst} {file_root}")
 
     request_suffix = None
     if "suffix" in request.GET:
         request_suffix = request.GET["suffix"]
 
     if initial_suffix is not None:
-        logging.info(f"Setting suffix via initial suffix to {initial_suffix}")
+        logging.debug(f"Setting suffix via initial suffix to {initial_suffix}")
         default_suffix = initial_suffix
     elif request_suffix is not None:
-        logging.info(f"Setting suffix via request object to {request_suffix}")
+        logging.debug(f"Setting suffix via request object to {request_suffix}")
         default_suffix = request_suffix
     elif url_suffix is not None:
-        logging.info(f"Setting suffix via URL apped to {url_suffix}")
+        logging.debug(f"Setting suffix via URL apped to {url_suffix}")
         default_suffix = url_suffix
     else:
         default_suffix = ""
@@ -1315,7 +1315,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
     default_preview = ""
     preview_cookie = request.COOKIES.get('preview')
     if preview_cookie:
-        logging.info(f"Found cookie value {preview_cookie}")
+        logging.debug(f"Found cookie value {preview_cookie}")
         default_preview = preview_cookie
     elif "preview" in request.GET:
         default_preview = request.GET["preview"]
@@ -1325,14 +1325,14 @@ def view_image(request, inst, file_root, initial_suffix=None):
 
     template = 'view_image.html'
     image_info = get_image_info(file_root)
-    logging.info(f"image_info: {image_info}")
+    logging.debug(f"image_info: {image_info}")
 
     # Put suffixes in a consistent order. Check if any of the
     # suffixes are not in the list that specifies order.
-    logging.info(f"Initial set of suffixes: {image_info['suffixes']}")
+    logging.debug(f"Initial set of suffixes: {image_info['suffixes']}")
     suffixes, untracked_suffixes = get_available_suffixes(
         image_info['suffixes'], return_untracked=True)
-    logging.info(f"Final suffixes: {suffixes}")
+    logging.debug(f"Final suffixes: {suffixes}")
 
     if len(untracked_suffixes) > 0:
         logging.warning((f'In view_image(), for {inst}, {file_root}, '
@@ -1344,14 +1344,14 @@ def view_image(request, inst, file_root, initial_suffix=None):
 
     file_paths = {}
     for file_path in image_info['all_files']:
-        logging.info(f"Checking input file {file_path}")
+        logging.debug(f"Checking input file {file_path}")
         source_path = Path(file_path).parent
         for suffix in suffixes:
-            logging.info(f"\tChecking suffix {suffix}")
+            logging.debug(f"\tChecking suffix {suffix}")
             file_search = list(source_path.rglob(f"{file_root}*_{suffix}.fits"))
             if len(file_search) > 0:
                 if suffix not in file_paths:
-                    logging.info(f"\tAdding {suffix} to file paths")
+                    logging.debug(f"\tAdding {suffix} to file paths")
                     file_paths[suffix] = file_search[0].as_posix()
 
     anomaly_form = get_anomaly_form(request, inst, file_root)

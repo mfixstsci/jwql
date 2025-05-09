@@ -1340,7 +1340,7 @@ def view_image(request, inst, file_root):
                'file_root_list': file_root_list,
                'inst': inst,
                'prop_id': prop_id,
-               'obsnum': file_root[7:10],
+               'obsnum': root_file_info.obsnum.obsnum, #file_root[7:10],
                'file_root': file_root,
                'suffixes': suffixes,
                'num_ints': image_info['num_ints'],
@@ -1352,6 +1352,20 @@ def view_image(request, inst, file_root):
                'expstart_str': expstart_str,
                'basic_info': basic_info,
                'additional_info': additional_info}
+
+
+
+    #Observation, Visit, Detector are not right on the page when looking at level 3
+    print(basic_info)
+    print('\n', additional_info)
+    print(root_file_info.obsnum.obsnum)
+
+
+
+
+
+
+
 
     return render(request, template, context)
 

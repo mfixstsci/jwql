@@ -705,6 +705,13 @@ def filesystem_path(filename, check_existence=True, search=None):
     subdir1 = 'jw{}'.format(filename[2:7])
     subdir2 = 'jw{}'.format(filename[2:13])
 
+    # Level 3 files are in a different location
+    if filename[7] == '-':
+        parts = filename.split('_')
+        id1 = parts[0].split('-')[1]
+        id2 = parts[1]
+        subdir2 = f'L3/{id2[0]}/{id1}'
+
     if search:
         full_subdir = os.path.join(subdir1, subdir2, '{}{}'.format(filename, search))
         filenames_found = glob.glob(os.path.join(FILESYSTEM, 'public', full_subdir))

@@ -399,7 +399,7 @@ def get_additional_exposure_info(root_file_infos, image_info):
     # suffixes. The order of possible_suffixes_to_use is itentional, because the
     # uncal file will not have info on the pipeline version used, and so we would
     # rather grab information from the rate or cal files.
-    possible_suffixes_to_use = np.array(['rate', 'rateints', 'cal', 'calints', 'uncal'])
+    possible_suffixes_to_use = np.array(['i2d', 'rate', 'rateints', 'cal', 'calints', 'uncal'])
     existing_suffixes = np.array([suffix in image_info['suffixes'] for suffix in possible_suffixes_to_use])
 
     if isinstance(root_file_infos, QuerySet):
@@ -1104,6 +1104,42 @@ def get_filenames_by_instrument(instrument, proposal, observation_id=None,
     return filenames
 
 
+def mast_query_by_filename(instrument, filename):
+    """Query MAST for all columns given an instrument and filename. Return the dict of the 'data' column
+
+    Parameters
+    ----------
+    instrument : str
+        The instrument of interest (e.g. `FGS`).
+    filename : str
+        The Rootname of Interest (e.g. 'jw01068-o001_t005_nircam_clear-f356w-sub160_i2d.fits')
+
+    Returns
+    -------
+    result : dict
+        Dictionary of rootname data
+    """
+    query_filters = []
+    service = INSTRUMENT_SERVICE_MATCH[instrument]
+
+    query_filters.append({'paramName': 'filename', 'values': [filename]})
+    params = {'columns': '*',
+              'filters': query_filters}
+    try:
+        response = Mast.service_request_async(service, params)
+        result = response[0].json()
+    except Exception as e:
+        logging.error("Mast.service_request_async- {} - {}".format(file_set_name, e))
+        result = {'data': []}
+
+    retval = {}
+    if result['data'] == []:
+        print("WARNING: no data for {}".format(rootname))
+    else:
+        retval = result['data'][0]
+    return retval
+
+
 def mast_query_by_rootname(instrument, rootname):
     """Query MAST for all columns given an instrument and rootname. Return the dict of the 'data' column
 
@@ -1112,14 +1148,13 @@ def mast_query_by_rootname(instrument, rootname):
     instrument : str
         The instrument of interest (e.g. `FGS`).
     rootname : str
-        The Rootname of Interest
+        The Rootname of Interest (e.g. 'jw01068001001_02101_00001_nrcb2')
 
     Returns
     -------
     result : dict
         Dictionary of rootname data
     """
-
     query_filters = []
     if '-seg' in rootname:
         root_split = rootname.split('-')
@@ -1367,7 +1402,7 @@ def get_header_info(filename, filetype):
 
 def get_image_info(file_root):
     """Build and return a dictionary containing information for a given
-    ``file_root``.
+    ``file_root``. Supports level 2 or level 3 file_root values.
 
     Parameters
     ----------
@@ -1396,10 +1431,23 @@ def get_image_info(file_root):
     observation_dir = file_root[:13]
     filenames = glob.glob(
         os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
-                     observation_dir, '{}*.fits'.format(file_root)))
+                     observation_dir, f'{file_root}*.fits'))
     filenames.extend(glob.glob(
         os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
-                     observation_dir, '{}*.fits'.format(file_root))))
+                     observation_dir, f'{file_root}*.fits')))
+
+    # If the search above does not find any filenames, then we are looking
+    # for a level 3 file. In that case, we need to check different directories
+
+    # L3/ then either s/ or t/ or ?? and then e.g. o001
+    if len(filenames) == 0:
+        ostr = file_root.split('-')[1].split('_')[0]
+        filenames.extend(glob.glob(
+            os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                    'L3', f'*/{ostr}/', f'{file_root}*.fits')))
+        filenames.extend(glob.glob(
+            os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                    'L3', f'*/{ostr}/', f'{file_root}*.fits')))
 
     # Certain suffixes are always ignored
     filenames = [filename for filename in filenames
@@ -1691,8 +1739,8 @@ def get_proposal_info(filepaths):
     """
 
     # Initialize some containers
-    thumbnail_paths = []
-    num_files = []
+    #thumbnail_paths = []
+    #num_files = []
 
     # Gather thumbnails and counts for proposals
     proposals, thumbnail_paths, num_files, observations = [], [], [], []

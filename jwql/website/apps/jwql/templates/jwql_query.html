@@ -90,6 +90,11 @@
                                     ],
                                     minDate: new Date("2021-12-25")
                                 });
+                                console.log(document.querySelector("#date_range").value);
+                                const dateRange = document.querySelector("#date_range").value;
+                                const [startDate, endDate] = dateRange.split(" to ");
+                                console.log("Start Date:", startDate);
+                                console.log("End Date:", endDate);
                                 </script>
                             </div>
                         </div>

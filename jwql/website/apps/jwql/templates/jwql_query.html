@@ -77,20 +77,18 @@
                         <div class="col-md-3">
                             <span class="help-block">Date Range</span>
                             <div class="form-control" id='date_range'>
-                                <input type="text" name="date_range" style="cursor: pointer; padding: 5px 10px; width: 100%"/>
+                                <input type="text" id="date_range" placeholder="Select date and time range" style="cursor: pointer; padding: 5px 10px; width: 100%"/>
                                 <script>
-                                $(function() {
-                                    $('input[name="date_range"]').daterangepicker({
-                                        timePicker: true,
-                                        timePicker24Hour: true,
-                                        showDropdowns: true,
-                                        minDate: "2021/12/05",
-                                        startDate: "2021/12/05",
-                                        endDate: moment().startOf('hour'),
-                                        locale: {
-                                        format: 'YYYY/MM/DD hh:mmA'
-                                        }
-                                    });
+                                flatpickr("#date_range", {
+                                    mode: "range",
+                                    enableTime: true,
+                                    time_24hr: true,
+                                    dateFormat: "Y/m/d H:i",
+                                    defaultDate: [
+                                        new Date(new Date().setDate(new Date().getDate() - 7)), // 7 days ago
+                                        new Date() // now
+                                    ],
+                                    minDate: new Date("2021-12-25")
                                 });
                                 </script>
                             </div>

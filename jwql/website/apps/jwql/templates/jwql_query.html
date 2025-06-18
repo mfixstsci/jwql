@@ -74,10 +74,18 @@
                 <hr class="col-md-12">
                 <div class='instrument-form-group' id='instrument_form_group'>
                     <div style="display: flex" id="DATERANGE">
-                        <div class="col-md-3">
+                        <div class="col-md-8">
                             <span class="help-block">Date Range</span>
                             <div class="form-control" id='date_range'>
+                                <input type="text" id="date_range" name="date_range" placeholder="Select date and time range" style="cursor: pointer; padding: 5px 10px; width: 100%; box-sizing: border-box;" />
+
+                                <!--
+                                style="cursor: pointer; padding: 5px 10px; width: 100%"/>
+                                -->
+
+                                <!--
                                 <input type="text" id="date_range" placeholder="Select date and time range" style="cursor: pointer; padding: 5px 10px; width: 100%"/>
+
                                 <script>
                                 flatpickr("#date_range", {
                                     mode: "range",
@@ -90,12 +98,31 @@
                                     ],
                                     minDate: new Date("2021-12-25")
                                 });
-                                console.log(document.querySelector("#date_range").value);
                                 const dateRange = document.querySelector("#date_range").value;
-                                const [startDate, endDate] = dateRange.split(" to ");
+                                const [startRaw, endRaw] = dateRange.split(" to ");
+                                const startDate = new Date(startRaw).toISOString();
+                                const endDate = new Date(endRaw).toISOString();
                                 console.log("Start Date:", startDate);
                                 console.log("End Date:", endDate);
                                 </script>
+                                -->
+
+                                <script>
+                                flatpickr("input[name='date_range']", {
+                                    mode: "range",
+                                    enableTime: true,
+                                    time_24hr: true,
+                                    dateFormat: "Y/m/d H:i", // matches 'YYYY/MM/DD hh:mm'
+                                    defaultDate: [
+                                        new Date(new Date().setDate(new Date().getDate() - 7)), // 7 days ago
+                                        new Date()
+                                    ],
+                                    minDate: "2021-12-05"
+                                });
+                                </script>
+
+
+
                             </div>
                         </div>
                     </div>

@@ -1055,3 +1055,6 @@ MAX_LEN_TIME = 50
 MAX_LEN_TYPE = 40
 MAX_LEN_USER = 50
 MAX_LEN_VISIT = 30
+
+# STScI VAO server url
+STSCI_VO_URL = "https://mast.stsci.edu/vo-tap/api/v0.1/caom"

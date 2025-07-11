@@ -48,7 +48,6 @@ Notes
 
 from django.contrib import admin
 from django.urls import include, path, re_path
-from revproxy.views import ProxyView
 
 from ..apps.jwql import views
 from jwql.utils.utils import get_config
@@ -65,5 +64,4 @@ handler400 = views.not_found  # Bad request
 urlpatterns = [
     path('', include('jwql.website.apps.jwql.urls')),
     path('admin/', admin.site.urls),
-    re_path(r'(?P<path>quickview.*)', ProxyView.as_view(upstream=f'http://{jdaviz_host}:{jdaviz_port}', add_x_forwarded=True))
 ]

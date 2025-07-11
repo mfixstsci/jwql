@@ -55,8 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
-    'revproxy.apps.RevProxyConfig'
+    'django.contrib.staticfiles'
 ]
 
 MIDDLEWARE = [

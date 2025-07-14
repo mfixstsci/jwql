@@ -1442,7 +1442,8 @@ def view_image(request, inst, file_root, initial_suffix=None):
                'marked_viewed': root_file_info.viewed,
                'expstart_str': expstart_str,
                'basic_info': basic_info,
-               'additional_info': additional_info}
+               'additional_info': additional_info,
+               'index': file_root_list.index(file_root)}
 
     return render(request, template, context)
 

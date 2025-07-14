@@ -16,19 +16,18 @@
  * @param {String} file_root - The rootname of the file
  * @param {String} inst - The instrument for the given file
  */
-function handle_change(type, file_root, inst) {
+function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx) {
     // Log the input values at the start of the function in case of anything breaking.
     console.log("Type: " + type);
     console.log("File Root: " + file_root);
     console.log("Instrument: " + inst);
 
     // Deal with integration for single-integration views of separate-by-integration files
-    var num_ints = JSON.parse(clean_input_parameter("{{ num_ints }}"));
-    var available_ints = JSON.parse(clean_input_parameter("{{ available_ints }}"));
-    var total_ints = JSON.parse(clean_input_parameter("{{ total_ints }}"));
+    var num_ints = JSON.parse(clean_input_parameter(n_ints));
+    var total_ints = JSON.parse(clean_input_parameter(t_ints));
 
     // Dictionary of files (with paths) by extension
-    var type_dict = {{ file_paths | tojson | safe }};
+    var type_dict = f_paths;
     console.log(type_dict);
     var file_path = type_dict[type];
     console.log(file_path);
@@ -84,8 +83,8 @@ function handle_change(type, file_root, inst) {
     var get_string = "?suffix=" + type + "&preview=" + preview_type;
     console.log("Get String: " + get_string);
     
-    var file_root_list = {{ file_root_list | tojson | safe }};
-    var index = Number({{ index }});
+    var file_root_list = f_rl;
+    var index = Number(idx);
     document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
     document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
 }
@@ -96,14 +95,12 @@ function handle_change(type, file_root, inst) {
  * @param {String} file_root - The rootname of the file
  * @param {String} inst - The instrument for the given file
  */
-function set_view(view) {
+function set_view(view, inst, file_root_list, idx) {
     // Get the current view suffix from the page itself
     var suffix = document.getElementById("view_file_type").getAttribute("data-current-suffix");
     // If the user has appended what view they want in the URL they used, get that value.
     var get_string = "?suffix=" + suffix + "&preview=" + view;
-    var inst = "{{ inst }}";
-    var file_root_list = {{ file_root_list | tojson | safe }};
-    var index = Number({{ index }});
+    var index = Number(idx);
 
     document.getElementById(view).checked = true;
 

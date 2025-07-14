@@ -82,8 +82,8 @@
     	<a id="view_preview_type" data-current-preview="jpeg">View Preview As:</a>
         <br>
 	    <form class="my-2">
-            <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick="set_view('jpeg', '{{inst}}', {{file_root_list | tojson | safe}}, '{{index}}')" checked>JPEG &nbsp;&nbsp;
-            <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick="set_view('jdaviz', '{{inst}}', {{file_root_list | tojson | safe}}, '{{index}}')">JDAViz &nbsp;&nbsp;
+            <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick='set_view("jpeg", "{{inst}}", {{file_root_list | tojson | safe}}, "{{index}}")' checked>JPEG &nbsp;&nbsp;
+            <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick='set_view("jdaviz", "{{inst}}", {{file_root_list | tojson | safe}}, "{{index}}")'>JDAViz &nbsp;&nbsp;
 		</form>
 		<br>
 

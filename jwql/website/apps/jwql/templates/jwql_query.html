@@ -74,23 +74,26 @@
                 <hr class="col-md-12">
                 <div class='instrument-form-group' id='instrument_form_group'>
                     <div style="display: flex" id="DATERANGE">
-                        <div class="col-md-3">
+                        <div class="col-md-4">
                             <span class="help-block">Date Range</span>
                             <div class="form-control" id='date_range'>
-                                <input type="text" name="date_range" style="cursor: pointer; padding: 5px 10px; width: 100%"/>
+                                <input type="text" id="date_range" name="date_range" placeholder="Select date and time range" style="cursor: pointer; padding: 5px 10px; width: 100%;" />
                                 <script>
-                                $(function() {
-                                    $('input[name="date_range"]').daterangepicker({
-                                        timePicker: true,
-                                        timePicker24Hour: true,
-                                        showDropdowns: true,
-                                        minDate: "2021/12/05",
-                                        startDate: "2021/12/05",
-                                        endDate: moment().startOf('hour'),
-                                        locale: {
-                                        format: 'YYYY/MM/DD hh:mmA'
-                                        }
-                                    });
+                                flatpickr("input[name='date_range']", {
+                                    mode: "range",
+                                    enableTime: true,
+                                    time_24hr: false,  // use 12-hour time
+                                    dateFormat: "Y/m/d h:iK",  // h = 12-hour, K = AM/PM
+                                    defaultDate: [
+                                        new Date(new Date().setDate(new Date().getDate() - 7)),
+                                        new Date()
+                                    ],
+                                    minDate: "2021-12-05",
+
+                                    onChange: function(selectedDates, dateStr, instance) {
+                                    const formattedStr = dateStr.replace(" to ", " - ");
+                                    instance.input.value = formattedStr;
+                                    }
                                 });
                                 </script>
                             </div>

@@ -1418,6 +1418,11 @@ def view_image(request, inst, file_root, initial_suffix=None):
     # to show in the collapsible text box.
     basic_info, additional_info = get_additional_exposure_info(root_file_info, image_info)
 
+    try:
+        file_root_index = file_root_list.index(file_root)
+    except Exception as e:
+        file_root_index = 0
+
     logging.info(f"File root is {file_root}")
     logging.info(f"File root list is {file_root_list}")
     logging.info(f"File root in file_root_list: {file_root in file_root_list}")
@@ -1443,7 +1448,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
                'expstart_str': expstart_str,
                'basic_info': basic_info,
                'additional_info': additional_info,
-               'index': file_root_list.index(file_root)}
+               'index': file_root_index}
 
     return render(request, template, context)
 

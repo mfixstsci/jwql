@@ -558,6 +558,17 @@ def test_get_preview_images_by_rootname():
     assert isinstance(preview_images, list)
     assert len(preview_images) > 0
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to django models.')
+@pytest.mark.parametrize('inputs', 'expected',
+                         [('jw06154001002_02101_00004_nrcblong', ['nrca1', 'nrca2', 
+                           'nrca3', 'nrca4', 'nrcalong', 'nrcb1', 'nrcb2', 'nrcb3',
+                           'nrcb4', 'nrcblong'])])
+def test_get_detectors_by_rootname(inputs, expected):
+    """Tests the ``get_detectors_by_rootname`` function."""
+
+    detector_list = data_containers.get_detectors_by_rootname(inputs)
+    assert isinstance(detector_list, list)
+    assert sorted(detector_list) == sorted(outputs)
 
 def test_get_proposals_by_category():
     """Tests the ``get_proposals_by_category`` function."""

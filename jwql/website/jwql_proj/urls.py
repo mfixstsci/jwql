@@ -47,9 +47,13 @@ Notes
 """
 
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 
 from ..apps.jwql import views
+from jwql.utils.utils import get_config
+
+jdaviz_host = get_config()["jdaviz"]["host"]
+jdaviz_port = get_config()["jdaviz"]["port"]
 
 # Define custom error page views
 handler404 = views.not_found  # Page not found

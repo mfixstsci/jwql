@@ -40,6 +40,10 @@ if not os.environ.get("READTHEDOCS"):
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = get_config()['django_debug']
 
+# Security settings to allow Jdaviz quicklook
+# Might well be avoidable if the Jdaviz Solara server were behind an SSH reverse proxy.
+X_FRAME_OPTIONS = "SAMEORIGIN"
+SECURE_CONTENT_TYPE_NOSNIFF = False
 
 ALLOWED_HOSTS = ['*']
 
@@ -51,7 +55,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
-    'django.contrib.staticfiles',
+    'django.contrib.staticfiles'
 ]
 
 MIDDLEWARE = [
@@ -163,4 +167,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 CSRF_TRUSTED_ORIGINS = ['https://jwql.stsci.edu',
                         'https://jwql-test.stsci.edu',
                         'https://jwql-dev.stsci.edu',
+                        'https://dljwql9.stsci.edu',
+                        'https://tljwql9.stsci.edu',
+                        'https://pljwql.stsci.edu',
                         'https://127.0.0.1']

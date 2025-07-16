@@ -36,6 +36,7 @@ import tempfile
 from collections import defaultdict, OrderedDict
 from datetime import datetime
 from operator import getitem, itemgetter
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -69,8 +70,10 @@ from jwql.utils.constants import (
     SUFFIXES_WITH_AVERAGED_INTS,
     THUMBNAIL_FILTER_LOOK,
     QueryConfigKeys,
+    STSCI_VO_URL
 )
 from jwql.utils.credentials import get_mast_token
+from jwql.utils.logging_functions import configure_logging
 from jwql.utils.permissions import set_permissions
 from jwql.utils.utils import (
     check_config_for_key,
@@ -584,8 +587,9 @@ def get_available_suffixes(all_suffixes, return_untracked=True):
     # that specifies the order to use, add them to the end of the
     # suffixes list. Their order will be random since they are not in
     # EXPOSURE_PAGE_SUFFIX_ORDER.
-    if len(untracked_suffixes) > 0:
-        suffixes.extend(untracked_suffixes)
+    for suffix in untracked_suffixes:
+        if suffix not in IGNORED_SUFFIXES:
+            suffixes.append(suffix)
 
     if return_untracked:
         return suffixes, untracked_suffixes
@@ -1381,6 +1385,8 @@ def get_image_info(file_root):
         A dictionary containing various information for the given
         ``file_root``.
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.debug(f"Getting image info for {file_root}")
 
     # Initialize dictionary to store information
     image_info = {}
@@ -1401,10 +1407,12 @@ def get_image_info(file_root):
         os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
                      observation_dir, '{}*.fits'.format(file_root))))
 
+    logging.debug(f"Files before filtering: {filenames}")
     # Certain suffixes are always ignored
     filenames = [filename for filename in filenames
                  if os.path.splitext(filename)[0].split('_')[-1]
                  not in IGNORED_SUFFIXES]
+    logging.debug(f"Files after filtering: {filenames}")
     image_info['all_files'] = filenames
 
     # Determine the jpg directory
@@ -1412,6 +1420,7 @@ def get_image_info(file_root):
     jpg_dir = os.path.join(prev_img_filesys, proposal_dir)
 
     for filename in image_info['all_files']:
+        logging.debug(f"Checking file {filename}")
 
         parsed_fn = filename_parser(filename)
 
@@ -1423,6 +1432,7 @@ def get_image_info(file_root):
             logging.warning((f'While running get_image_info() on {filename}, the '
                              'filename_parser() failed to recognize the file pattern.'))
             continue
+        logging.debug(f"\tGot suffix {suffix}")
 
         # For crf or crfints suffixes, we need to also include the association value
         # in the suffix, so that preview images can be found later.
@@ -1512,7 +1522,7 @@ def get_instrument_proposals(instrument):
     inst_proposals : list
         List of proposals for the given instrument
     """
-    tap_service = vo.dal.TAPService("https://mast.stsci.edu/vo-tap/api/v0.1/caom")
+    tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"""select distinct prpID from CaomObservation where collection='JWST'
                                      and maxLevel>0 and insName like '{instrument.lower()}%'""")
     prop_table = tap_results.to_table()
@@ -1647,6 +1657,34 @@ def get_preview_images_by_rootname(rootname):
     return preview_images
 
 
+def get_detectors_by_rootname(rootname):
+    """
+    Return a list of exposures with the same rootname as the provided rootname, but
+    including all available detectors.
+    
+    Parameters
+    ----------
+    rootname : str
+        The rootname of interest (e.g.
+        ``jw86600008001_02101_00007_guider2``).
+
+    Returns
+    -------
+    detector_list : list
+        A list of images that are part of the same exposure but with all detectors.
+    """
+    detector_list = []
+    search_rootname = rootname[:25]
+    filenames = get_filenames_by_rootname(search_rootname)
+    for filename in filenames:
+        bare_name = Path(filename).name
+        name_items = bare_name.split("_")
+        detector_name = "_".join(name_items[:4])
+        if detector_name not in detector_list:
+            detector_list.append(detector_name)
+    return detector_list
+
+
 def get_proposals_by_category(instrument):
     """Return a dictionary of program numbers and category type
     Parameters
@@ -1659,7 +1697,7 @@ def get_proposals_by_category(instrument):
     category_sorted_dict : dict
         Dictionary with program number as the key and program category as the value
     """
-    tap_service = vo.dal.TAPService("https://mast.stsci.edu/vo-tap/api/v0.1/caom")
+    tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"""select distinct prpID,prpProject from CaomObservation where collection='JWST'
                                      and maxLevel>0 and insName like '{instrument.lower()}%'""")
     # Put the results into an astropy Table
@@ -1746,7 +1784,7 @@ def get_rootnames_for_proposal(proposal):
     rootnames : list
         List of rootnames for the given instrument and proposal number
     """
-    tap_service = vo.dal.TAPService("https://mast.stsci.edu/vo-tap/api/v0.1/caom")
+    tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"""select observationID from dbo.CaomObservation where
                                      collection='JWST' and maxLevel=2 and prpID='{int(proposal)}'""")
     prop_table = tap_results.to_table()
@@ -1899,6 +1937,8 @@ def get_thumbnail_by_rootname(rootname):
     thumbnail_basename : str
         A thumbnail_basename available in the filesystem for the given ``rootname``.
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.debug(f"Getting thumbnails for {rootname}")
 
     proposal = rootname.split('_')[0].split('jw')[-1][0:5]
     thumbnails = sorted(glob.glob(os.path.join(
@@ -2120,6 +2160,8 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     data_dict : dict
         Dictionary of data needed for the ``thumbnails`` template
     """
+    log_file = configure_logging("django", include_time=False)
+    logging.debug(f"Collecting thumbnails for {inst} {proposal} {obs_num}")
     # generate the list of all obs of the proposal here, so that the list can be
     # properly packaged up and sent to the js scripts. but to do this, we need to call
     # get_rootnames_for_instrument_proposal, which is largely repeating the work done by
@@ -2127,28 +2169,37 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # filter results by obs_num after the call and after obs_list is created.
     # But we need the filename list below...hmmm...so maybe we need to do both
     all_rootnames = get_rootnames_for_instrument_proposal(inst, proposal)
+    logging.debug(f"Associated roots are {all_rootnames}")
     all_obs = []
     for root in all_rootnames:
-        # Wrap in try/except because level 3 rootnames won't have an observation
-        # number returned by the filename_parser. That's fine, we're not interested
-        # in those files anyway.
-        file_info = filename_parser(root)
-        if file_info['recognized_filename']:
-            try:
-                all_obs.append(file_info['observation'])
-            except KeyError:
-                pass
-        else:
-            logging.warning((f'While running thumbnails_ajax() on root {root}, '
-                             'filename_parser() failed to recognize the file pattern.'))
+        logging.debug(f"Collecting info for {root}")
+        try:
+            # Wrap in try/except because level 3 rootnames won't have an observation
+            # number returned by the filename_parser. That's fine, we're not interested
+            # in those files anyway.
+            file_info = filename_parser(root)
+            if file_info['recognized_filename']:
+                try:
+                    all_obs.append(file_info['observation'])
+                except KeyError:
+                    pass
+            else:
+                logging.warning((f'While running thumbnails_ajax() on root {root}, '
+                                 'filename_parser() failed to recognize the file pattern.'))
+        except Exception as e:
+            logging.warning(f"{root} failed filename parser with {e}")
 
     obs_list = sorted(list(set(all_obs)))
 
     # Get the available files for the instrument
-    filenames, columns = get_filenames_by_instrument(inst, proposal, observation_id=obs_num, other_columns=['expstart', 'exp_type'])
+    filenames, columns = get_filenames_by_instrument(
+        inst, proposal, observation_id=obs_num, other_columns=['expstart', 'exp_type']
+    )
+    logging.debug(f"filenames are {filenames}")
 
     # Get set of unique rootnames
     rootnames = set(['_'.join(f.split('/')[-1].split('_')[:-1]) for f in filenames])
+    logging.debug(f"rootnames are {rootnames}")
 
     # Initialize dictionary that will contain all needed data
     data_dict = {'inst': inst,
@@ -2172,6 +2223,7 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # Gather data for each rootname, and construct a list of all observations
     # in the proposal
     for rootname in rootnames:
+        logging.debug(f"Gathering data for {rootname}")
         # Skip over unsupported filenames
         # e.g. jw02279-o001_s000... are spec2 products for WFSS with one file per source
         # Any filename with a dash after the proposal number is either this spec2 product

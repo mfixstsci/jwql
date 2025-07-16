@@ -7,8 +7,119 @@
  * @author Bryan Hilbert
  * @author Maria Pena-Guerrero
  * @author Melanie Clarke
+ * @author Brian York
  */
 
+ /**
+ * Change the quicklook images when the user changes the extension.
+ * @param {String} type - The image type (e.g. "rate", "uncal", etc.)
+ * @param {String} file_root - The rootname of the file
+ * @param {String} inst - The instrument for the given file
+ */
+function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx) {
+    // Log the input values at the start of the function in case of anything breaking.
+    console.log("Type: " + type);
+    console.log("File Root: " + file_root);
+    console.log("Instrument: " + inst);
+
+    // Deal with integration for single-integration views of separate-by-integration files
+    var num_ints = JSON.parse(clean_input_parameter(n_ints));
+    var total_ints = JSON.parse(clean_input_parameter(t_ints));
+
+    // Dictionary of files (with paths) by extension
+    var type_dict = f_paths;
+    console.log(type_dict);
+    var file_path = type_dict[type];
+    console.log(file_path);
+
+    // Propagate the text fields showing the filename and APT parameters
+    var fits_filename = file_root + '_' + type;
+    var parsed_name = parse_filename(file_root);
+
+    // Show the appropriate image
+    var frame = document.getElementById("quickview");
+    var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
+    console.log("Frame loading: " + newURL);
+    frame.contentWindow.location.replace(newURL);
+    
+    document.getElementById(type).checked = true;
+
+    // Store the currently displayed suffix
+    document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
+
+    document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
+    document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
+    document.getElementById("proposal").innerHTML = parsed_name.proposal;
+    document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
+    document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
+    document.getElementById("detector").innerHTML = file_root.split('_')[3];
+
+    // Add a link to download the file from MAST
+    document.getElementById("fits_filename").setAttribute('href',
+        'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
+        fits_filename + '.fits');
+
+    var exposure_array = file_root.split("_");
+    exposure_array.pop();
+    var exposure_str = exposure_array.join("_");
+
+    // Show the appropriate image
+    var img = document.getElementById("image_viewer");
+    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+    img.src = jpg_filepath;
+    img.alt = jpg_filepath;
+    // if previous image had error, remove error sizing
+    img.classList.remove("thumbnail");
+
+    // Reset the slider values
+    reset_integration_slider(num_ints[type], total_ints[type])
+
+    // Update the image exploration and header links
+    document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
+    document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str + "?suffix=" + type;
+    
+    var preview_type = document.getElementById("view_preview_type").getAttribute("data-current-preview");
+    console.log("Preview type: " + preview_type);
+    var get_string = "?suffix=" + type + "&preview=" + preview_type;
+    console.log("Get String: " + get_string);
+    
+    var file_root_list = f_rl;
+    var index = Number(idx);
+    document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
+    document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
+}
+
+ /**
+ * Set the view type (JPEG vs. JDaviz preview) based on user cookie selection
+ * @param {String} type - The image type (e.g. "rate", "uncal", etc.)
+ * @param {String} file_root - The rootname of the file
+ * @param {String} inst - The instrument for the given file
+ */
+function set_view(view, inst, file_root_list, idx) {
+    // Get the current view suffix from the page itself
+    var suffix = document.getElementById("view_file_type").getAttribute("data-current-suffix");
+    // If the user has appended what view they want in the URL they used, get that value.
+    var get_string = "?suffix=" + suffix + "&preview=" + view;
+    var index = Number(idx);
+
+    document.getElementById(view).checked = true;
+
+    if (view == 'jpeg') {
+        document.getElementById("jdaviz_preview").style.display = 'none';
+        document.getElementById("jpeg_preview").style.display = 'block';
+    } else {
+        document.getElementById("jdaviz_preview").style.display = 'block';
+        document.getElementById("jpeg_preview").style.display = 'none';
+    }
+
+    document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
+    document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
+
+    // Set a cookie with user preferences on what view they want
+    var CookieDate = new Date;
+    CookieDate.setFullYear(CookieDate.getFullYear() +1);
+    document.cookie = 'preview=' + view + '; expires=' + CookieDate.toUTCString() + '; path=/;';
+}
 
  /**
  * Change the filetype for all displayed images
@@ -25,7 +136,7 @@
  *                                filetype.
  * @param {String} inst - The instrument for the given file
  */
- function change_all_filetypes(type, group_root, num_ints, available_ints, total_ints, inst, detectors) {
+ function change_all_filetypes(type, group_root, num_ints, available_ints, total_ints, inst, detectors, base_url) {
 
     // Change the radio button to check the right filetype
     document.getElementById(type).checked = true;
@@ -50,7 +161,7 @@
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
     document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
-
+    
     var detector_list = detectors.split(',');
     for (let i = 0; i < detector_list.length; i++) {
         var detector = detector_list[i];
@@ -66,6 +177,14 @@
                            '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
         img.src = jpg_filepath;
         img.alt = jpg_filepath;
+        
+        var main_link = document.getElementById("view_" + detector);
+        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+        main_link.setAttribute('href', new_url);
+
+        var fallback_link = document.getElementById("view_" + detector + "_fallback");
+        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+        fallback_link.setAttribute('href', new_url);
 
         // Show/hide the viewer as appropriate
         show_viewer(detector, jpg_filepath);
@@ -130,20 +249,11 @@
          'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
          fits_filename + '.fits');
 
-    // Show the appropriate image
-    var img = document.getElementById("image_viewer");
-    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
-    img.src = jpg_filepath;
-    img.alt = jpg_filepath;
-    // if previous image had error, remove error sizing
-    img.classList.remove("thumbnail");
-
     // Reset the slider values
     reset_integration_slider(num_ints[type], total_ints[type])
 
     // Update the image exploration and header links
     document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
-    document.getElementById("explore_image").href = '/' + inst + '/' + file_root + '_' + type + '/explore_image/';
 }
 
 
@@ -1631,7 +1741,7 @@ function update_thumbnails_query_page(base_url, page) {
  * Construct the URL for viewing/exploring a selected image on the exposure page
  */
 function update_view_explore_link() {
-    var types = ['header', 'explore_image'];
+    var types = ['header'];
     for (var i = 0; i < types.length; i++) {
         var type = types[i];
         var file_selected = document.getElementById('fits_file_select');

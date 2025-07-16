@@ -559,7 +559,7 @@ def test_get_preview_images_by_rootname():
     assert len(preview_images) > 0
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to django models.')
-@pytest.mark.parametrize('inputs', 'expected',
+@pytest.mark.parametrize('inputs, expected',
                          [('jw06154001002_02101_00004_nrcblong', ['nrca1', 'nrca2', 
                            'nrca3', 'nrca4', 'nrcalong', 'nrcb1', 'nrcb2', 'nrcb3',
                            'nrcb4', 'nrcblong'])])

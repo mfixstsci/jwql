@@ -60,9 +60,8 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from sqlalchemy import inspect
 
-from jwql.database.database_interface import load_connection
 from jwql.utils import monitor_utils
-from jwql.utils.constants import JWST_INSTRUMENT_NAMES_MIXEDCASE, QUERY_CONFIG_TEMPLATE, URL_DICT, QueryConfigKeys
+from jwql.utils.constants import JWQLDB_EXCLUDED, JWST_INSTRUMENT_NAMES_MIXEDCASE, QUERY_CONFIG_TEMPLATE, URL_DICT, QueryConfigKeys
 from jwql.utils.interactive_preview_image import InteractivePreviewImg
 from jwql.utils.logging_functions import configure_logging
 from jwql.utils.utils import filename_parser, get_base_url, get_config, get_rootnames_for_instrument_proposal, query_unformat
@@ -84,6 +83,7 @@ from .data_containers import (
     get_image_info,
     get_instrument_looks,
     get_rootnames_from_query,
+    import_all_models,
     random_404_page,
     text_scrape,
     thumbnails_ajax,
@@ -312,6 +312,7 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
+    # Create nested dictionary of information needed for the page
     data = thumbnails_ajax(inst, proposal, obs_num=observation)
     logging.debug(f"Ajax returned: {data}")
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
@@ -321,7 +322,7 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     return JsonResponse(data, json_dumps_params={'indent': 2})
 
 
-def archive_thumbnails_per_observation(request, inst, proposal, observation):
+def archive_thumbnails_per_observation(request, inst, proposal, observation=None):
     """Generate the page listing all archived images in the database
     for a certain proposal
 
@@ -360,7 +361,13 @@ def archive_thumbnails_per_observation(request, inst, proposal, observation):
 
     sort_type = request.session.get('image_sort', 'Recent')
     group_type = request.session.get('image_group', 'Exposure')
+
+    # Different templates for the single observation versus all observation cases
     template = 'thumbnails_per_obs.html'
+    if observation is None:
+        template = 'thumbnails_all_obs.html'
+        observation = 'none'
+
     context = {'base_url': get_base_url(),
                'inst': inst,
                'obs': observation,
@@ -651,21 +658,21 @@ def jwqldb_table_viewer(request, tablename_param=None):
     else:
         table_meta = build_table(tablename)
 
-    _, _, engine, _ = load_connection(get_config()['connection_string'])
-    all_jwql_tables = inspect(engine).get_table_names()
-
-    if 'django_migrations' in all_jwql_tables:
-        all_jwql_tables.remove('django_migrations')  # No necessary information.
+    all_jwql_tables = import_all_models()
 
     jwql_tables_by_instrument = {}
     instruments = ['nircam', 'nirspec', 'niriss', 'miri', 'fgs']
 
     #  Sort tables by instrument
     for instrument in instruments:
-        jwql_tables_by_instrument[instrument] = [tablename for tablename in all_jwql_tables if instrument in tablename]
+        jwql_tables_by_instrument[instrument] = [tablename for tablename in all_jwql_tables if instrument in tablename.lower() and tablename not in JWQLDB_EXCLUDED]
+
+    # Wisp finder DB doesn't follow the naming convention. Add it here.
+    jwql_tables_by_instrument['nircam'].append('WispFinderB4QueryHistory')
 
     # Don't forget tables that dont contain instrument specific instrument information.
-    jwql_tables_by_instrument['general'] = [table for table in all_jwql_tables if not any(instrument in table for instrument in instruments)]
+    jwql_tables_by_instrument['general'] = [table for table in all_jwql_tables if not any(instrument in table.lower() for instrument in instruments) and table not in JWQLDB_EXCLUDED]
+    jwql_tables_by_instrument['general'].remove('WispFinderB4QueryHistory')
 
     template = 'jwqldb_table_viewer.html'
 
@@ -1090,8 +1097,13 @@ def save_page_navigation_data(request, data):
         when viewing an image, will the next/previous buttons be sorted by date? (the other option is rootname)
     """
     navigate_data = {}
-    for rootname in data['file_data']:
-        navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    try:
+        for rootname in data['file_data']:
+            navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    except:
+        for obs in data['file_data']:
+            for rootname in data['file_data'][obs]['files']:
+                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
 
     request.session['navigation_data'] = navigate_data
     return

@@ -13,18 +13,18 @@
 
         <p align="justify">
             This page allows users to interactively explore the JWQL database tables. The main function of this tool is to
-            visually inspect data through the JWQL Web Application. Simply select a table from the dropdown menu to begin,
-            if further investigation of the table is needed, you can click the "Download Data" button to obtain the displayed
-            table as a CSV file.
+            visually inspect data through the JWQL Web Application. Simply select a table from the dropdown menu to display
+            the contents below. If further investigation of the table is needed, you can click the "Download Data" button to
+            obtain the displayed table as a CSV file.
 
             <br><br>
             The database table naming convention follows:
 
-            <xmp><instrument>_<monitor>_<stat_type></stat_type></xmp>
+            <xmp><Instrument><Monitor><Stat_type></xmp>
 
             For example, if a user is interested in the statistics from the NIRCAM Bias Monitor, the table to investigate would be
 
-            <xmp>nircam_bias_stats</xmp>
+            <xmp>NircamBiasStats</xmp>
         </p>
 
         <hr>
@@ -34,14 +34,15 @@
             <h4>Select JWQL Database Table</h4>
             <div class="db_table_select">
                 <select name="db_table_select" id="db_table_select" onchange="this.form.submit()">
+
+                    {% if table_name %}
+                        <option value="{{ table_name }}" selected>{{ table_name }}</option>
+                    {% endif %}
                     {% for instrument in all_jwql_tables %}
                     <optgroup label="{{ instrument }}">
                         {% for table in all_jwql_tables[instrument] %}
                             <option value="{{ table }}">{{ table }}</option>
                         {% endfor %}
-                    {% if tablename %}
-                        <option value="{{ tablename }}" selected>{{ tablename }}</option>
-                    {% endif %}
                     </optgroup>
                     {% endfor %}
                 </select>
@@ -51,7 +52,7 @@
             <!-- If tablename is passed, render table. -->
             <!-- Table is not rendered when coming from home/monitor views -->
             {% if table_name %}
-                <h4> {{ table_name|safe }} </h4><hr>
+                <h5> {{ table_name|safe }} </h5><hr>
                 <a href="{{ '/download_table/%s'%table_name }}" name=download_data class="btn btn-primary my-2" type="submit" value="{{ tablename }}">Download Data</a>
                 <table id="jwqltable" class="display" style="width:100%">
                     <thead>
@@ -84,7 +85,7 @@
         <h2>Importing A Table Using Python's Pandas Library</h2><hr>
         <p>
             After downloading JWQLDB data, it is simple to import this data in a python session
-            using pandas. Visit the <a href="https://pandas.pydata.org/docs/" target="_blank">pandas documentation</a> 
+            using pandas. Visit the <a href="https://pandas.pydata.org/docs/" target="_blank">pandas documentation</a>
             for more information.
             <pre>
                 <code class="python">

@@ -800,7 +800,7 @@ def process_program(program, overwrite):
         try:
             im = PreviewImage(filename, "SCI")
             im.clip_percent = 0.01
-            im.scaling = 'log'
+            im.set_scaling()
             im.cmap = 'viridis'
             im.output_format = 'jpg'
             im.preview_output_directory = preview_output_directory

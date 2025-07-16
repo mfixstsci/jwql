@@ -357,7 +357,6 @@ EXPOSURE_PAGE_SUFFIX_ORDER = [
     "psfsub",
     "amiavg",
     "aminorm",
-    "ami",
     "psf-amiavg",
     "phot",
     "whtlt",
@@ -500,6 +499,7 @@ FULL_FRAME_APERTURES = {
 # Possible suffix types for nominal files
 GENERIC_SUFFIX_TYPES = [
     "uncal",
+    "calints",
     "cal",
     "rateints",
     "rate",
@@ -552,7 +552,7 @@ GUIDER_SUFFIX_TYPES = [
 ]
 
 # JWQL should ignore some filetypes in the filesystem.
-IGNORED_SUFFIXES = ["original", "stream", "x1d", "x1dints", "c1d", "pre-image"]
+IGNORED_SUFFIXES = ["original", "stream", "x1d", "x1dints", "c1d", "pre-image", "ami"]
 
 # Instrument monitor database tables
 INSTRUMENT_MONITOR_DATABASE_TABLES = {
@@ -1058,3 +1058,6 @@ MAX_LEN_TIME = 50
 MAX_LEN_TYPE = 40
 MAX_LEN_USER = 50
 MAX_LEN_VISIT = 30
+
+# STScI VAO server url
+STSCI_VO_URL = "https://mast.stsci.edu/vo-tap/api/v0.1/caom"

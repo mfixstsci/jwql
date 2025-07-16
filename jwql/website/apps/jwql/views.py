@@ -312,6 +312,7 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
+    # Create nested dictionary of information needed for the page
     data = thumbnails_ajax(inst, proposal, obs_num=observation)
     logging.debug(f"Ajax returned: {data}")
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
@@ -321,7 +322,7 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     return JsonResponse(data, json_dumps_params={'indent': 2})
 
 
-def archive_thumbnails_per_observation(request, inst, proposal, observation):
+def archive_thumbnails_per_observation(request, inst, proposal, observation=None):
     """Generate the page listing all archived images in the database
     for a certain proposal
 
@@ -360,7 +361,13 @@ def archive_thumbnails_per_observation(request, inst, proposal, observation):
 
     sort_type = request.session.get('image_sort', 'Recent')
     group_type = request.session.get('image_group', 'Exposure')
+
+    # Different templates for the single observation versus all observation cases
     template = 'thumbnails_per_obs.html'
+    if observation is None:
+        template = 'thumbnails_all_obs.html'
+        observation = 'none'
+
     context = {'base_url': get_base_url(),
                'inst': inst,
                'obs': observation,
@@ -1090,8 +1097,13 @@ def save_page_navigation_data(request, data):
         when viewing an image, will the next/previous buttons be sorted by date? (the other option is rootname)
     """
     navigate_data = {}
-    for rootname in data['file_data']:
-        navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    try:
+        for rootname in data['file_data']:
+            navigate_data[rootname] = data['file_data'][rootname]['expstart']
+    except:
+        for obs in data['file_data']:
+            for rootname in data['file_data'][obs]['files']:
+                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
 
     request.session['navigation_data'] = navigate_data
     return

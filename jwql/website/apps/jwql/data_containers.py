@@ -2154,8 +2154,6 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
         Name of JWST instrument
     proposal : str
         Number of APT proposal to filter
-    obs_num : str (optional)
-        Observation number
 
     Returns
     -------
@@ -2206,6 +2204,19 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # Initialize dictionary that will contain all needed data
     data_dict = {'inst': inst,
                  'file_data': dict()}
+
+    # Create keys to organize data by observation number
+    if obs_num is None:
+        obs_loop_list = obs_list
+    else:
+        obs_loop_list = [str(obs_num).zfill(3)]
+
+    print(obs_loop_list)
+
+    for obsnum in obs_loop_list:
+        data_dict['file_data'][obsnum] = {}
+        data_dict['file_data'][obsnum]['files'] = {}
+
     exp_types = set()
     exp_groups = set()
 
@@ -2261,19 +2272,20 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
         exp_groups.add(filename_dict['group_root'])
 
         # Add data to dictionary
-        data_dict['file_data'][rootname] = {}
-        data_dict['file_data'][rootname]['filename_dict'] = filename_dict
-        data_dict['file_data'][rootname]['available_files'] = available_files
-        data_dict['file_data'][rootname]['viewed'] = viewed
-        data_dict['file_data'][rootname]['exp_type'] = exp_type
-        data_dict['file_data'][rootname]['thumbnail'] = get_thumbnail_by_rootname(rootname)
-        data_dict['file_data'][rootname]['filter'] = filter_type
-        data_dict['file_data'][rootname]['pupil'] = pupil_type
-        data_dict['file_data'][rootname]['grating'] = grating_type
+        obsnum = filename_dict['observation']
+        data_dict['file_data'][obsnum]['files'][rootname] = {}
+        data_dict['file_data'][obsnum]['files'][rootname]['filename_dict'] = filename_dict
+        data_dict['file_data'][obsnum]['files'][rootname]['available_files'] = available_files
+        data_dict['file_data'][obsnum]['files'][rootname]['viewed'] = viewed
+        data_dict['file_data'][obsnum]['files'][rootname]['exp_type'] = exp_type
+        data_dict['file_data'][obsnum]['files'][rootname]['thumbnail'] = get_thumbnail_by_rootname(rootname)
+        data_dict['file_data'][obsnum]['files'][rootname]['filter'] = filter_type
+        data_dict['file_data'][obsnum]['files'][rootname]['pupil'] = pupil_type
+        data_dict['file_data'][obsnum]['files'][rootname]['grating'] = grating_type
 
         try:
-            data_dict['file_data'][rootname]['expstart'] = exp_start
-            data_dict['file_data'][rootname]['expstart_iso'] = Time(exp_start, format='mjd').iso.split('.')[0]
+            data_dict['file_data'][obsnum]['files'][rootname]['expstart'] = exp_start
+            data_dict['file_data'][obsnum]['files'][rootname]['expstart_iso'] = Time(exp_start, format='mjd').iso.split('.')[0]
         except (ValueError, TypeError) as e:
             logging.warning("Unable to populate exp_start info for {}".format(rootname))
             logging.warning(e)
@@ -2283,28 +2295,36 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # Extract information for sorting with dropdown menus
     # (Don't include the proposal as a sorting parameter if the proposal has already been specified)
     detectors, proposals, visits, filters, pupils, gratings = [], [], [], [], [], []
-    for rootname in list(data_dict['file_data'].keys()):
-        proposals.append(data_dict['file_data'][rootname]['filename_dict']['program_id'])
-        try:  # Some rootnames cannot parse out detectors
-            detectors.append(data_dict['file_data'][rootname]['filename_dict']['detector'])
-        except KeyError:
-            pass
-        try:  # Some rootnames cannot parse out visit
-            visits.append(data_dict['file_data'][rootname]['filename_dict']['visit'])
-        except KeyError:
-            pass
-        try:
-            filters.append(data_dict['file_data'][rootname]['filter'])
-        except KeyError:
-            pass
-        try:
-            pupils.append(data_dict['file_data'][rootname]['pupil'])
-        except KeyError:
-            pass
-        try:
-            gratings.append(data_dict['file_data'][rootname]['grating'])
-        except KeyError:
-            pass
+    for obnum in list(data_dict['file_data'].keys()):
+        for i, rootname in enumerate(list(data_dict['file_data'][obnum]['files'].keys())):
+            proposals.append(data_dict['file_data'][obnum]['files'][rootname]['filename_dict']['program_id'])
+            try:  # Some rootnames cannot parse out detectors
+                detectors.append(data_dict['file_data'][obnum]['files'][rootname]['filename_dict']['detector'])
+            except KeyError:
+                pass
+            try:  # Some rootnames cannot parse out visit
+                visits.append(data_dict['file_data'][obnum]['files'][rootname]['filename_dict']['visit'])
+            except KeyError:
+                pass
+            try:
+                filters.append(data_dict['file_data'][obnum]['files'][rootname]['filter'])
+            except KeyError:
+                pass
+            try:
+                pupils.append(data_dict['file_data'][obnum]['files'][rootname]['pupil'])
+            except KeyError:
+                pass
+            try:
+                gratings.append(data_dict['file_data'][obnum]['files'][rootname]['grating'])
+            except KeyError:
+                pass
+
+            # Set a representative exp_time for each observation. To be used for
+            # sorting later. It doesn't matter which exposure's exp_time we use,
+            # since all exposures for a given observation are taken together. There's
+            # no mixing of observations.
+            if i == 0:
+                data_dict['file_data'][obnum]['obs_exp_time'] = data_dict['file_data'][obnum]['files'][rootname]['expstart']
 
     if proposal is not None:
         dropdown_menus = {'detector': sorted(detectors),
@@ -2328,9 +2348,12 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     data_dict['dropdown_menus'] = dropdown_menus
     data_dict['prop'] = proposal
 
-    # Order dictionary by descending expstart time.
-    sorted_file_data = OrderedDict(sorted(data_dict['file_data'].items(),
-                                   key=lambda x: getitem(x[1], 'expstart'), reverse=True))
+    # Order dictionary by descending expstart time. Start by ordering the observations, using
+    # the representative obs_exp_time. Then order the entries within each observation.
+    sorted_file_data = {k: v for k, v in sorted(data_dict['file_data'].items(), key=lambda item: item[1]['obs_exp_time'], reverse=True)}
+    for key, value in sorted_file_data.items():
+        files = value['files']
+        sorted_file_data[key]['files'] = {k: v for k, v in sorted(files.items(), key=lambda item: item[1]['expstart'], reverse=True)}
 
     data_dict['file_data'] = sorted_file_data
 

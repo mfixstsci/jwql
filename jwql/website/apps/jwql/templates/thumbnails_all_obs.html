@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block preamble %}
+    <style type="text/css">
+        .thumbnail-array { display: none; }
+    </style>
+    <title>Archived {{ inst }} Images - JWQL</title>
+{% endblock %}
+
+{% block content %}
+<main role="main" class="container">
+    <hr>
+    <h3 id='title'>{{ inst }} Images</h3>
+    <script>determine_page_title('{{ inst }}', '{{ prop }}');</script>
+
+    <div id='img_show_count'></div>
+    <hr>
+
+    <div class="d-flex flex-row">
+        <div class="mr-4" id="thumbnail-filter"></div>
+    </div>
+    <hr>
+    <div class="d-flex flex-row">
+        <div class="mr-4" id="obs-list"></div>
+        <div class="mr-4" id="thumbnail-sort"></div>
+        <div class="mr-4" id="group-by-exposure"></div>
+    </div>
+
+    <hr>
+    <h4 id='proposal_meta'> Proposal Information for {{ prop }}</h4>
+    <div class="d-flex flex-row">
+        <div class="column">
+            <p><b>Title:</b> {{ prop_meta['title'] }}</p>
+            <p><b>Program Status:</b> {{ prop_meta['ps']|safe }}</p>
+            <p><b>Principal Investigator:</b> {{ prop_meta['pi'] }}</p>
+        </div>
+        <div class="column" style="text-align: right; width: 100%">
+            <p><b>Proposal Coordinator:</b> {{ prop_meta['pc']|safe }}</p>
+            <p><b>Proposal Type:</b> {{ prop_meta['prop_type'] }}</p>
+            <p><b>Phase Two:</b> {{ prop_meta['phase_two']|safe }}</p>
+        </div>
+    </div>
+    <hr>
+
+
+    <!--Loading Animation-->
+    <div id="loading">
+        <div class="lds-css ng-scope">
+            <div style="width:100%;height:100%" class="lds-magnify">
+                <div><div><div></div><div></div></div></div>
+            </div>
+            Loading ...
+        </div>
+    </div>
+
+
+    <hr>
+    <div id='thumbnail-array'></div>
+    <a id="no_thumbnails_msg" style='display: none'>No data match the selected criteria.</a>
+</main>
+
+<script>
+update_thumbnails_per_observation_page('{{ inst }}', '{{ prop }}', 'all', '{{ base_url }}', '{{ sort }}', '{{ group }}');
+</script>
+
+{% endblock %}

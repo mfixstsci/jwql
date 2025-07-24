@@ -428,7 +428,7 @@ def filename_parser(filename):
         r"(_.._msa.fits)"
 
     # Stage 3 filenames with target ID
-    # e.g. "jw80600-o009_t001_miri_f1130w_i2d.fits"
+    # e.g. "jw01076-o002_t001_nircam_f444w-grismr_x1d.fits or c1d.fits"
     stage_3_target_id = \
         r"jw" \
         r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\

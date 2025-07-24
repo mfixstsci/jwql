@@ -37,7 +37,6 @@ Use:
 import logging
 import os
 import socket
-import warnings
 
 from astropy.io import fits
 import numpy as np
@@ -203,19 +202,20 @@ class PreviewImage():
         # Ignore any pixels that are NaN
         finite = np.isfinite(data)
 
-        # If all non-science pixels are NaN then we're sunk. Scale
+        # If all pixels are NaN then we're sunk. Scale
         # from 0 to 1.
         if not np.any(finite):
             logging.info('No pixels with finite signal. Scaling from 0 to 1')
             return (0., 1.)
 
         # Combine maps of science pixels and finite pixels
-        pixmap = self.dq & finite
+        # self.dq can have values of 1 (science pixel) or 0 (non-science pixel)
+        pixmap = (self.dq & finite > 0)
 
         # If all non-science pixels are NaN then we're sunk. Scale
         # from 0 to 1.
         if not np.any(pixmap):
-            logging.info('No pixels with finite signal. Scaling from 0 to 1')
+            logging.info('No good science pixels with finite signal. Scaling from 0 to 1')
             return (0., 1.)
 
         sorted_pix = np.sort(data[pixmap], axis=None)
@@ -348,6 +348,12 @@ class PreviewImage():
         if dq.shape != data.shape[-2:]:
             raise ValueError(f'DQ array does not have the same shape as the data in {filename}')
 
+        # In some cases (e.g. MIRI suabrray TA files) all pixels will be flagged as non-science.
+        # In cases where dq shows all non-science pixels, let's zero out the flags and use all
+        # the pixels for image scaling.
+        if np.sum(dq) == 0:
+            dq = np.ones(dq.shape, dtype=int)
+
         return data, dq
 
     def get_nonsci_map(self, hdulist, extensions, xdim, ydim):
@@ -440,124 +446,116 @@ class PreviewImage():
             ysize = maxsize
             xsize = maxsize / ratio
 
-        if scale == 'log':
+        # Create figure and axis object
+        if thumbnail:
+            self.fig, ax = plt.subplots(figsize=(3, 3))
+        else:
+            self.fig, ax = plt.subplots(figsize=(xsize, ysize))
 
+        # Get color scale and tick values depending on the scaling
+        if scale == 'log':
             # Shift data so everything is positive
             shiftdata = image - min_value + 1
             shiftmin = 1
             shiftmax = max_value - min_value + 1
 
-            # If making a thumbnail, make a figure with no axes
-            if thumbnail:
-                self.fig, ax = plt.subplots(figsize=(3, 3))
-                cax = ax.imshow(shiftdata,
-                                norm=colors.LogNorm(vmin=shiftmin,
-                                                    vmax=shiftmax),
-                                cmap=self.cmap)
-                # Invert y axis
-                plt.gca().invert_yaxis()
+            # Generate tick labels
+            tickvals = np.logspace(np.log10(shiftmin), np.log10(shiftmax), 5)
+            tlabelflt = tickvals + min_value - 1
 
-                plt.axis('off')
-                cax.axes.get_xaxis().set_visible(False)
-                cax.axes.get_yaxis().set_visible(False)
-
-            # If preview image, add axes and colorbars
-            else:
-                self.fig, ax = plt.subplots(figsize=(xsize, ysize))
-                cax = ax.imshow(shiftdata,
-                                norm=colors.LogNorm(vmin=shiftmin,
-                                                    vmax=shiftmax),
-                                cmap=self.cmap)
-                # Invert y axis
-                plt.gca().invert_yaxis()
-
-                # Add colorbar, with original data values
-                tickvals = np.logspace(np.log10(shiftmin), np.log10(shiftmax), 5)
-                tlabelflt = tickvals + min_value - 1
-
-                # Adjust the number of digits after the decimal point
-                # in the colorbar labels based on the signal range
-                delta = tlabelflt[-1] - tlabelflt[0]
-                if delta >= 100:
-                    dig = 0
-                elif ((delta < 100) & (delta >= 10)):
-                    dig = 1
-                elif ((delta < 10) & (delta >= 1)):
-                    dig = 2
-                elif delta < 1:
-                    dig = 3
-                else:
-                    dig = 2
-                format_string = "%.{}f".format(dig)
-                tlabelstr = [format_string % number for number in tlabelflt]
-
-                # This seems to correctly remove the ticks and labels we want to remove. It gives a warning that
-                # it doesn't work on log scales, which we don't care about. So let's ignore that warning.
-                warnings.filterwarnings("ignore", message="AutoMinorLocator does not work with logarithmic scale")
-
-                xyratio = xsize / ysize
-                if xyratio < 1.6:
-                    # For apertures that are taller than they are wide, square, or that are wider than
-                    # they are tall but still reasonably close to square, put the colorbar on the right
-                    # side of the image.
-
-                    # Some magic numbers arrived at through testing aspect ratios for all apertures
-                    if xyratio > 0.4:
-                        cb_width = 0.05
-                    else:
-                        cb_width = 0.05 * 0.4 / xyratio
-
-                    upper_x_anchor = 0.02
-                    if xyratio < 0.1:
-                        upper_x_anchor = 0.12
-
-                    cbax = self.fig.add_axes([ax.get_position().x1 + upper_x_anchor,
-                                              ax.get_position().y0,
-                                              cb_width,
-                                              ax.get_position().height
-                                              ])
-                    cbar = self.fig.colorbar(cax, cax=cbax, ticks=tickvals, orientation='vertical')
-                    cbar.ax.yaxis.set_minor_locator(AutoMinorLocator(n=0))
-                    cbar.ax.set_yticklabels(tlabelstr)
-                    cbar.ax.set_ylabel(self.units, labelpad=7, rotation=270)
-                else:
-                    # For apertures that are significantly wider than they are tall, put the colorbar
-                    # under the image.
-
-                    # Again, some magic numbers controlling the positioning and height of the
-                    # colorbar, based on testing.
-                    lower_y_anchor = 0. - (xyratio / 14.5)
-                    cb_height = 0.07 * (np.log2(xyratio) - 1)
-
-                    cbax = self.fig.add_axes([ax.get_position().x0,
-                                              ax.get_position().y0 + lower_y_anchor,
-                                              ax.get_position().width,
-                                              cb_height])
-                    cbar = self.fig.colorbar(cax, cax=cbax, ticks=tickvals, orientation='horizontal')
-                    cbar.ax.xaxis.set_minor_locator(AutoMinorLocator(n=0))
-                    cbar.ax.set_xticklabels(tlabelstr)
-                    cbar.ax.set_xlabel(self.units, labelpad=7, rotation=0)
-
-                ax.set_xlabel('Pixels', fontsize=maxsize * 5. / 4)
-                ax.set_ylabel('Pixels', fontsize=maxsize * 5. / 4)
-                ax.tick_params(labelsize=maxsize)
-                plt.rcParams.update({'axes.titlesize': 'small'})
-                plt.rcParams.update({'font.size': maxsize * 5. / 4})
-                plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
-                plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
-                plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+            # Image object
+            cax = ax.imshow(shiftdata,
+                            norm=colors.LogNorm(vmin=shiftmin,
+                                                vmax=shiftmax),
+                            cmap=self.cmap)
 
         elif scale == 'linear':
-            self.fig, ax = plt.subplots(figsize=(xsize, ysize))
+            # Generate tick labels
+            tickvals = np.linspace(min_value, max_value, 5)
+            tlabelflt = tickvals
             cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap)
 
-            # Invert y axis
-            plt.gca().invert_yaxis()
+        # Invert y axis in all cases
+        plt.gca().invert_yaxis()
 
-            if not thumbnail:
-                cbar = fig.colorbar(cax)
-                ax.set_xlabel('Pixels')
-                ax.set_ylabel('Pixels')
+        # For preview images, add colorbar, and create tick labels for it
+        if not thumbnail:
+            # Adjust the number of digits after the decimal point
+            # in the colorbar labels based on the signal range
+            delta = tlabelflt[-1] - tlabelflt[0]
+            if delta >= 100:
+                dig = 0
+            elif ((delta < 100) & (delta >= 10)):
+                dig = 1
+            elif ((delta < 10) & (delta >= 1)):
+                dig = 2
+            elif delta < 1:
+                dig = 3
+            else:
+                dig = 2
+            format_string = "%.{}f".format(dig)
+            tlabelstr = [format_string % number for number in tlabelflt]
+
+            xyratio = xsize / ysize
+            if xyratio < 1.6:
+                # For apertures that are taller than they are wide, square, or that are wider than
+                # they are tall but still reasonably close to square, put the colorbar on the right
+                # side of the image.
+
+                # Some magic numbers arrived at through testing aspect ratios for all apertures
+                if xyratio > 0.4:
+                    cb_width = 0.05
+                else:
+                    cb_width = 0.05 * 0.4 / xyratio
+
+                upper_x_anchor = 0.02
+                if xyratio < 0.1:
+                    upper_x_anchor = 0.12
+
+                cbax = self.fig.add_axes([ax.get_position().x1 + upper_x_anchor,
+                                          ax.get_position().y0,
+                                          cb_width,
+                                          ax.get_position().height
+                                          ])
+                cbar = self.fig.colorbar(cax, cax=cbax, orientation='vertical', ticks=tickvals)
+
+                cbar.ax.yaxis.minorticks_off()
+                cbar.ax.set_yticklabels(tlabelstr)
+                cbar.ax.set_ylabel(self.units, labelpad=7, rotation=270)
+            else:
+                # For apertures that are significantly wider than they are tall, put the colorbar
+                # under the image.
+
+                # Again, some magic numbers controlling the positioning and height of the
+                # colorbar, based on testing.
+                lower_y_anchor = 0. - (xyratio / 14.5)
+                cb_height = 0.07 * (np.log2(xyratio) - 1)
+
+                cbax = self.fig.add_axes([ax.get_position().x0,
+                                          ax.get_position().y0 + lower_y_anchor,
+                                          ax.get_position().width,
+                                          cb_height])
+                cbar = self.fig.colorbar(cax, cax=cbax, ticks=tickvals, orientation='horizontal')
+
+                cbar.ax.xaxis.minorticks_off()
+                cbar.ax.set_xticklabels(tlabelstr)
+                cbar.ax.set_xlabel(self.units, labelpad=7, rotation=0)
+
+            # Set text sizes
+            ax.set_xlabel('Pixels', fontsize=maxsize * 5. / 4)
+            ax.set_ylabel('Pixels', fontsize=maxsize * 5. / 4)
+            ax.tick_params(labelsize=maxsize)
+            plt.rcParams.update({'axes.titlesize': 'small'})
+            plt.rcParams.update({'font.size': maxsize * 5. / 4})
+            plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
+            plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
+            plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+
+        elif thumbnail:
+            # If creating a thumbnail, make the axes invisible
+            plt.axis('off')
+            cax.axes.get_xaxis().set_visible(False)
+            cax.axes.get_yaxis().set_visible(False)
 
         # If preview image, set a title
         if not thumbnail:
@@ -684,6 +682,18 @@ class PreviewImage():
         else:
             logging.info('\tSaved image to {}'.format(fname))
             self.thumbnail_filename = None
+
+    def set_scaling(self):
+        """Determine the scaling (e.g. log, linear) to use for the preview image.
+        NIRSpec WATA TA images and non-full-frame MIRI target acq images are set to linear,
+        while everything else is set to log.
+        """
+        header = fits.getheader(self.file)
+        self.scaling = 'log'
+        if ((header['EXP_TYPE'] == 'NRS_WATA') & (header['SUBSIZE1'] == 32) & (header['SUBSIZE2'] == 32)):
+            self.scaling = 'linear'
+        if ((header['EXP_TYPE'] == 'MIR_TACQ') & (header['SUBARRAY'] != 'FULL')):
+            self.scaling = 'linear'
 
 
 def create_nir_nonsci_map():

@@ -54,7 +54,7 @@ from jwql.utils.constants import FILE_AC_CAR_ID_LEN, FILE_AC_O_ID_LEN, FILE_ACT_
     FILE_GUIDESTAR_ATTMPT_LEN_MAX, FILE_OBS_LEN, FILE_PARALLEL_SEQ_ID_LEN, \
     FILE_PROG_ID_LEN, FILE_SEG_LEN, FILE_SOURCE_ID_LEN, FILE_SOURCE_ID_LONG_LEN, FILE_SUFFIX_TYPES, \
     FILE_TARG_ID_LEN, FILE_VISIT_GRP_LEN, FILE_VISIT_LEN, FILETYPE_WO_STANDARD_SUFFIX, \
-    JWST_INSTRUMENT_NAMES_SHORTHAND, ON_GITHUB_ACTIONS
+    JWST_INSTRUMENT_NAMES_SHORTHAND, ON_GITHUB_ACTIONS, STSCI_VO_URL
 __location__ = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 
 
@@ -381,6 +381,7 @@ def filename_parser(filename):
     ValueError
         When the provided file does not follow naming conventions
     """
+    logging.debug(f"Running filename_parser() on {filename}")
 
     filename = os.path.basename(filename)
     split_filename = filename.split('.')
@@ -620,9 +621,11 @@ def filename_parser(filename):
 
     # Try to parse the filename
     for filename_type, filename_type_name in zip(filename_types, filename_type_names):
+        logging.debug(f"Checking {filename_type_name} against file {filename}")
 
         # If full filename, try using suffix, except for *msa.fits files
         if not file_root_name and FILETYPE_WO_STANDARD_SUFFIX not in filename:
+            logging.debug(f"\tAdding suffix to match string")
             filename_type += r"_(?P<suffix>{}).*".format('|'.join(FILE_SUFFIX_TYPES))
         # If not, make sure the provided regex matches the entire filename root
         else:
@@ -633,6 +636,7 @@ def filename_parser(filename):
 
         # Stop when you find a format that matches
         if jwst_file is not None:
+            logging.debug(f"Matched")
             name_match = filename_type_name
             break
 
@@ -777,7 +781,7 @@ def get_rootnames_for_instrument_proposal(instrument, proposal):
     rootnames : list
         List of rootnames for the given instrument and proposal number
     """
-    tap_service = vo.dal.TAPService("https://vao.stsci.edu/caomtap/tapservice.aspx")
+    tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and maxLevel=2 and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
     prop_table = tap_results.to_table()
     rootnames = prop_table['observationID'].data
@@ -926,3 +930,28 @@ def grouper(iterable, chunksize):
         if not chunk:
             return
         yield chunk
+
+def filter_maker(level):
+    """
+    This creates a logging filter that takes in an integer describing log level (with
+    DEBUG being the lowest value and CRITICAL the highest), and returns True if and only
+    if the logged message has a lower level than the filter level.
+
+    The filter is needed because the logging system is designed so that it outputs
+    messages of LogLevel *or higher*, because the assumption is you want to know if
+    something happens that's more serious than what you're looking at.
+
+    In this case, though, we're dividing printed-out log messages between the built-in
+    STDOUT and STDERR output streams, and we have assigned ERROR and above to go to
+    STDERR, while INFO and above go to STDOUT. So, by default, anything at ERROR or at
+    CRITICAL would go to *both* STDOUT and STDERR. This function lets you add a filter
+    that returns false for anything with a level above WARNING, so that STDOUT won't
+    duplicate those messages.
+    """
+    level = getattr(logging, level)
+
+    def filter(record):
+        return record.levelno <= level
+
+    return filter
+

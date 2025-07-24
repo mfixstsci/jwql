@@ -7,8 +7,119 @@
  * @author Bryan Hilbert
  * @author Maria Pena-Guerrero
  * @author Melanie Clarke
+ * @author Brian York
  */
 
+ /**
+ * Change the quicklook images when the user changes the extension.
+ * @param {String} type - The image type (e.g. "rate", "uncal", etc.)
+ * @param {String} file_root - The rootname of the file
+ * @param {String} inst - The instrument for the given file
+ */
+function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx) {
+    // Log the input values at the start of the function in case of anything breaking.
+    console.log("Type: " + type);
+    console.log("File Root: " + file_root);
+    console.log("Instrument: " + inst);
+
+    // Deal with integration for single-integration views of separate-by-integration files
+    var num_ints = JSON.parse(clean_input_parameter(n_ints));
+    var total_ints = JSON.parse(clean_input_parameter(t_ints));
+
+    // Dictionary of files (with paths) by extension
+    var type_dict = f_paths;
+    console.log(type_dict);
+    var file_path = type_dict[type];
+    console.log(file_path);
+
+    // Propagate the text fields showing the filename and APT parameters
+    var fits_filename = file_root + '_' + type;
+    var parsed_name = parse_filename(file_root);
+
+    // Show the appropriate image
+    var frame = document.getElementById("quickview");
+    var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
+    console.log("Frame loading: " + newURL);
+    frame.contentWindow.location.replace(newURL);
+    
+    document.getElementById(type).checked = true;
+
+    // Store the currently displayed suffix
+    document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
+
+    document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
+    document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
+    document.getElementById("proposal").innerHTML = parsed_name.proposal;
+    document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
+    document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
+    document.getElementById("detector").innerHTML = file_root.split('_')[3];
+
+    // Add a link to download the file from MAST
+    document.getElementById("fits_filename").setAttribute('href',
+        'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
+        fits_filename + '.fits');
+
+    var exposure_array = file_root.split("_");
+    exposure_array.pop();
+    var exposure_str = exposure_array.join("_");
+
+    // Show the appropriate image
+    var img = document.getElementById("image_viewer");
+    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+    img.src = jpg_filepath;
+    img.alt = jpg_filepath;
+    // if previous image had error, remove error sizing
+    img.classList.remove("thumbnail");
+
+    // Reset the slider values
+    reset_integration_slider(num_ints[type], total_ints[type])
+
+    // Update the image exploration and header links
+    document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
+    document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str + "?suffix=" + type;
+    
+    var preview_type = document.getElementById("view_preview_type").getAttribute("data-current-preview");
+    console.log("Preview type: " + preview_type);
+    var get_string = "?suffix=" + type + "&preview=" + preview_type;
+    console.log("Get String: " + get_string);
+    
+    var file_root_list = f_rl;
+    var index = Number(idx);
+    document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
+    document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
+}
+
+ /**
+ * Set the view type (JPEG vs. JDaviz preview) based on user cookie selection
+ * @param {String} type - The image type (e.g. "rate", "uncal", etc.)
+ * @param {String} file_root - The rootname of the file
+ * @param {String} inst - The instrument for the given file
+ */
+function set_view(view, inst, file_root_list, idx) {
+    // Get the current view suffix from the page itself
+    var suffix = document.getElementById("view_file_type").getAttribute("data-current-suffix");
+    // If the user has appended what view they want in the URL they used, get that value.
+    var get_string = "?suffix=" + suffix + "&preview=" + view;
+    var index = Number(idx);
+
+    document.getElementById(view).checked = true;
+
+    if (view == 'jpeg') {
+        document.getElementById("jdaviz_preview").style.display = 'none';
+        document.getElementById("jpeg_preview").style.display = 'block';
+    } else {
+        document.getElementById("jdaviz_preview").style.display = 'block';
+        document.getElementById("jpeg_preview").style.display = 'none';
+    }
+
+    document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
+    document.getElementById("next_button").href = '/' + inst + '/' + file_root_list[index + 1] + get_string;
+
+    // Set a cookie with user preferences on what view they want
+    var CookieDate = new Date;
+    CookieDate.setFullYear(CookieDate.getFullYear() +1);
+    document.cookie = 'preview=' + view + '; expires=' + CookieDate.toUTCString() + '; path=/;';
+}
 
  /**
  * Change the filetype for all displayed images
@@ -25,7 +136,7 @@
  *                                filetype.
  * @param {String} inst - The instrument for the given file
  */
- function change_all_filetypes(type, group_root, num_ints, available_ints, total_ints, inst, detectors) {
+ function change_all_filetypes(type, group_root, num_ints, available_ints, total_ints, inst, detectors, base_url) {
 
     // Change the radio button to check the right filetype
     document.getElementById(type).checked = true;
@@ -50,7 +161,7 @@
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
     document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
-
+    
     var detector_list = detectors.split(',');
     for (let i = 0; i < detector_list.length; i++) {
         var detector = detector_list[i];
@@ -66,6 +177,14 @@
                            '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
         img.src = jpg_filepath;
         img.alt = jpg_filepath;
+        
+        var main_link = document.getElementById("view_" + detector);
+        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+        main_link.setAttribute('href', new_url);
+
+        var fallback_link = document.getElementById("view_" + detector + "_fallback");
+        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+        fallback_link.setAttribute('href', new_url);
 
         // Show/hide the viewer as appropriate
         show_viewer(detector, jpg_filepath);
@@ -130,20 +249,11 @@
          'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
          fits_filename + '.fits');
 
-    // Show the appropriate image
-    var img = document.getElementById("image_viewer");
-    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
-    img.src = jpg_filepath;
-    img.alt = jpg_filepath;
-    // if previous image had error, remove error sizing
-    img.classList.remove("thumbnail");
-
     // Reset the slider values
     reset_integration_slider(num_ints[type], total_ints[type])
 
     // Update the image exploration and header links
     document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
-    document.getElementById("explore_image").href = '/' + inst + '/' + file_root + '_' + type + '/explore_image/';
 }
 
 
@@ -581,10 +691,16 @@ function unhide_file(detector) {
  */
 function insert_thumbnail_images(updates) {
     // Update the thumbnail image source
+    if (updates.length === 0) {
+        console.warn("No thumbnail images to insert!");
+        return;
+    }
+
     for (var i = 0; i < updates.length; i++) {
         var thumb_id = updates[i][0];
         var jpg_path = updates[i][1];
         set_thumbnail_image_source(thumb_id, jpg_path);
+
     }
 }
 
@@ -597,7 +713,16 @@ function insert_thumbnail_images(updates) {
 function set_thumbnail_image_source(thumb_id, jpg_path) {
     $.get(jpg_path, function() {
         var img = document.getElementById('thumbnail' + thumb_id);
-        img.src = jpg_path;})
+
+        if (!img) {
+            console.error(`Thumbnail image element not found: thumbnail${thumb_id}`);
+            return;
+        }
+
+        img.src = jpg_path;
+    }).fail(function() {
+        console.error(`Image not found: ${jpg_path}`);
+    });
 }
 
 
@@ -841,15 +966,17 @@ function sort_by_proposals(sort_type) {
  * Sort thumbnail display by a given sort type, save sort type in session for use in previous/next buttons
  * @param {String} sort_type - The sort type by file name
  * @param {String} base_url - The base URL for gathering data from the AJAX view.
- */
+ *
+ * This function is used to sort query page results
+*/
 function sort_by_thumbnails(sort_type, base_url) {
-
+    console.log("Sorting thumbnails by:", sort_type);
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
 
     // Sort the thumbnails accordingly.
-    // Note: Because thumbnails will sort relating to their current order (when the exp_start is the same between thumbnails), we need to do multiple sorts to guarantee consistency.
-
+    // Note: Because thumbnails will sort relating to their current order (when the exp_start is
+    // the same between thumbnails), we need to do multiple sorts to guarantee consistency.
     var thumbs = $('div#thumbnail-array>div')
     if (sort_type == 'Descending') {
         tinysort(thumbs, {attr:'data-file_root', order:'desc'});
@@ -869,6 +996,52 @@ function sort_by_thumbnails(sort_type, base_url) {
         error : function(response) {
             console.log("session image sort update failed");
         }
+    });
+}
+
+/**
+ * Sort thumbnail display on observation level page by a given sort type, save sort type
+ * in session for use in previous/next buttons
+ * @param {String} sort_type - The sort type by file name
+ * @param {String} base_url - The base URL for gathering data from the AJAX view.
+ *
+ * This function is used to sort thumbnails on observation level pages.
+*/
+function sort_by_thumbnails_all_obs(sort_type, base_url) {
+    // Update dropdown menu text
+    document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
+
+    var obs_groups = $('div.observation-group');
+    if (sort_type == 'Descending') {
+        tinysort(obs_groups, {attr:'data-obs', order: 'desc' });
+    } else if (sort_type === "Recent") {
+        tinysort(obs_groups, { attr: 'data-exp_start', order: 'desc' });
+    } else if (sort_type === "Oldest") {
+        tinysort(obs_groups, { attr: 'data-exp_start', order: 'asc' });
+    } else {
+        tinysort(obs_groups, {attr:'data-obs', order: 'asc' });
+    }
+
+    // Sort thumbnails within each observation group
+    // Note: Because thumbnails will sort relating to their current order (when the exp_start is
+    //the same between thumbnails), we need to do multiple sorts to guarantee consistency.
+    obs_groups.each(function() {
+        var thumbs = $(this).children('div.thumbnail');
+        if (sort_type == 'Descending') {
+            tinysort(thumbs, {attr: 'data-file_root', order:'desc' });
+        } else if (sort_type === 'Recent') {
+            tinysort(thumbs, { attr: 'data-exp_start', order: 'desc' }, {attr:'data-file_root', order:'asc'});
+        } else if (sort_type === "Oldest") {
+            tinysort(thumbs, { attr: 'data-exp_start', order: 'asc' }, {attr:'data-file_root', order:'asc'});
+        } else {
+            tinysort(thumbs, { attr: 'data-file_root', order: 'asc' });
+        }
+    });
+
+    $.ajax({
+        url: base_url + '/ajax/image_sort/',
+        data: { 'sort_type': sort_type },
+        error: function() { console.log("session image sort update failed"); }
     });
 }
 
@@ -1254,11 +1427,17 @@ function update_header_display(extension, num_extensions) {
  * @param {List} obslist - List of observation number strings
  */
 function update_obs_options(data, inst, prop, observation) {
+    if (observation=='all') {
+        button_text = 'All Obs'
+    } else {
+        button_text = 'Obs'+observation
+    }
     // Build div content
     var content = 'Available obs:';
     content += '<div class="dropdown">';
-    content += '<button class="btn btn-primary dropdown-toggle" type="button" id="obs_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Obs' + observation + '</button>';
+    content += '<button class="btn btn-primary dropdown-toggle" type="button" id="obs_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + button_text + '</button>';
     content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
+    content += '<a class="dropdown-item" href="/' + inst + '/archive/' + prop + '/all_observations/" > All Obs</a>';
     for (var i = 0; i < data.obs_list.length; i++) {
         content += '<a class="dropdown-item" href="/' + inst + '/archive/' + prop + '/obs' + data.obs_list[i] + '/" > Obs' + data.obs_list[i] + '</a>';
     }
@@ -1323,19 +1502,104 @@ function update_sort_options(data, base_url) {
     content += '<div class="dropdown">';
     content += '<button class="btn btn-primary dropdown-toggle" type="button" id="sort_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + data.thumbnail_sort + '</button>';
     content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
-    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Ascending\', \'' + base_url + '\');">Ascending</a>';
-    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Descending\', \'' + base_url + '\');">Descending</a>';
-    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Recent\', \'' + base_url + '\');">Recent</a>';
-    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Oldest\', \'' + base_url + '\');">Oldest</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails_all_obs(\'Ascending\', \'' + base_url + '\');">Ascending</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails_all_obs(\'Descending\', \'' + base_url + '\');">Descending</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails_all_obs(\'Recent\', \'' + base_url + '\');">Recent</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails_all_obs(\'Oldest\', \'' + base_url + '\');">Oldest</a>';
     content += '</div></div>';
 
     // Add the content to the div
     $("#thumbnail-sort")[0].innerHTML = content;
 }
 
+
+/**
+ * Updates the thumbnail divs with interactive images of thumbnails
+ * @param {Object} data - The data returned by the update_thumbnails_per_observation_page AJAX methods
+ *
+ * This is used when working with observation-level pages. update_thumbnail_array below works
+ * with the query results page.
+ */
+function update_thumbnail_array_all_obs(data) {
+    var thumbnail_content = "";
+    var image_updates = [];
+
+    //Object.keys(data.obs_list).forEach(obs => {
+    Object.keys(data.file_data).forEach(obs => {
+
+        // Add representative exp_time from the first file to the observation div level
+        //const keysList = Object.keys(data.file_data[obs]['files']);
+        //obs_expstart = data.file_data[obs]['files'][keysList[0]].expstart;
+        obs_expstart = data.file_data[obs]['obs_exp_time']
+        thumbnail_content += `<div class='observation-group' data-obs='${obs}' data-exp_start='${obs_expstart}'>`;
+        thumbnail_content += `<h4>Observation ${obs}</h4>`;
+
+        Object.keys(data.file_data[obs]['files']).forEach((rootname, i) => {
+            let file = data.file_data[obs]['files'][rootname];
+
+            // Extract metadata
+            let viewed = file.viewed;
+            let exp_type = file.exp_type;
+            let exp_time = file.expstart;  // Timestamp for sorting
+            let filename_dict = file.filename_dict;
+            let filter_type = file.filter;
+            let pupil_type = file.pupil;
+            let grating_type = file.grating;
+            let group_root = file.filename_dict.group_root || "unknown";
+            let observation_num = filename_dict.observation; // Extract observation number
+
+            // Determine the instrument name
+            let instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
+
+            var content = `<div class="thumbnail" data-instrument="${instrument}"
+                                data-detector="${filename_dict.detector}"
+                                data-proposal="${filename_dict.program_id}"
+                                data-file_root="${rootname}"
+                                data-group_root="${filename_dict.group_root}"
+                                data-exp_start="${file.expstart}"
+                                data-look="${viewed}"
+                                data-exp_type="${exp_type}"
+                                data-visit="${filename_dict.visit}"
+                                data-filter="${filter_type}"
+                                data-pupil="${pupil_type}"
+                                data-grating="${grating_type}">`;
+
+            content += '<div class="thumbnail-group">';
+            content += `<a class="thumbnail-link" href="#" data-image-href="/${instrument}/${rootname}/"
+                            data-group-href="/${instrument}/exposure/${filename_dict.group_root}">`;
+            content += '<span class="helper"></span>';
+            content += `<img id="thumbnail${obs}_${i}" src="/static/img/default_thumb.png"
+                            alt="Thumbnail for file ${rootname}">`;
+            content += '<div class="thumbnail-color-fill"></div>';
+            content += '<div class="thumbnail-info">';
+            content += `Proposal: ${filename_dict.program_id} <br>`;
+            content += `Observation: ${filename_dict.observation} <br>`;
+            content += `Visit: ${filename_dict.visit} <br>`;
+            content += `Detector: ${filename_dict.detector} <br>`;
+            content += `Exp_Start: ${file.expstart_iso} <br>`;
+            content += '</div></a></div></div>';
+
+            thumbnail_content += content;
+            if (file.thumbnail !== 'none') {
+                var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
+                image_updates.push([`${obs}_${i}`, jpg_path]);
+                //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
+            }
+        });
+        thumbnail_content += `</div>`;
+    });
+
+    $("#thumbnail-array")[0].innerHTML = thumbnail_content;
+    insert_thumbnail_images(image_updates);
+}
+
+
 /**
  * Updates the thumbnail-array div with interactive images of thumbnails
- * @param {Object} data - The data returned by the update_thumbnails_per_observation_page/update_thumbnails_query_page AJAX methods
+ * @param {Object} data - The data returned by the update_thumbnails_query_page AJAX methods
+ *
+ * This is used when working with query page results. update_thumbnail_array_all_obs() above
+ * works with the observation-level pages.
  */
 function update_thumbnail_array(data) {
 
@@ -1400,6 +1664,7 @@ function update_thumbnail_array(data) {
     insert_thumbnail_images(image_updates);
 }
 
+
 /**
  * Updates various components on the thumbnails page
  * @param {String} inst - The instrument of interest (e.g. "FGS")
@@ -1410,13 +1675,23 @@ function update_thumbnail_array(data) {
  * @param {String} group - Group method string saved in session data image_group
  */
 function update_thumbnails_per_observation_page(inst, proposal, observation, base_url, sort, group) {
+    if (observation !== 'all') {
+        url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/'
+    } else {
+        url = base_url + '/ajax/' + inst + '/archive/' + proposal + '/' + 'all_observations/'
+    }
+
     $.ajax({
-        url: base_url + '/ajax/' + inst + '/archive/' + proposal + '/obs' + observation + '/',
+        url: url,
         success: function(data){
             // Perform various updates to divs
-            var num_thumbnails = Object.keys(data.file_data).length;
+            //var num_thumbnails = Object.keys(data.file_data).length;
+            var num_thumbnails = 0
+            for (key in data.file_data) {
+                num_thumbnails += Object.keys(data.file_data[key]['files']).length;
+            }
             update_show_count(num_thumbnails, 'activities');
-            update_thumbnail_array(data);
+            update_thumbnail_array_all_obs(data);
             update_obs_options(data, inst, proposal, observation);
             update_filter_options(data, base_url, 'thumbnail');
             update_group_options(data, base_url);
@@ -1424,13 +1699,14 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
 
             // Do initial sort and group to match sort button display
             group_by_thumbnails(group, base_url);
-            sort_by_thumbnails(sort, base_url);
+            sort_by_thumbnails_all_obs(sort, base_url);
 
             // Replace loading screen with the proposal array div
             document.getElementById("loading").style.display = "none";
             document.getElementById("thumbnail-array").style.display = "block";
         }});
 }
+
 
 /**
  * Updates various components on the thumbnails anomaly query page
@@ -1465,7 +1741,7 @@ function update_thumbnails_query_page(base_url, page) {
  * Construct the URL for viewing/exploring a selected image on the exposure page
  */
 function update_view_explore_link() {
-    var types = ['header', 'explore_image'];
+    var types = ['header'];
     for (var i = 0; i < types.length; i++) {
         var type = types[i];
         var file_selected = document.getElementById('fits_file_select');

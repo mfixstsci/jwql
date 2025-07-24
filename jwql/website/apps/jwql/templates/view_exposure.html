@@ -81,7 +81,7 @@
 	    <form class="my-2">
 	    	{% for suffix in suffixes %}
 	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}"
-                       onclick='change_all_filetypes("{{suffix}}", "{{group_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}", "{{detectors|join(",")}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
+                       onclick='change_all_filetypes("{{suffix}}", "{{group_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}", "{{detectors|join(",")}}", "{{base_url}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
 	    	{% endfor %}
 		</form>
 		<br>
@@ -89,7 +89,6 @@
 		<!-- Buttons for viewing header, exploring image -->
         <div class="row">
             <a id="header" href="#" role="button" class="btn btn-primary mx-2" type="button">View Header</a>
-            <a id="explore_image" href="#" role="button" class="btn btn-primary mx-2" type="button">Explore Image</a>
             <div class="mx-2 my-2">for</div>
             <select name="fits_file_select" id="fits_file_select" onchange="update_view_explore_link();">
                 {% for detector in detectors %}
@@ -116,16 +115,16 @@
                     {% if detector1 in detectors %}
                     <div class="col" id="{{ detector1 }}_view">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector1 }}/">
+                            <a id="view_{{detector1}}" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector1 }}/">
                                 <img class="image_preview_viewer" id="image_viewer_{{ detector1 }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector1 }}"
                                      data-detector="{{ detector1 }}" style="width:100%">
                             </a>
                         </span>
                     </div>
-                    <div class="col" id="{{ detector1 }}_view_fallback">
+                    <div id="view_{{detector1}}" class="col" id="{{ detector1 }}_view_fallback">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector1 }}/">
+                            <a id="view_{{detector1}}_fallback" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector1 }}/">
                                 <img class="image_preview_viewer thumbnail" id="fallback_image_viewer_{{ detector1 }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector1 }}"
                                      data-detector="{{ detector1 }}"
@@ -142,7 +141,7 @@
                     {% if detector2 in detectors %}
                     <div class="col" id="{{ detector2 }}_view">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector2 }}/">
+                            <a id="view_{{detector2}}" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector2 }}/">
                                 <img class="image_preview_viewer" id="image_viewer_{{ detector2 }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector2 }}"
                                      data-detector="{{ detector2 }}" style="width:100%">
@@ -151,7 +150,7 @@
                     </div>
                     <div class="col" id="{{ detector2 }}_view_fallback">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector2 }}/">
+                            <a id="view_{{detector2}}_fallback" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector2 }}/">
                                 <img class="image_preview_viewer thumbnail" id="fallback_image_viewer_{{ detector2 }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector2 }}"
                                      data-detector="{{ detector2 }}"
@@ -168,7 +167,7 @@
                     {% if detector3 in detectors %}
                     <div class="col" id="{{ detector3 }}_view">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector3 }}/">
+                            <a id="view_{{detector3}}" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector3 }}/">
                                 <img class="image_preview_viewer" id="image_viewer_{{ detector3 }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector3 }}"
                                      data-detector="{{ detector3 }}" style="width:100%">
@@ -177,7 +176,7 @@
                     </div>
                     <div class="col" id="{{ detector3 }}_view_fallback">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector3 }}/">
+                            <a id="view_{{detector3}}_fallback" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector3 }}/">
                                 <img class="image_preview_viewer thumbnail" id="fallback_image_viewer_{{ detector3 }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector3 }}"
                                      data-detector="{{ detector3 }}"
@@ -194,7 +193,7 @@
                 {% for detector in detectors %}
                     <div class="col" id="{{ detector }}_view">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector }}/">
+                            <a id="view_{{detector}}" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector }}/">
                                 <img class="image_preview_viewer" id="image_viewer_{{ detector }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector }}"
                                      data-detector="{{ detector }}" style="width:100%">
@@ -203,7 +202,7 @@
                     </div>
                     <div class="col" id="{{ detector }}_view_fallback">
                         <span class="image_preview">
-                            <a href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector }}/">
+                            <a id="view_{{detector}}_fallback" href="{{ base_url }}/{{ inst }}/{{ group_root }}_{{ detector }}/">
                                 <img class="image_preview_viewer thumbnail" id="fallback_image_viewer_{{ detector }}"
                                      title="Preview image for {{ group_root }}, detector {{ detector }}"
                                      data-detector="{{ detector }}"
@@ -273,14 +272,16 @@
             <script>update_viewed_button(false, true)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if 'rate' in suffixes %}
-            <script>change_all_filetypes('rate', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}");</script>
+        {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
+            <script>change_all_filetypes('{{initial_suffix}}', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
+        {% elif 'rate' in suffixes %}
+            <script>change_all_filetypes('rate', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'dark' in suffixes %}
-            <script>change_all_filetypes('dark', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('dark', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'uncal' in suffixes %}
-            <script>change_all_filetypes('uncal', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('uncal', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif suffixes|length == 1 %}
-            <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}");</script>
+            <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

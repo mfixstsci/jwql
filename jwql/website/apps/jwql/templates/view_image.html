@@ -65,7 +65,7 @@
 	    </a><br>
 	    <form class="my-2">
 	    	{% for suffix in suffixes %}
-	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='change_filetype("{{suffix}}", "{{file_root}}", "{{num_ints}}", "{{available_ints}}", "{{total_ints}}", "{{inst}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
+	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='handle_change("{{suffix}}", "{{file_root}}", "{{inst}}", {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, "{{num_ints}}", "{{total_ints}}", "{{index}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
 	    	{% endfor %}
 		</form>
 		<br>
@@ -73,43 +73,61 @@
 		<!-- Buttons for viewing header, downloading files -->
         <p>
             <a id="view_header" class="btn btn-primary mx-2" role="button" href="#">View Header</a>
-            <a id="explore_image" class="btn btn-primary mx-2" role="button" href="#">Explore Image</a>
+            <a id="view_exposure" class="btn btn-primary mx-2" role="button" href="#">View Exposure</a>
             <!-- <a id="download_fits" class="btn btn-primary my-2 mx-2" role="button" href='{{ static("") }}preview_images/{{ file_root[:7] }}/{{ file_root }}' download>Download FITS</a>
             <a id="download_jpg" class="btn btn-primary my-2 mx-2" role="button" href='{{ static("") }}preview_images/{{ file_root[:7] }}/{{ jpg }}' download>Download JPEG</a> -->
         </p>
 
+    	<!-- Allow the user to change the preview format that is being displayed -->
+    	<a id="view_preview_type" data-current-preview="jpeg">View Preview As:</a>
+        <br>
+	    <form class="my-2">
+            <input type="radio" name="preview_preference" value="jpeg" id="jpeg" onclick='set_view("jpeg", "{{inst}}", {{file_root_list | tojson | safe}}, "{{index}}")' checked>JPEG &nbsp;&nbsp;
+            <input type="radio" name="preview_preference" value="jdaviz" id="jdaviz" onclick='set_view("jdaviz", "{{inst}}", {{file_root_list | tojson | safe}}, "{{index}}")'>JDAViz &nbsp;&nbsp;
+		</form>
+		<br>
+
+
         <div class="row">
 
-            <!-- Display the image and integration buttons/slider -->
-    	    <div class="col-xl-9 text-center">
-    		    <span class="image_preview">
-    		    	<img class="image_preview_viewer" id="image_viewer"
-                         onerror="image_error(this, true);"
-                         title="Preview image for {{ file_root }}" width=1000rem height=auto>
-    		    </span>
+            <div class="col-xl-9 text-center" id="preview-div">
 
-                <div class="int_changer">
-                    <button id="int_before" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}", "{{available_ints}}", "button", "left");' disabled>&#9664;</button>
-                    <input type="range" min="1" max="5" value="1" class="slider" id="slider_range" onchange='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "slider")'>
-                    <button id="int_after" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "button", "right");' disabled>&#9658;</button>
-                    <p>Integration: <span id="slider_val"></span>/<span id="total_ints"></span></p>
+                <div id="jdaviz_preview" style="display: none">
+                    <iframe id="quickview" height="750px" width="900px" src="https://jwqlquickview.stsci.edu?file={{file_paths[suffixes.0] | safe}}"></iframe>
+                </div>
+                
+                <div id="jpeg_preview">
+        		    <span class="image_preview">
+        		    	<img class="image_preview_viewer" id="image_viewer"
+                             onerror="image_error(this, true);"
+                             title="Preview image for {{ file_root }}" width=1000rem height=auto>
+    		        </span>
+
+                    <div class="int_changer">
+                        <button id="int_before" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}", "{{available_ints}}", "button", "left");' disabled>&#9664;</button>
+                        <input type="range" min="1" max="5" value="1" class="slider" id="slider_range" onchange='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "slider")'>
+                        <button id="int_after" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "button", "right");' disabled>&#9658;</button>
+                        <p>Integration: <span id="slider_val"></span>/<span id="total_ints"></span></p>
+                    </div>
                 </div>
 
+                <!-- Display the Previous/Next buttons -->
                 <div class="previous-next-buttons">
                     <span class="step-links">
                         {% if file_root in file_root_list %}
                             {% set index = file_root_list.index(file_root) %}
                             {% if index != 0 %}
-                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
+                                <a id="prev_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index-1] }}/" style="float: left;">< Previous</a>
                             {% endif %}
 
                             {% if index != file_root_list|length - 1 %}
-                                <a role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
+                                <a id="next_button" role="button" class="btn btn-primary my-2" type="submit" href="{{ base_url }}/{{ inst }}/{{ file_root_list[index+1] }}/" style="float: right;">Next ></a>
                             {% endif %}
                         {% endif %}
                     </span>
                 </div>
             </div>
+
 
             <!-- Display the anomaly form -->
             <div class="col-xl-3 text-left">
@@ -155,22 +173,28 @@
             <script>update_viewed_button(false)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if 'rate' in suffixes %}
-            <script>change_filetype('rate', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+        {% if (initial_suffix|length > 0) and (initial_suffix in file_paths) %}
+            <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
+        {% elif 'rate' in suffixes %}
+            <script>handle_change('rate', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif 'dark' in suffixes %}
-            <script>change_filetype('dark', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('dark', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif 'uncal' in suffixes %}
-            <script>change_filetype('uncal', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('uncal', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif 'i2d' in suffixes %}
-            <script>change_filetype('i2d', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('i2d', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif 's3d' in suffixes %}
-            <script>change_filetype('s3d', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('s3d', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif 'x1d' in suffixes %}
-            <script>change_filetype('x1d', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('x1d', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif suffixes|length == 1 %}
-            <script>change_filetype('{{suffixes.0}}', '{{file_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}');</script>
+            <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
+        {% endif %}
+        <!-- Determine which preview should be shown on load -->
+        {% if (initial_preview|length > 0) %}
+            <script>set_view("{{ initial_preview }}", '{{inst}}', {{file_root_list | tojson | safe}}, '{{index}}');</script>
         {% endif %}
 
     </main>

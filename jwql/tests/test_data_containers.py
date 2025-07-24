@@ -558,6 +558,17 @@ def test_get_preview_images_by_rootname():
     assert isinstance(preview_images, list)
     assert len(preview_images) > 0
 
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to django models.')
+@pytest.mark.parametrize('inputs, expected',
+                         [('jw06154001002_02101_00004_nrcblong', ['nrca1', 'nrca2', 
+                           'nrca3', 'nrca4', 'nrcalong', 'nrcb1', 'nrcb2', 'nrcb3',
+                           'nrcb4', 'nrcblong'])])
+def test_get_detectors_by_rootname(inputs, expected):
+    """Tests the ``get_detectors_by_rootname`` function."""
+
+    detector_list = data_containers.get_detectors_by_rootname(inputs)
+    assert isinstance(detector_list, list)
+    assert sorted(detector_list) == sorted(outputs)
 
 def test_get_proposals_by_category():
     """Tests the ``get_proposals_by_category`` function."""
@@ -654,6 +665,15 @@ def test_thumbnails_ajax():
 
     assert isinstance(thumbnail_dict, dict)
 
-    keys = ['inst', 'file_data', 'tools', 'dropdown_menus', 'prop']
+    keys = ['inst', 'file_data', 'tools', 'dropdown_menus', 'prop', 'obs_list', 'exp_groups']
     for key in keys:
         assert key in thumbnail_dict
+
+    file_data_keys = ['001', '002', '003', '004', '005', '006', '007']
+    for key in file_data_keys:
+        assert key in thumbnail_dict['file_data']
+
+    obs_keys = ['files', 'obs_exp_time']
+    for key in obs_keys:
+        assert key in thumbnail_dict['file_data']['007']
+

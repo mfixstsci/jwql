@@ -427,6 +427,27 @@ def filename_parser(filename):
         r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})"\
         r"(_.._msa.fits)"
 
+    # Stage 3 MIRI IFU file
+    # e.g. jw07772-c1015_t005_miri_ch1-long_x1d.fits
+    stage_3_miri_ifu = \
+        r"jw(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>([oi]\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>t\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>miri)"\
+        r"_ch(?P<channel>[1-4])"\
+        r"-(?P<subchannel>(long|medium|short|all)" + ")"
+
+    # Stage 3, single optical element, subarray
+    # e.g. jw06604-o005_t002_miri_f1800w-brightsky_i2d.fits
+    stage_3_optelement_subarray = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
+        r"[_-](?P<optical_elements>[a-zA-Z0-9\-]{5,})"\
+        r"-(?P<subarray>[a-zA-Z0-9\-]+)"
+
     # Stage 3 filenames with target ID
     # e.g. "jw01076-o002_t001_nircam_f444w-grismr_x1d.fits or c1d.fits"
     stage_3_target_id = \
@@ -435,7 +456,7 @@ def filename_parser(filename):
         r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
         r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
-        r"_(?P<optical_elements>((?!_)[\w-])+)"
+        r"[-_](?P<optical_elements>((?!_)[\w-])+)"
 
     # Stage 3 filenames with source ID
     # e.g. "jw80600-o009_s00001_miri_f1130w_i2d.fits"
@@ -460,6 +481,7 @@ def filename_parser(filename):
 
     # Stage 3 WFSS filenames
     # e.g. jw01076-o124_s000001220_nircam_f322w2-grismr_x1d.fits cal.fits c1d.fits
+    #This should not be used anymore...
     stage_3_wfss_source_id = \
         r"jw" \
         r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
@@ -477,6 +499,16 @@ def filename_parser(filename):
         r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
         r"_(?P<instrument>(nirspec))"\
         r"_(?P<optical_elements>([a-zA-Z0-9]{4,6}_[a-zA-Z0-9]{4,6})+)"
+
+    # Stage 3 NIRSpec source-based files
+    # e.g. jw04735-o005_s000013418_nirspec_f100lp-g140h_x1d.fits
+    stage_3_nirspec_source_based = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<source_id>[sbv]\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"
 
 
 
@@ -589,11 +621,14 @@ def filename_parser(filename):
         stage_2_msa,
         stage_3_subarray_based,
         stage_3_wfss_source_id,
+        stage_3_miri_ifu,
+        stage_3_optelement_subarray,
         stage_3_target_id,
         stage_3_source_id,
         stage_3_target_id_epoch,
         stage_3_source_id_epoch,
         stage_3_nirspec_ifu_mos,
+        stage_3_nirspec_source_based,
         stage_3_nirspec_fixed_slit,
         time_series,
         time_series_2c,
@@ -607,11 +642,14 @@ def filename_parser(filename):
         'stage_2_msa',
         'stage_3_subarray_based',
         'stage_3_wfss_source_id',
+        'stage_3_miri_ifu',
+        'stage_3_optelement_subarray',
         'stage_3_target_id',
         'stage_3_source_id',
         'stage_3_target_id_epoch',
         'stage_3_source_id_epoch',
         'stage_3_nirspec_ifu_mos',
+        'stage_3_nirspec_source_based',
         'stage_3_nirspec_fixed_slit',
         'time_series',
         'time_series_2c',

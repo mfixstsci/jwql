@@ -1138,7 +1138,11 @@ def mast_query_by_filename(instrument, filename):
 
     retval = {}
     if result['data'] == []:
-        print("WARNING: no data for {}".format(rootname))
+        print("WARNING: no data for {}".format(filename))
+
+
+        print(instrument, filename)
+
     else:
         retval = result['data'][0]
     return retval
@@ -1159,21 +1163,36 @@ def mast_query_by_rootname(instrument, rootname):
     result : dict
         Dictionary of rootname data
     """
-    query_filters = []
-    if '-seg' in rootname:
-        root_split = rootname.split('-')
-        file_set_name = root_split[0]
-        root_split = rootname.split('_')
-        detector = root_split[-1]
-    else:
-        root_split = rootname.split('_')
-        file_set_name = '_'.join(root_split[:-1])
-        detector = root_split[-1]
-
     service = INSTRUMENT_SERVICE_MATCH[instrument]
 
-    query_filters.append({'paramName': 'fileSetName', 'values': [file_set_name]})
-    query_filters.append({'paramName': 'detector', 'values': [detector.upper()]})
+    query_filters = []
+
+    # This query still returns nothing for the "b" and "v" stage 3 source-based filenames. I'm not sure why.
+    # e.g. jw04735-o005_v000000001_nirspec_f100lp-g140h_cal.fits, jw04735-o005_b000000030_nirspec_f100lp-g140h_cal.fits
+    info = filename_parser(rootname)
+    if 'stage_3' not in info['filename_type']:
+
+        if '-seg' in rootname:
+            root_split = rootname.split('-')
+            file_set_name = root_split[0]
+            root_split = rootname.split('_')
+            detector = root_split[-1]
+        else:
+            root_split = rootname.split('_')
+            file_set_name = '_'.join(root_split[:-1])
+            detector = root_split[-1]
+
+        query_filters.append({'paramName': 'fileSetName', 'values': [file_set_name]})
+        query_filters.append({'paramName': 'detector', 'values': [detector.upper()]})
+
+    else:
+        # For stage 3 files the general rule of thumb is that we want to strip off
+        # everything from the rootname that comes after the name of the instrument
+        index = [rootname.find(e) for e in JWST_INSTRUMENT_NAMES if rootname.find(e) != -1][0]
+        name_end = index + len(instrument)
+        subroot = rootname[0:name_end]
+        query_filters.append({'paramName': 'fileSetName', 'values': [subroot]})
+
     params = {'columns': '*',
               'filters': query_filters}
     try:
@@ -1186,6 +1205,10 @@ def mast_query_by_rootname(instrument, rootname):
     retval = {}
     if result['data'] == []:
         print("WARNING: no data for {}".format(rootname))
+
+        print(instrument, rootname)
+
+
     else:
         retval = result['data'][0]
     return retval
@@ -1709,7 +1732,7 @@ def get_detectors_by_rootname(rootname):
     """
     Return a list of exposures with the same rootname as the provided rootname, but
     including all available detectors.
-    
+
     Parameters
     ----------
     rootname : str

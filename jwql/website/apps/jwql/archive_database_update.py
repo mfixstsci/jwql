@@ -99,6 +99,10 @@ def get_updates(update_database):
     inst : str
         Name of JWST instrument
     """
+
+
+    print('\n\nget_updates\n\n')
+
     instruments = ['nircam', 'miri', 'nirspec', 'niriss', 'fgs']
     for inst in ['miri']: #instruments:
         logging.info(f'Updating database for {inst} archive page.')
@@ -107,7 +111,7 @@ def get_updates(update_database):
         inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
         # Dictionary to hold summary information for all proposals
-        all_proposals = get_instrument_proposals(inst)
+        #all_proposals = get_instrument_proposals(inst)
 
 
 
@@ -619,7 +623,6 @@ def fill_empty_rootfileinfo(rootfileinfo_set):
     rootfileinfo_set : a queryset of RootFileInfo objects
 
     '''
-    print('This will need to be updated to support level 3 files as well....')
     saved_rootfileinfos = 0
     for rootfileinfo_mod in rootfileinfo_set:
         defaults_dict = mast_query_by_rootname(rootfileinfo_mod.instrument, rootfileinfo_mod.root_name)
@@ -723,7 +726,7 @@ def protected_code(update_database, fill_empty_list):
         fill_empty_model(fill_empty_list[0], fill_empty_list[1])
     else:
         get_updates(update_database)
-        cleanup_past_runs()
+        #cleanup_past_runs()
 
 
 if __name__ == '__main__':

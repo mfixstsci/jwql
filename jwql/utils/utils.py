@@ -710,6 +710,27 @@ def filename_parser(filename):
             group_root = re.sub(rf"_{filename_dict['detector']}$", '', root_name)
             filename_dict['group_root'] = group_root
 
+        # For level 3 files that use an observation-based association ID, set
+        # the observation number. This will be needed to allow the file to show
+        # up on the appropriate observation page.
+        if 'stage_3' in filename_dict['filename_type']:
+            if filename[7:9] == '-o':
+                filename_dict['observation'] = filename[9:12]
+            else:
+                # import here to avoid circular import
+                # Should we instead create a mast_queries.py file and move functions there to avoid circular imports?
+                from jwql.website.apps.jwql.data_containers import mast_query_filenames_by_instrument
+                l3_info = mast_query_filenames_by_instrument(filename_dict['instrument'],
+                                                             filename_dict['program_id'],
+                                                             other_columns=['observtn'])
+                obs = [e['observtn'] for e in l3_info['data'] if root_name in e['filename']][0]
+                filename_dict['observation'] = obs
+                print(root_name, obs)
+                try:
+                    dummy = int(obs)
+                except:
+                    stop
+
     # Raise error if unable to parse the filename
     except AttributeError:
         filename_dict = {'recognized_filename': False}
@@ -802,8 +823,32 @@ def get_base_url():
     return base_url
 
 
+def get_level_3_obs_list(filename):
+    """Get metadata for a level 3 file. Use the associated asn file to
+    determine observations.
+    """
+
+    # Get the path to the input file in the filesystem
+    file_path = Path(filesystem_path(filename, check_existence=True))
+
+    # Check for an association file with a matching name
+    three_levels_up = file_path.parents[3]
+    asn_path = three_levels_up / 'asn' / file_path.name
+
+    # Copy association file to a working directory
+    here
+
+    # Read in file, get list of observations from association members
+    with open(file_copy, 'r') as fobj:
+        asn = json.load(fobj)
+
+    member_names = [e['expname'] for e in asn['products'][0]['members']]
+    obs = list(set([e[7:10] for e in member_names]))
+    return obs
+
+
 def get_rootnames_for_instrument_proposal(instrument, proposal):
-    """Return a list of rootnames for the given instrument and proposal
+    """Return a list of stage 2 and stage 3 rootnames for the given instrument and proposal
 
     Parameters
     ----------
@@ -820,7 +865,7 @@ def get_rootnames_for_instrument_proposal(instrument, proposal):
         List of rootnames for the given instrument and proposal number
     """
     tap_service = vo.dal.TAPService(STSCI_VO_URL)
-    tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and maxLevel=2 and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
+    tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
     prop_table = tap_results.to_table()
     rootnames = prop_table['observationID'].data
     return rootnames.compressed()

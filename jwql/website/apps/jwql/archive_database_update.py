@@ -120,8 +120,8 @@ def get_updates(update_database):
         # nircam: 1068 (img, time series)
         # miri: 2667 (slitless), 5118 (fixed slit, TA), 6550 (MRS, image)
         # For testing
-        all_proposals = ['6550']
-
+        #all_proposals = ['6550']
+        all_proposals = ['1192']
 
 
         # Get list of all files for the given instrument
@@ -135,6 +135,8 @@ def get_updates(update_database):
             filenames = filepaths_public + filepaths_proprietary
             obsnums = np.array(metadata_public['observtn'] + metadata_proprietary['observtn'])
 
+
+            print(f'obsnums is: {obsnums}')
 
 
 
@@ -475,8 +477,15 @@ def update_database_table(update, instrument, prop, obs, thumbnail, obsfiles, ty
                 # Updating defaults only on update or creation to prevent call to mast_query_by_rootname on every file name.
                 # We could try querying by rootname, and then falling back and querying by filename if the rootname query
                 # comes back empty. Or maybe we can simply query by filename for everything????
-                #defaults_dict = mast_query_by_rootname(instrument, file)
+                defaults_dict_orig = mast_query_by_rootname(instrument, file)
                 defaults_dict = mast_query_by_filename(instrument, filename)
+
+                if '-o002' in filename:
+                    print('mast_query_by_rootname:')
+                    print(defaults_dict_orig)
+                    print('\n\nmast_query_by_filename:')
+                    print(defaults_dict)
+                    stop
 
                 # If the result is empty, we may be working with a level 3 file. These files have other
                 # filename structures. Try querying by filename

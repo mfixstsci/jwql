@@ -402,7 +402,7 @@ def get_additional_exposure_info(root_file_infos, image_info):
     # suffixes. The order of possible_suffixes_to_use is itentional, because the
     # uncal file will not have info on the pipeline version used, and so we would
     # rather grab information from the rate or cal files.
-    possible_suffixes_to_use = np.array(['i2d', 'rate', 'rateints', 'cal', 'calints', 'uncal'])
+    possible_suffixes_to_use = np.array(['i2d', 'rate', 'rateints', 'cal', 'calints', 'x1d', 's3d', 'uncal'])
     existing_suffixes = np.array([suffix in image_info['suffixes'] for suffix in possible_suffixes_to_use])
 
     if isinstance(root_file_infos, QuerySet):
@@ -1821,6 +1821,7 @@ def get_proposal_info(filepaths):
                         obs = file_info['observation']
                         obsnums.append(obs)
                     except KeyError:
+                        print(f'\n\nFile {fname} has no observation info from the filename_parser')
                         pass
                 else:
                     logging.warning((f'While running get_proposal_info() for a program {proposal}, {fname} '

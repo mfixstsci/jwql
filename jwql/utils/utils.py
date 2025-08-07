@@ -724,12 +724,8 @@ def filename_parser(filename):
                                                              filename_dict['program_id'],
                                                              other_columns=['observtn'])
                 obs = [e['observtn'] for e in l3_info['data'] if root_name in e['filename']][0]
-                filename_dict['observation'] = obs
+                filename_dict['observation'] = str(obs).zfill(3)
                 print(root_name, obs)
-                try:
-                    dummy = int(obs)
-                except:
-                    stop
 
     # Raise error if unable to parse the filename
     except AttributeError:

@@ -578,7 +578,7 @@ def protected_code(update_database, fill_empty_list):
         fill_empty_model(fill_empty_list[0], fill_empty_list[1])
     else:
         get_updates(update_database)
-        #cleanup_past_runs()
+        cleanup_past_runs()
 
 
 if __name__ == '__main__':

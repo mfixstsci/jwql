@@ -819,30 +819,6 @@ def get_base_url():
     return base_url
 
 
-def get_level_3_obs_list(filename):
-    """Get metadata for a level 3 file. Use the associated asn file to
-    determine observations.
-    """
-
-    # Get the path to the input file in the filesystem
-    file_path = Path(filesystem_path(filename, check_existence=True))
-
-    # Check for an association file with a matching name
-    three_levels_up = file_path.parents[3]
-    asn_path = three_levels_up / 'asn' / file_path.name
-
-    # Copy association file to a working directory
-    here
-
-    # Read in file, get list of observations from association members
-    with open(file_copy, 'r') as fobj:
-        asn = json.load(fobj)
-
-    member_names = [e['expname'] for e in asn['products'][0]['members']]
-    obs = list(set([e[7:10] for e in member_names]))
-    return obs
-
-
 def get_rootnames_for_instrument_proposal(instrument, proposal):
     """Return a list of stage 2 and stage 3 rootnames for the given instrument and proposal
 

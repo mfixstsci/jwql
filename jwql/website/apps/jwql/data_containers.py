@@ -402,7 +402,7 @@ def get_additional_exposure_info(root_file_infos, image_info):
     # suffixes. The order of possible_suffixes_to_use is itentional, because the
     # uncal file will not have info on the pipeline version used, and so we would
     # rather grab information from the rate or cal files.
-    possible_suffixes_to_use = np.array(['i2d', 'rate', 'rateints', 'cal', 'calints', 'x1d', 's3d', 'uncal'])
+    possible_suffixes_to_use = np.array(['rate', 'rateints', 'cal', 'calints', 'uncal'])
     existing_suffixes = np.array([suffix in image_info['suffixes'] for suffix in possible_suffixes_to_use])
 
     if isinstance(root_file_infos, QuerySet):
@@ -1023,7 +1023,7 @@ def get_expstart(instrument, rootname):
 
     if result['data'] == []:
         expstart = 0
-        print("WARNING: no data")
+        logging.warning(f"get_expstart() finds no data for {file_set_name} from {rootname}")
     else:
         expstart = min([item['expstart'] for item in result['data']])
 
@@ -1138,11 +1138,7 @@ def mast_query_by_filename(instrument, filename):
 
     retval = {}
     if result['data'] == []:
-        print("WARNING: no data for {}".format(filename))
-
-
-        print(instrument, filename)
-
+        logging.warning("mast_query_by_filename() returned no data for {}".format(filename))
     else:
         retval = result['data'][0]
     return retval
@@ -1204,11 +1200,7 @@ def mast_query_by_rootname(instrument, rootname):
 
     retval = {}
     if result['data'] == []:
-        print("WARNING: no data for {}".format(rootname))
-
-        print(instrument, rootname)
-
-
+        logging.warning("mast_query_by_rootname() returns no data for {}".format(rootname))
     else:
         retval = result['data'][0]
     return retval
@@ -1468,7 +1460,7 @@ def get_image_info(file_root):
     # If the search above does not find any filenames, then we are looking
     # for a level 3 file. In that case, we need to check different directories
 
-    # L3/ then either s/ or t/ or ?? and then e.g. o001
+    # L3/ then either s/ or t/ (or others?) and then e.g. o001
     if len(filenames) == 0:
         ostr = file_root.split('-')[1].split('_')[0]
         filenames.extend(glob.glob(
@@ -1799,10 +1791,6 @@ def get_proposal_info(filepaths):
         proposal(s) and files corresponding to the given ``filepaths``.
     """
 
-    # Initialize some containers
-    #thumbnail_paths = []
-    #num_files = []
-
     # Gather thumbnails and counts for proposals
     proposals, thumbnail_paths, num_files, observations = [], [], [], []
     for filepath in filepaths:
@@ -1821,8 +1809,7 @@ def get_proposal_info(filepaths):
                         obs = file_info['observation']
                         obsnums.append(obs)
                     except KeyError:
-                        print(f'\n\nFile {fname} has no observation info from the filename_parser')
-                        pass
+                        logging.info(f'\n\nFile {fname} has no observation info from the filename_parser')
                 else:
                     logging.warning((f'While running get_proposal_info() for a program {proposal}, {fname} '
                                      'was not recognized by the filename_parser().'))
@@ -2283,8 +2270,6 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     else:
         obs_loop_list = [str(obs_num).zfill(3)]
 
-    print(obs_loop_list)
-
     for obsnum in obs_loop_list:
         data_dict['file_data'][obsnum] = {}
         data_dict['file_data'][obsnum]['files'] = {}
@@ -2362,7 +2347,7 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
             logging.warning("Unable to populate exp_start info for {}".format(rootname))
             logging.warning(e)
         except KeyError:
-            print("KeyError with get_expstart for {}".format(rootname))
+            logging.warning("KeyError with get_expstart for {}".format(rootname))
 
     # Extract information for sorting with dropdown menus
     # (Don't include the proposal as a sorting parameter if the proposal has already been specified)

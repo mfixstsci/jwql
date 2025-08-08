@@ -99,34 +99,18 @@ def get_updates(update_database):
     inst : str
         Name of JWST instrument
     """
-
-
-    print('\n\nget_updates\n\n')
-
     instruments = ['nircam', 'miri', 'nirspec', 'niriss', 'fgs']
-    for inst in ['miri']: #instruments:
+    for inst in instruments:
         logging.info(f'Updating database for {inst} archive page.')
 
         # Ensure the instrument is correctly capitalized
         inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
         # Dictionary to hold summary information for all proposals
-        #all_proposals = get_instrument_proposals(inst)
-
-
-
-
-        # Test cases:
-        # nircam: 1068 (img, time series)
-        # miri: 2667 (slitless), 5118 (fixed slit, TA), 6550 (MRS, image)
-        # For testing
-        #all_proposals = ['6550']
-        all_proposals = ['1192']
-
+        all_proposals = get_instrument_proposals(inst)
 
         # Get list of all files for the given instrument
         for proposal in all_proposals:
-            print(proposal)
             # Get lists of all public and proprietary files for the program
             filenames_public, metadata_public, filenames_proprietary, metadata_proprietary = get_all_possible_filenames_for_proposal(inst, proposal)
             # Find the location in the filesystem for all files
@@ -135,11 +119,6 @@ def get_updates(update_database):
             filenames = filepaths_public + filepaths_proprietary
             obsnums = np.array(metadata_public['observtn'] + metadata_proprietary['observtn'])
 
-
-            print(f'obsnums is: {obsnums}')
-
-
-
             # There is one and only one category for the proposal, so just take the first.
             proposal_category = ''
             if len(metadata_public['category']):
@@ -147,9 +126,7 @@ def get_updates(update_database):
             elif len(metadata_proprietary['category']):
                 proposal_category = metadata_proprietary['category'][0]
 
-            # Get set of unique rootnames
-            #all_rootnames = set(['_'.join(f.split('/')[-1].split('_')[:-1]) for f in filenames])
-
+            # Get set of unique rootnames and file paths
             seen = set()
             all_rootnames = []
             all_filenames = []
@@ -163,46 +140,8 @@ def get_updates(update_database):
                     all_filenames.append(os.path.basename(item))
                     indices.append(i)
 
-            #all_obsnums = [obsnums[i] for i in indices]
             all_obsnums = obsnums[indices]
-
-
-
-            # Above here, level 3 files are included and correct
-
-
-
-
-
-            # Comment these lines out, so we keep level 3 files
-            # Filter source-based level 2 files out of the rootnames and filenames
-            #all_rootnames = filter_rootnames(all_rootnames)
-            #filenames = filter_filenames(filenames, all_rootnames)
-
-            #rootnames = []
-            #for rootname in all_rootnames:
-
-                # This was only used to look for stage 3 rootnames to get rid of. So I think we can skip it.
-                #filename_dict = filename_parser(rootname)
-
-                #if filename_dict['recognized_filename']:
-                    # Weed out file types that are not supported by generate_preview_images
-                    #if 'stage_3' not in filename_dict['filename_type']:
-                    #    rootnames.append(rootname)
-                #else:
-                #if not fileame_dict['recognized_filename']:
-                #    logging.warning((f'While running get_updates() to update the RootfileInfo tables, {rootname}, '
-                #                     'was not recognized by the filename_parser().'))
-                #    pass
-
-
             rootnames = all_rootnames
-            print('rootnames before looping over filenames:')
-            print(rootnames)
-
-            print('corresponding filenames:')
-            print(all_filenames)
-
 
             if len(filenames) > 0:
 
@@ -211,7 +150,7 @@ def get_updates(update_database):
 
                 # Each observation number in each proposal can have a list of exp_types (e.g. NRC_TACQ, NRC_IMAGE)
                 for obsnum in set(proposal_info['observation_nums']):
-                    print(obsnum)
+
                     # Find the public entries for the observation and get the associated exp_types
                     public_obs = np.array(metadata_public['observtn'])
                     match_pub = public_obs == int(obsnum)
@@ -234,64 +173,16 @@ def get_updates(update_database):
                     all_end_dates = np.append(all_end_dates, np.array(metadata_proprietary['expend'])[match_prop])
                     latest_date = np.max(all_end_dates)
 
-
-
-
-                    print(proposal_info)
-                    print('')
-                    print(metadata_public)
-
-
-
-
                     # Get the number of files in the observation
-                    #propobs = f'jw{int(proposal):05}{obsnum}'
-                    #obsfiles = [f for f in rootnames if propobs in f]
-
-                    #propstr = f'jw{int(proposal):05}'
-                    #need to do this in 2 pieces. first get filenames for the proposal, then get the matching obsnum.
-                    #but the outer loop here is over proposal. do we not already guarantee that all files are from the current proposal?
-
-                    #cond = np.where((propstr in rootnames) & (np.array(obsnums) == int(obsnum)))[0]
-                    #cond = np.where(np.array(obsnums) == int(obsnum))[0]
                     cond = all_obsnums == int(obsnum)
                     obsfiles = np.array(rootnames)[cond]
-
-
                     obsfilenames = np.array(all_filenames)[cond]
-
-
-                    #print(rootnames)
-                    print(f'FILTER FOR OBS {obsnum}...')
-                    print(obsfiles)
-                    print(exp_types)
-                    print(obsfilenames)
-                    print('\n\n')
-
-
-
-                    '''
-                    obsfiles are rootnames, like jw01068001001_02101_00001_nrca2. update_database_table calls mast_query_by_rootname,
-                    which returns a dict of info about the first file returned by the mast seach. The search returns all the info about
-                    each file with various suffixes. It just picks the first...
-
-                    With level 3 files, jw01068-o001_t005_nircam_clear-f356w-sub160_i2d.fits, the rootname that returns data from the search
-                    is jw01068-o001_t005_nircam. This then returns the i2d and segmentation file for both LW and SW. We would need to grab
-                    both i2d files and add both. Or we can use the mast_query_by_filename function and query for the exact filename. This
-                    might be easier than keeping track of filter names in order to distinguish between LW and SW???
-                    '''
-
-
-
-                    print(proposal, obsnum, proposal_info['thumbnail_paths'][0], obsfiles, exp_types, starting_date, latest_date, proposal_category)
-
-
 
                     # Update the appropriate database table
                     update_database_table(update_database, inst, proposal, obsnum, proposal_info['thumbnail_paths'][0], obsfiles,
                                           exp_types, starting_date, latest_date, proposal_category, obsfilenames=obsfilenames)
 
-        #create_archived_proposals_context(inst)
+        create_archived_proposals_context(inst)
 
 
 @log_info
@@ -376,7 +267,7 @@ def files_in_filesystem(files, permission_type):
             full_filepath = os.path.join(FILESYSTEM, permission_type, relative_filepath)
             filenames.append(full_filepath)
         except ValueError:
-            print('Unable to determine filepath for {}'.format(filename))
+            logging.warning('Unable to determine filepath for {}'.format(filename))
     return filenames
 
 
@@ -467,30 +358,19 @@ def update_database_table(update, instrument, prop, obs, thumbnail, obsfiles, ty
     # Get all unsaved root names in the Observation to store in the database
     nr_files_created = 0
     for file, filename in zip(obsfiles, obsfilenames):
-        print(f'Trying to insert file {file}')
         try:
             root_file_info_instance, rfi_created = RootFileInfo.objects.get_or_create(root_name=file,
                                                                                       instrument=instrument,
                                                                                       obsnum=obs_instance,
                                                                                       proposal=prop)
             if update or rfi_created:
-                # Updating defaults only on update or creation to prevent call to mast_query_by_rootname on every file name.
-                # We could try querying by rootname, and then falling back and querying by filename if the rootname query
-                # comes back empty. Or maybe we can simply query by filename for everything????
-                defaults_dict_orig = mast_query_by_rootname(instrument, file)
+                # Updating defaults only on update or creation to prevent querying MAST on every file name.
+                # Use mast_query_by_filename() rather than mast_query_by_rootname() because with level 3 files
+                # e.g. jw01068-o001_t005_nircam_clear-f356w-sub160_i2d.fits, the rootname that returns data from the search
+                # is jw01068-o001_t005_nircam. This then returns the i2d and segmentation file for both LW and SW,
+                # and we would need to keep track of all of these files. By querying by filename, we remove the
+                # confusion over having multiple files associated with a single rootname.
                 defaults_dict = mast_query_by_filename(instrument, filename)
-
-                if '-o002' in filename:
-                    print('mast_query_by_rootname:')
-                    print(defaults_dict_orig)
-                    print('\n\nmast_query_by_filename:')
-                    print(defaults_dict)
-                    stop
-
-                # If the result is empty, we may be working with a level 3 file. These files have other
-                # filename structures. Try querying by filename
-                #if not defaults_dict:
-                #    defaults_dict = mast_query_by_filename(instrument, now we need filename)
 
                 defaults = dict(filter=defaults_dict.get('filter', DEFAULT_MODEL_CHARFIELD),
                                 detector=defaults_dict.get('detector', DEFAULT_MODEL_CHARFIELD),
@@ -506,19 +386,12 @@ def update_database_table(update, instrument, prop, obs, thumbnail, obsfiles, ty
                 for key, value in defaults.items():
                     setattr(root_file_info_instance, key, value)
 
-                print('Creating RootFileInfo instance:')
-                print(root_file_info_instance)
-                print(root_file_info_instance.__dict__)
-                print('\n')
-
-
                 root_file_info_instance.save()
             if rfi_created:
                 nr_files_created += 1
         except Exception as e:
             logging.warning(f'\tError {e} was raised')
             logging.warning(f'\tError with root_name: {file} inst: {instrument} obsnum: {obs_instance} proposal: {prop}')
-            print(f'\tError with root_name: {file} inst: {instrument} obsnum: {obs_instance} proposal: {prop}')
     if nr_files_created > 0:
         logging.info(f'Created {nr_files_created} rootfileinfo entries for: {instrument} - proposal:{prop} - obs:{obs}')
 
@@ -581,7 +454,6 @@ def fill_empty_model(model_name, model_field):
             fill_empty_rootfileinfo(model_set)
         else:
             logging.warning(f'Filling {model_name} model is not currently implemented')
-            print(f'Filling {model_name} model is not currently implemented')
 
 
 def fill_empty_proposals(proposal_set):
@@ -597,7 +469,11 @@ def fill_empty_proposals(proposal_set):
     saved_proposals = 0
     for proposal_mod in proposal_set:
 
-        filenames_public, metadata_public, filenames_proprietary, metadata_proprietary = get_all_possible_filenames_for_proposal(proposal_mod.archive.instrument, proposal_mod.prop_id)
+        filenames_public, \
+        metadata_public, \
+        filenames_proprietary, \
+        metadata_proprietary = get_all_possible_filenames_for_proposal(proposal_mod.archive.instrument, proposal_mod.prop_id)
+
         # Find the location in the filesystem for all files
         filepaths_public = files_in_filesystem(filenames_public, 'public')
         filepaths_proprietary = files_in_filesystem(filenames_proprietary, 'proprietary')
@@ -684,39 +560,6 @@ def filter_filenames(fnames, roots):
                 filtered_fnames.append(fname)
                 break
     return filtered_fnames
-
-
-def filter_rootnames(rootnames):
-    """Filter out rootnames that we know can't be parsed by the filename_parser. We use this
-    custom filter here rather than within the filename parser itself because in archive_database_update
-    we can end up providing thousands of unrecognized filenames (e.g. source-based WFSS files) to
-    the filename parser, which would result in thousands of logging statments and massive log files.
-    This way, we filter out the rootnames that obviously won't be parsed before calling the
-    filename_parser with the rest. jw06434-c1021_s000001510_nircam_f444w-grismr
-                                   jw06434-c1021_t000_nircam_clear-f090w_segm.fits
-
-    Parameters
-    ----------
-    rootnames : list
-        List of rootnames
-
-    Returns
-    -------
-    good_rootnames : list
-        List of rootnames that do not match the filters
-    """
-    stage_2_source = \
-        r"jw" \
-        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
-        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
-        r"_(?P<target_id>(s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + r"}|(t)\d{" + f"{FILE_TARG_ID_LEN}" + "}))"\
-        r"_(?P<instrument>(nircam|niriss|miri))"\
-        r"_(?P<optical_elements>((?!_)[\w-])+)"\
-        r"-"
-
-    elements = re.compile(stage_2_source)
-    good_rootnames = [e for e in rootnames if elements.match(e) is None]
-    return good_rootnames
 
 
 @lock_module

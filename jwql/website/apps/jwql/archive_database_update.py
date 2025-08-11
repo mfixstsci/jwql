@@ -306,6 +306,11 @@ def update_database_table(update, instrument, prop, obs, thumbnail, obsfiles, ty
 
     proposal_category : str
         category name
+
+    obsfilenames : list
+        List of filenames corresponding to the list of obsfiles. This list
+        should be the same length as obsfiles. The obsfilenames will be used
+        in calls to query_mast_by_filename()
     """
 
     # Check to see if the required Archive entry exists, and create it if it doesn't

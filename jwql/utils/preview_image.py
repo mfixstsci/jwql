@@ -821,3 +821,96 @@ def nan_to_zero(image):
     nan = np.isnan(image)
     image[nan] = 0
     return image
+
+
+class SpectralPreviewImage():
+    """An object for generating and saving a preview image from files containing
+    1-dimensional spectral data. Used by``generate_preview_images``.
+    """
+    def __init__(self, filename, maxsize=8):
+        self.filename = filename
+        self.maxsize = maxsize
+        self.output_format = 'jpg'
+        self.preview_output_directory = None
+        self.thumbnail_output_directory = None
+        self.preview_images = []
+        self.thumbnail_images = []
+
+        self.get_data()  # - this will need to determine which data to use, depending on exo_type/instrument
+        self.create_plot()
+        self.save_image()
+
+    def create_plot(self):
+        """Create the 1D plot"""
+        self.get_limits()
+
+        # Create figure and axis object
+        if thumbnail:
+            self.fig, ax = plt.subplots(figsize=(3, 3))
+        else:
+            self.fig, ax = plt.subplots(figsize=(self.maxsize, self.maxsize))
+
+        ax.plot(self.wavelength, self.signal, color='black')
+        ax.set_xlabel(f'Wavelength ({self.wave_units})')
+        ax.set_ylabel(f'Signal ({self.signal_units})')
+        ax.set_xlim(self.min_wave, self.max_wave)
+        ax.set_ylim(self.min_yval, self.max_yval)
+        ax.set_title(os.path.filename(self.filename))
+        plt.rcParams.update({'axes.titlesize': 'small'})
+        plt.rcParams.update({'font.size': maxsize * 5. / 4})
+        plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+
+
+    def get_data(self):
+        model = datamodels.open(self.filename)
+
+
+
+    def get_limits(self):
+        """Determine the plot limits based on characteristics of the data.
+        Let's just ignore the shortest and longest X% wavelengths and use
+        the max and min of the rest? Would be nice to be able to ignore band
+        edge effects, where the signal often jumps up.
+        """
+        ignore = 0.10  # 10%
+        finite = np.where(np.isfinite(self.signal))[0]
+        self.min_wave = np.min(finite)
+        self.max_wave = np.max(finite)
+        num_ignore = int((self.max_wave - self.min_wave) * ignore)
+        min_idx = min_wave + num_ignore
+        max_idx = max_wave - num_ignore
+
+        self.max_yval = np.nanmax(self.signal[min_idx: max_idx])
+        self.min_yval = np.nanmin(self.signal[min_idx: max_idx])
+
+
+    def save_image(self, fname, thumbnail=False):
+        """
+        Save an image in the requested output format and sets the
+        appropriate permissions
+
+        Parameters
+        ----------
+        image : obj
+            A ``matplotlib`` figure object
+
+        fname : str
+            Output filename
+
+        thumbnail : bool
+            True if saving a thumbnail image, false for the full
+            preview image.
+        """
+        plt.savefig(fname, bbox_inches='tight', pad_inches=0)
+        permissions.set_permissions(fname)
+
+        # If the image is a thumbnail, rename to '.thumb'
+        if thumbnail:
+            self.thumbnail_filename = fname.replace('.jpg', '.thumb')
+            os.rename(fname, self.thumbnail_filename)
+            logging.info('\tSaved image to {}'.format(self.thumbnail_filename))
+        else:
+            logging.info('\tSaved image to {}'.format(fname))
+            self.thumbnail_filename = None

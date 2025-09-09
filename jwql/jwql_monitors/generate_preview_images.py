@@ -706,6 +706,56 @@ def group_filenames(filenames):
     return grouped
 
 
+def preview_img_from_file(fname, file_info):
+    """Wrapper around functions for creating preview images from various file types
+
+    Parameter
+    ---------
+    fname : str
+        Filename
+
+    file_info : dict
+        Results from calling filename_parser on fname
+    """
+    # All stage 2 files and i2d.fits files
+    if ('stage_3' not in file_info['filename_type']) or 'i2d.fits' in fname:
+        try:
+            # Stage 1/2 file
+            img = PreviewImage(fname, "SCI")
+            img.clip_percent = 0.01
+            img.set_scaling()
+            img.cmap = 'viridis'
+            img.output_format = 'jpg'
+            img.preview_output_directory = preview_output_directory
+            img.thumbnail_output_directory = thumbnail_output_directory
+
+            # Create a thumbnail for rate or dark files only. Create preview
+            # images for all filetypes
+            if 'rate.fits' in fame or 'dark.fits' in fname:
+                img.make_image(max_img_size=8, create_thumbnail=True)
+                #new_preview_counter += 1
+                #thumbnail_files.extend(img.thumbnail_images)
+                logging.debug('\tCreated preview image and thumbnail for: {}'.format(fname))
+            else:
+                img.make_image(max_img_size=8, create_thumbnail=False)
+                #new_preview_counter += 1
+                logging.debug('\tCreated preview image for: {}'.format(fname))
+
+            return img.preview_images, img.thumbnail_images
+
+        except (ValueError, AttributeError) as error:
+            logging.warning(error)
+            return None
+
+    else:
+        # Stage 3 fits file
+        img = Level3PreviewImage(fname)
+
+
+
+
+
+
 def process_program(program, overwrite):
     """Generate preview images and thumbnails for the given program.
 
@@ -733,6 +783,18 @@ def process_program(program, overwrite):
     # Gather files to process
     filenames = glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'jw*/*.fits'))
     filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'jw*/*.fits')))
+
+    # Add level 3 files
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'L3/*/*/*.fits')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*.fits')))
+
+    # Add level 3 ecsv files for TSO observations
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'L3/*/*/*whtlt.ecsv')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*whtlt.ecsv')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'L3/*/*/*phot.ecsv')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*phot.ecsv')))
+
+    # Remove any repeated filenames
     filenames = list(set(filenames))
 
     # remove specific "ignored" suffix files (currently "original" and "stream")
@@ -743,7 +805,7 @@ def process_program(program, overwrite):
     for filename in filenames:
         parsed = filename_parser(filename)
         if parsed['recognized_filename']:
-            if 'guider_mode' not in parsed and 'detector' in parsed:
+            if 'guider_mode' not in parsed:
                 filtered_filenames.append(filename)
         else:
             logging.warning((f'While running generate_preview_images.process_program() on {filename}, the '
@@ -777,7 +839,7 @@ def process_program(program, overwrite):
         if not overwrite:
             # If overwrite is False, we create preview images only for files that
             # don't have them yet.
-            file_exists = check_existence([filename], preview_output_directory)
+            file_exists = check_existence([filename], preview_output_directory) shouldnt we be checking the jpg filename here?
             if file_exists:
                 logging.debug("\tJPG already exists for {}, skipping.".format(filename))
                 existing_preview_counter += 1
@@ -798,7 +860,185 @@ def process_program(program, overwrite):
 
         # Create the nominal preview image and thumbnail
         try:
-            im = PreviewImage(filename, "SCI")
+            im = preview_img_from_file(filename, parsed)
+            if im is not None:
+                new_preview_counter += 1
+                thumbnail_files.extend(img.thumbnail_images)
+
+
+            #im = PreviewImage(filename, "SCI")  - level 3 files might not have sci extension
+
+
+            """
+            Filename: jw01076-o106_s00032_nircam_f322w2-grismr_x1d.fits
+            No.    Name      Ver    Type      Cards   Dimensions   Format
+            0  PRIMARY       1 PrimaryHDU     373   ()
+            1  EXTRACT1D     1 BinTableHDU     80   370R x 18C   [D, D, D, D, D, D, D, D, D, D, D, J, D, D, D, D, D, D]
+            2  EXTRACT1D     2 BinTableHDU     80   283R x 18C   [D, D, D, D, D, D, D, D, D, D, D, J, D, D, D, D, D, D]
+            3  EXTRACT1D     3 BinTableHDU     80   197R x 18C   [D, D, D, D, D, D, D, D, D, D, D, J, D, D, D, D, D, D]
+            4  EXTRACT1D     4 BinTableHDU     80   111R x 18C   [D, D, D, D, D, D, D, D, D, D, D, J, D, D, D, D, D, D]
+            5  ASDF          1 BinTableHDU     11   1R x 1C   [39503B]
+
+            Filename: jw01076-o106_s00032_nircam_f322w2-grismr_c1d.fits
+            No.    Name      Ver    Type      Cards   Dimensions   Format
+            0  PRIMARY       1 PrimaryHDU     374   ()
+            1  COMBINE1D     1 BinTableHDU     35   397R x 8C   [D, D, D, D, D, J, D, D]
+            2  ASDF          1 BinTableHDU     11   1R x 1C   [18374B]
+
+
+            FOR I2D FILES, DO WE WANT TO DO ANY OTHER EXTENSIONS? CON?
+            Filename: level3_sw_i2d.fits
+            No.    Name      Ver    Type      Cards   Dimensions   Format
+            0  PRIMARY       1 PrimaryHDU     378   ()
+            1  SCI           1 ImageHDU        75   (10066, 4557)   float32
+            2  ERR           1 ImageHDU        10   (10066, 4557)   float32
+            3  CON           1 ImageHDU        10   (10066, 4557, 1)   int32
+            4  WHT           1 ImageHDU         9   (10066, 4557)   float32
+            5  VAR_POISSON    1 ImageHDU         9   (10066, 4557)   float32
+            6  VAR_RNOISE    1 ImageHDU         9   (10066, 4557)   float32
+            7  VAR_FLAT      1 ImageHDU         9   (10066, 4557)   float32
+
+
+            NIRSpec fixed slit
+            jw01189 obs 001
+            /grp/jwst/ins/jwql/filesystem/public/jw01189/L3/s/o001/jw01189-o001_s000000001_nirspec_f100lp-g140m-s200a1_cal.fits
+    x        cal - MultiExposureModel.
+                len(m.exposures)
+                Out[18]: 3
+                m.exposures[0].data is a 2D image. Each object in m.exposures is an image of the same source, just a different exposure
+
+    x        crf - same as cal above
+    x        s2d - SlitModel - m.data is a 2D image
+    x        x1d - similar to wfss. len(m.spec) should only be 1 though? m.spec[0].spec_table.columns
+
+
+            NIRSpec IFU
+            jw01188 obs 001
+            c-based and o-based
+    x        s3d - IFUCubeModel - m.data is a 3D array (e.g. (3610, 49, 43), where 49x43 is the IFU FOV
+                  We'd have to pick out some subset of images to create preview images for
+    x        x1d - Similar to other x1d. spec_table length is always 1? m.spec[0].spec_table.columns
+
+
+            MIRI Lyot
+            jw01193 obs 002
+    x        psfstack - standard 3d CubeModel - m.data.shape = (63, 304, 320) Need to pick out some of the images
+                        to make preview images for
+    x        i2d - standard 2d imagemodel
+
+            MIRI 4QPM
+            jw01411 obs 001
+    x        psfstack - same as above
+    x        i2d - same as above
+
+            MIRI coroncal
+    x        jw01145 obs 001
+
+            MIRI LRS fixed slit
+            jw01273 obs 001, c- and o-
+            s2d - SlitModel - m.data is a 2d image
+    x        x1d - MultiSpecModel - m.spec will always have only 1 object?
+
+            MIRI LRS slitless
+            jw01274 obs 012
+            x1dints - file format change coming? currently thousands of m.spec, each of which has a 1d flux and wavelength
+    x        whtlt.ecsv
+
+            MIRI MRS
+            jw01227 obs 019
+    x        s3d
+    x        x1d
+
+            NIRISS AMI
+            jw01242 obs 001
+    x        aminorm-oi - AmiOIModel - m.array, m.t3, m.vis, m.vis2 are all tables
+            Use this as a guide: https://github.com/spacetelescope/jwst-pipeline-notebooks/blob/1d47dd8e183bd8390865d8eaf0120ec9dda1b7a0/notebooks/NIRISS/AMI/JWPipeNB-niriss-ami.ipynb
+            Use function from this notebook to produce the preview images for all file types.
+            Can expect *ami-oi.fits, *psf-ami-oi.fits, *aminorm-oi.fits files
+
+    x        amilg
+
+
+
+
+            NIRISS SOSS
+            jw01312 obs 001
+            x1dints
+    x        whtlt.ecsv
+
+            NIRCAM coron
+            jw01179 obs 002
+            no L3 in MAST???
+
+            NIRCAM WFSS
+            copied from /ifs/jwst/wit/nircam/pipeline_validation_tests/data/1076obs106/b12.0_testing/jw01076-o002_t001_nircam_f444w-grismr*.fit
+    x        x1d - one EXTRACT1D extension for each input cal file
+                Maybe overplot the n_cal_file spectra for each source on one plot (for some number of sources?)
+
+    ?        x1d from spec2
+
+
+    x        c1d - can be multiple COMBINE1D extensions (one for each spectral order, SPORDER keyword). within an extension, 2d table. WAVELENGTH, FLUX cols, TUNIT2 gives wavelength units, TUNIT3 gives flux units
+                  WAVELENGTH, FLUX columns are n_objects x n_wavelength
+                so what do we plot here? potentially many sources. Just make plots for the first n sources?
+
+            CAN USE:
+                m.spec[0].spectral_order
+                m = datamodels.open(file)
+                n_src, n_pts = m.spec[0].spec_table.FLUX.shape
+                then plot some subset of sources:
+                a.plot(m.spec[0].spec_table.WAVELENGTH[objnum, :], m.spec[0].spec_table.FLUX[objnum, :])
+                get units by using e.g. m.spec[0].spec_table.columns['flux'].unit
+
+
+                a.plot(h[1].data['WAVELENGTH'][objnum, :], h[1].data['FLUX'][objnum, :] - units are h[1].header['TUNIT2'], h[1].header['TUNIT3']
+
+
+            NIRCAM time series
+            copied from /ifs/jwst/wit/nircam/pipeline_validation_tests/data/1366obs2/b12.0_testing/stage3/*
+            x1dints
+    x        whtlt.ecsv
+                import pandas as pd
+                df = pd.read_csv(file, header=15)
+                plot(df[MJD], df['whitelight_flux'])
+                can also check the time series pipeline notebook for plotting tips
+
+
+
+    x        phot.ecsv
+                import pandas as pd
+                df = pd.read_csv(file, header=71)
+                plot(df[MJD], df['net_aperture_sum']) - but this should be the same as the white light curve, yes? But maybe just not normalized
+
+
+
+    x        x1dints - mulitple table extensions, one from each seg file. Within each, the spec_table is n_ints x n_wavlength. Should be able to
+            combine them if we want.
+            What do we show? initial spectrum (before any eclipse) and mid-time spectrum on the same plot? (or find a spectrum where the signal has changed appreciably?)
+
+
+         # This was quite fast in my test
+         baseline = m.spec[0].spec_table.FLUX[1, :]
+         minidx = 1
+    ...: minmean = np.nanmean(baseline)
+    ...: for i in range(2, 119):
+    ...:     newmean = np.nanmean(m.spec[0].spec_table.FLUX[i, :])
+    ...:     if newmean < minmean:
+    ...:         minmean = newmean
+    ...:         minidx = i
+        repeat this over all spec objects (i.e. all seg files)
+
+        a.plot(wavelength, flux, from [1, :])
+        a.plot(wavelength, flux, from [minidx, :])
+
+
+
+
+
+
+
+            """
+
             im.clip_percent = 0.01
             im.set_scaling()
             im.cmap = 'viridis'

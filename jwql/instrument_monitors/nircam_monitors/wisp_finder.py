@@ -17,7 +17,6 @@ Use
 
 Overall flow:
 
-
 1. Look in database table for last successful run on the monitor.
 2. Get the datetime of that run.
 3. Query MAST for all NIRCam B4 full frame files (exclude coron?) since that datetime
@@ -28,8 +27,6 @@ Overall flow:
 8. For those files where the prediction is that a wisp is present, set the wisp flag in the anomalies database
 9. Delete pngs
 10. Update the database with the datetime of the current run
-
-
 """
 
 import argparse
@@ -39,6 +36,7 @@ import os
 import shutil
 import warnings
 
+from astropy.time import Time
 from astroquery.mast import Observations
 from django import setup
 from django.utils import timezone
@@ -55,6 +53,7 @@ from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
 from jwql.instrument_monitors.nircam_monitors import prepare_wisp_pngs
+from jwql.utils.utils import filesystem_path
 
 if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
@@ -110,7 +109,11 @@ def copy_files_to_working_dir(filepaths):
         List of new locations for the files
     """
     working_dir = get_config()["working"]
+
+    if not os.path.isdir(working_dir):
+        os.makedirs(working_dir)
     copied_filepaths = []
+
     for filepath in filepaths:
         shutil.copy2(filepath, working_dir)
         copied_filepaths.append(os.path.join(working_dir, os.path.basename(filepath)))
@@ -343,12 +346,14 @@ def remove_duplicate_files(file_list):
     """
     file_list = np.array(file_list)
     unique_files = []
-    basenames_only = set([os.path.basename(e) for e in file_list])
+    basenames_only = sorted(list(set([os.path.basename(e) for e in file_list])))
+
     for basename in basenames_only:
         matches = np.array([basename in e for e in file_list])
-        unique_files.append(file_list[matches][0])
-    return unique_files
 
+        if os.path.exists(file_list[matches][0]):
+            unique_files.append(file_list[matches][0])
+    return unique_files
 
 @log_fail
 @log_info
@@ -391,6 +396,8 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         # If ending_date is not provided, set it equal to the current time
         if ending_date is None:
             ending_date = timezone.now()
+            t_end = Time(ending_date, scale='utc')
+            ending_date = t_end.mjd
 
         # If starting date is not provided, then query the database for the last
         # successful run of this monitor. Use the ending date of that run for the
@@ -404,7 +411,7 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         # Query MAST between starting_date and ending_date, and get a list of files
         # to run the wisp prediction on.
         rate_files = query_mast(starting_date, ending_date)
-        logging.info(f"Found {len(rate_files)} rate files")
+        logging.info(f"MAST query returned {len(rate_files)} rate files")
 
     else:
         rate_files = file_list
@@ -416,11 +423,18 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
 
         # Find the location in the filesystem for all files
         logging.info("Locating files in the filesystem")
-        filepaths_public = files_in_filesystem(rate_files, 'public')
-        filepaths_proprietary = files_in_filesystem(rate_files, 'proprietary')
-        filepaths = filepaths_public + filepaths_proprietary
+        filepaths = []
+        for rate_file in rate_files:
+            try:
+                filepaths.append(filesystem_path(rate_file, check_existence=True))
+            except Exception as e:
+                logging.warning(f"Failed to find {rate_file} with error {e}")
+
+        # Remove any duplicates coming from files that are present in both the
+        # public and proprietary filesystems
         filepaths = remove_duplicate_files(filepaths)
 
+        # Copy files to working directory
         logging.info("Copying files from the filesystem to the working directory.")
         working_filepaths = copy_files_to_working_dir(filepaths)
 
@@ -435,24 +449,24 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         for working_filepath in working_filepaths:
             # Create png
             working_dir = os.path.dirname(working_filepath)
+            logging.info(f'Creating png for {os.path.filename(working_filepath)}. Saving to {working_dir}')
             png_filename = prepare_wisp_pngs.run(working_filepath, out_dir=working_dir)
 
             # Predict
             prediction = predict_wisp(model, png_filename, transform)
-
-            print(png_filename, prediction)  # FOR DEVELOPMENT ONLY. REMOVE BEFORE MERGING
 
             # If a wisp is predicted, set the wisp flag in the anomalies database
             if prediction == "wisp":
                 # Create the rootname. Strip off the path info, and remove '.fits' and the suffix
                 # (i.e. 'rate'')
                 rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
-                logging.info(f"Found wisp in {rootfile}")
+                logging.info(f"\tFound wisp in {rootfile}\n")
 
                 # Add the wisp flag to the RootFileInfo object for the rootfile
                 add_wisp_flag(rootfile)
             else:
-                pass
+                rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
+                logging.info(f'\tNo wisp in {rootfile}\n')
 
             # Delete the png and fits files
             os.remove(png_filename)
@@ -475,11 +489,9 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
 
     logging.info('Wisp Finder Monitor completed successfully.')
 
-
 if __name__ == '__main__':
     module = os.path.basename(__file__).strip('.py')
     start_time, log_file = monitor_utils.initialize_instrument_monitor(module)
-
     parser = define_options()
     args = parser.parse_args()
 

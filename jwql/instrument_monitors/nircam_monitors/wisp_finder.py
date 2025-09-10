@@ -62,6 +62,8 @@ if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     from jwql.website.apps.jwql.monitor_models.wisp_finder import WispFinderB4QueryHistory
 
 
+MAX_QUERY_DURATION = 7.  # days
+
 def add_wisp_flag(basename):
     """Add the wisps flag to the RootFileInfo entry for the given filename
 
@@ -408,23 +410,66 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
 
         logging.info(f"Using MJD {starting_date} to {ending_date} to search for files")
 
-        # Query MAST between starting_date and ending_date, and get a list of files
-        # to run the wisp prediction on.
-        rate_files = query_mast(starting_date, ending_date)
-        logging.info(f"MAST query returned {len(rate_files)} rate files")
+        # If the starting and ending dates span a long time, break up the time into
+        # smaller chunks in order to get reasonable MAST query lists and so as not to
+        # copy really large numbers of files to the working directory
+        if ending_date - starting_date > MAX_QUERY_DURATION:
+            logging.info(f"Time range is greater than the maximum allowed duration of {MAX_QUERY_DURATION} days")
+            starting_dates = np.arange(starting_date, ending_date, MAX_QUERY_DURATION)
+            # Make the ending_dates 0.1 second shy of MAX_QUERY_DURATION so that they are not
+            # exactly the same as the subsequent starting_date
+            ending_dates = starting_dates + MAX_QUERY_DURATION - (0.1 / 3600. / 24.)
+            # Set the final ending_date equal to the originally requested ending_date
+            if ending_dates[-1] > ending_date:
+                ending_dates[-1] = ending_date
+            logging.info(f"Breaking up the query into {len(starting_dates)} smaller queries.")
+        else:
+            starting_dates = np.array([starting_date])
+            ending_dates = np.array([ending_date])
+
+        for subq_starting_date, subq_ending_date in zip(starting_dates, ending_dates):
+            # Query MAST between starting_date and ending_date, and get a list of files
+            # to run the wisp prediction on.
+            rate_files = query_mast(subq_starting_date, subq_ending_date)
+            logging.info(f"MAST query betwen MJD {subq_starting_date} and {subq_ending_date} returned {len(rate_files)} rate files")
+            run_predictor(rate_files, model_filename, subq_starting_date, subq_ending_date)
 
     else:
         rate_files = file_list
         starting_date = 0.0
         ending_date = 0.0
+        logging.info(f"Running predictor on list of {len(rate_files)} files.")
+        run_predictor(rate_files, model_filename, subq_starting_date, subq_ending_date)
 
-    if len(rate_files) > 0:
+    logging.info('Wisp Finder Monitor completed successfully.')
+
+
+def run_predictor(ratefiles, model_file, start_date, end_date):
+    """Given a list of files, a ML model file, and dates, check all of the files for wisps.
+
+    Parameters
+    ----------
+    ratefiles : list
+        List of fits files to check for wisps.
+
+    model_file : str
+        Name of a file containing the ML model to be used
+
+    start_date : float
+        MJD of the starting date of the range encompassing ``ratefiles``.
+        Used for populating the history database table.
+
+    end_date : float
+        MJD of the ending date of the range encompassing ``ratefiles``.
+        Used for populating the history database table.
+    """
+    if len(ratefiles) > 0:
         monitor_run = True
 
         # Find the location in the filesystem for all files
         logging.info("Locating files in the filesystem")
         filepaths = []
-        for rate_file in rate_files:
+        for rate_file in ratefiles:
             try:
                 filepaths.append(filesystem_path(rate_file, check_existence=True))
             except Exception as e:
@@ -439,8 +484,7 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         working_filepaths = copy_files_to_working_dir(filepaths)
 
         # Load the trained ML model
-        logging.info(f"Loading ML model from {model_filename}")
-        model = load_ml_model(model_filename)
+        model = load_ml_model(model_file)
 
         # Create transform to use when creating image tensor
         transform = create_transform()
@@ -449,7 +493,7 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         for working_filepath in working_filepaths:
             # Create png
             working_dir = os.path.dirname(working_filepath)
-            logging.info(f'Creating png for {os.path.filename(working_filepath)}. Saving to {working_dir}')
+            logging.info(f'Creating png for {os.path.basename(working_filepath)}. Saving to {working_dir}')
             png_filename = prepare_wisp_pngs.run(working_filepath, out_dir=working_dir)
 
             # Predict
@@ -472,22 +516,21 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
             os.remove(png_filename)
             os.remove(working_filepath)
     else:
-        # If no rate_files are found
+        # If no ratefiles are found
         logging.info(f"No rate files found. Ending monitor run.")
         monitor_run = False
 
     # Update the database with info about this run of the monitor. We keep the
-    # staring and ending dates of the search. No need to keep the names of the files
+    # starting and ending dates of the search. No need to keep the names of the files
     # that are found to contain a wisp, because that info will be in the  RootFileInfo
     # instances.
-    new_entry = {'start_time_mjd': starting_date,
-                 'end_time_mjd': ending_date,
+    new_entry = {'start_time_mjd': start_date,
+                 'end_time_mjd': end_date,
                  'run_monitor': monitor_run,
                  'entry_date': datetime.datetime.now(datetime.timezone.utc)}
     entry = WispFinderB4QueryHistory(**new_entry)
     entry.save()
 
-    logging.info('Wisp Finder Monitor completed successfully.')
 
 if __name__ == '__main__':
     module = os.path.basename(__file__).strip('.py')

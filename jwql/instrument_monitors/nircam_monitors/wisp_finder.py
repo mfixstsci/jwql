@@ -353,8 +353,8 @@ def remove_duplicate_files(file_list):
     for basename in basenames_only:
         matches = np.array([basename in e for e in file_list])
 
-        if os.path.exists(file_list[matches][0]):
-            unique_files.append(file_list[matches][0])
+        # We've already checked for file existence, so no need to do that here
+        unique_files.append(file_list[matches][0])
     return unique_files
 
 @log_fail

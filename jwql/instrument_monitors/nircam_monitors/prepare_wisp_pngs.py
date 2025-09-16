@@ -56,7 +56,8 @@ def rescale_array(arr):
 
     # Rescale the image
     adjusted_image = alpha * arr + beta
-    adjusted_image = np.clip(adjusted_image, 0, 255).astype(np.uint8)
+    mask = ~np.isnan(adjusted_image)
+    adjusted_image[mask] = np.clip(adjusted_image[mask], 0, 255).astype(np.uint8)
 
     return adjusted_image
 

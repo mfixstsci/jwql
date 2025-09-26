@@ -43,8 +43,8 @@ from jwql.utils.constants import (IGNORED_SUFFIXES,
                                   )
 from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.protect_module import lock_module
-from jwql.utils.preview_image import PreviewImage
-from jwql.utils.utils import get_config, filename_parser
+from jwql.utils.preview_image import Level3PreviewImage, PreviewImage
+from jwql.utils.utils import get_config, filename_parser, remove_duplicate_files
 from jwql.utils.monitor_utils import update_monitor_table, initialize_instrument_monitor
 
 # Size of NIRCam inter- and intra-module chip gaps
@@ -584,6 +584,9 @@ def generate_preview_images(overwrite, programs=None):
     all_programs = [os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'public', 'jw*'))]
     all_programs.extend([os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', 'jw*'))])
 
+    # Remove any repeats
+    all_programs = list(set(all_programs))
+
     if programs is None:
         program_list = all_programs
     else:
@@ -718,7 +721,7 @@ def preview_img_from_file(fname, file_info):
         Results from calling filename_parser on fname
     """
     # All stage 2 files and i2d.fits files
-    if ('stage_3' not in file_info['filename_type']) or 'i2d.fits' in fname:
+    if 'stage_3' not in file_info['filename_type']:
         try:
             # Stage 1/2 file
             img = PreviewImage(fname, "SCI")
@@ -750,10 +753,6 @@ def preview_img_from_file(fname, file_info):
     else:
         # Stage 3 fits file
         img = Level3PreviewImage(fname)
-
-
-
-
 
 
 def process_program(program, overwrite):
@@ -795,7 +794,7 @@ def process_program(program, overwrite):
     filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*phot.ecsv')))
 
     # Remove any repeated filenames
-    filenames = list(set(filenames))
+    filenames = remove_duplicate_files(filenames)
 
     # remove specific "ignored" suffix files (currently "original" and "stream")
     filenames = [filename for filename in filenames if os.path.splitext(filename.split('_')[-1])[0] not in IGNORED_SUFFIXES]
@@ -826,7 +825,7 @@ def process_program(program, overwrite):
         # Determine the save location
         parsed = filename_parser(filename)
         if parsed['recognized_filename']:
-            identifier = 'jw{}'.format(parsed['program_id'])
+            identifier = f'jw{parsed["program_id"]}'
         else:
             # In this case, the filename_parser failed to recognize the filename
             identifier = os.path.basename(filename).split('.fits')[0]
@@ -839,7 +838,8 @@ def process_program(program, overwrite):
         if not overwrite:
             # If overwrite is False, we create preview images only for files that
             # don't have them yet.
-            file_exists = check_existence([filename], preview_output_directory) shouldnt we be checking the jpg filename here?
+            file_exists = check_existence([filename], preview_output_directory)
+
             if file_exists:
                 logging.debug("\tJPG already exists for {}, skipping.".format(filename))
                 existing_preview_counter += 1

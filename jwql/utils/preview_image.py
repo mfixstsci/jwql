@@ -451,6 +451,8 @@ class PreviewImage():
 
         # Set the figure size
         yd, xd = image.shape
+
+        """
         ratio = yd / xd
         if xd >= yd:
             xsize = maxsize
@@ -458,12 +460,18 @@ class PreviewImage():
         else:
             ysize = maxsize
             xsize = maxsize / ratio
+        """
+
+        # Use the data dimensions to determine the aspect ratio and figure size of the preview image
+        aspect, colorbar_orient, figsize = \
+            determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
+                                        maxsize=self.maxsize)
 
         # Create figure and axis object
         if thumbnail:
             self.fig, ax = plt.subplots(figsize=(3, 3))
         else:
-            self.fig, ax = plt.subplots(figsize=(xsize, ysize))
+            self.fig, ax = plt.subplots(figsize=figsize)
 
         # Get color scale and tick values depending on the scaling
         if scale == 'log':
@@ -480,13 +488,14 @@ class PreviewImage():
             cax = ax.imshow(shiftdata,
                             norm=colors.LogNorm(vmin=shiftmin,
                                                 vmax=shiftmax),
-                            cmap=self.cmap)
+                            cmap=self.cmap,
+                            aspect=aspect)
 
         elif scale == 'linear':
             # Generate tick labels
             tickvals = np.linspace(min_value, max_value, 5)
             tlabelflt = tickvals
-            cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap)
+            cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap, aspect=aspect)
 
         # Invert y axis in all cases
         plt.gca().invert_yaxis()
@@ -920,7 +929,6 @@ class Level3PreviewImage():
             print('ifu 3d')
             self.nirspec_miri_ifu_s3d()
         elif 'i2d' in self.filename:
-            print('i2d')
             self.i2d_file()
         elif ('psfstack' in self.filename or 'psfalign' in self.filename or 'psfsub' in self.filename):
             self.psfstack_file()
@@ -1103,10 +1111,10 @@ class Level3PreviewImage():
             time_units = 'd'
 
         #wave_idxs = [100, 200, 350]
-        print(wave_idxs)
-        print(len(baseline_flux))
+        #print(wave_idxs)
+        #print(len(baseline_flux))
         for wave_idx in wave_idxs:
-            print(wave_idx, self.model.spec[0].spec_table.shape)
+            #print(wave_idx, self.model.spec[0].spec_table.shape)
             fluxes = [self.model.spec[i].spec_table.FLUX[wave_idx] for i in range(nints)]
             ax[1].plot(int_times, fluxes, label="{:.3f} um".format(wavelength[wave_idx]))
         ax[1].set_xlabel(f'MJD_UTC ({time_units})')
@@ -1449,7 +1457,6 @@ class Level3PreviewImage():
         and set the appropriate permissions
         """
 
-        print(type(self.figures))
         print(len(self.figures))
 
 
@@ -1478,12 +1485,6 @@ class Level3PreviewImage():
         # figure smaller. Make axes and labels invisible. In cases where there are
         # mulitple preview images, and thumbnails are to be made, only create a
         # thumbnail for the first one.
-
-
-        print(type(self.figures))
-        print(len(self.figures))
-
-
         if self.create_thumbnail:
             figure = self.figures[0]
             figure = hide_axes(figure)

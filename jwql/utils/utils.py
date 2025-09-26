@@ -806,6 +806,30 @@ def read_png(filename):
     return img
 
 
+def remove_duplicate_files(file_list):
+    """Given a list of filenames, search for and remove duplicates, based only on the basename. Copies of the
+    same filename in different directories will be removed.
+
+    Parameters
+    ----------
+    file_list : list
+        List of full paths to input files
+
+    Returns
+    -------
+    unique_files : list
+        List of files with unique basenames
+    """
+    file_list = np.array(file_list)
+    unique_files = []
+    basenames_only = sorted(list(set([os.path.basename(e) for e in file_list])))
+
+    for basename in basenames_only:
+        matches = np.array([basename in e for e in file_list])
+        unique_files.append(file_list[matches][0])
+    return unique_files
+
+
 def save_png(fig, filename=''):
     """Starting with selenium version 4.10.0, our testing has shown that on the JWQL
     servers, we need to specify an instance of a web driver when exporting a Bokeh

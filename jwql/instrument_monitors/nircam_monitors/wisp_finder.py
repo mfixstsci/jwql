@@ -164,7 +164,7 @@ def define_model_architecture():
 def define_options(parser=None, usage=None, conflict_handler='resolve'):
     """Add command line options
 
-    Parrameters
+    Parameters
     -----------
     parser : argparse.parser
         Parser object
@@ -265,7 +265,7 @@ def predict_wisp(model, image_path, transform):
     probability = torch.sigmoid(output).item()
     threshold = 0.5
     prediction_label = "wisp" if probability >= threshold else "no wisp"
-    return prediction_label
+    return prediction_label, probability, threshold
 
 
 def preprocess_image(image_path, transform):
@@ -308,6 +308,7 @@ def query_mast(starttime, endtime):
     rate_files : list
         List of filenames
     """
+    logging.info("Running sci_obs_id query")
     sci_obs_id_table = Observations.query_criteria(instrument_name=["NIRCAM/IMAGE"],
                                                    provenance_name=["CALJWST"],  # Executed observations
                                                    t_min=[starttime, endtime]
@@ -317,16 +318,18 @@ def query_mast(starttime, endtime):
 
     # Loop over visits identifying uncalibrated files that are associated
     # with them
-    for exposure in (sci_obs_id_table):
+    for i, exposure in enumerate(sci_obs_id_table):
         products = Observations.get_product_list(exposure)
         filtered_products = Observations.filter_products(products,
                                                          productType='SCIENCE',
                                                          productSubGroupDescription='RATE',
                                                          calib_level=[2])
+        logging.info(f"\tExpore {i+1} of {len(sci_obs_id_table)}: {len(products)} products filters to {len(filtered_products)} rate files")
         sci_files_to_download.extend(filtered_products['dataURI'])
 
     # The current ML wisp finder model is only trained for the wisps on the B4 detector,
     # so keep only those files. Also, keep only the filenames themselves.
+    logging.info(f"Sorting {len(sci_files_to_download)} rate files")
     rate_files = sorted([fname.replace('mast:JWST/product/', '') for fname in sci_files_to_download if 'nrcb4' in fname])
     return rate_files
 
@@ -477,10 +480,12 @@ def run_predictor(ratefiles, model_file, start_date, end_date):
 
         # Remove any duplicates coming from files that are present in both the
         # public and proprietary filesystems
+        n_filepaths_before = len(filepaths)
         filepaths = remove_duplicate_files(filepaths)
+        n_filepaths_after = len(filepaths)
 
         # Copy files to working directory
-        logging.info("Copying files from the filesystem to the working directory.")
+        logging.info(f"Copying {n_filepaths_after} files from the filesystem to the working directory (removed {n_filepaths_before - n_filepaths_after} duplicates).")
         working_filepaths = copy_files_to_working_dir(filepaths)
 
         # Load the trained ML model
@@ -497,20 +502,20 @@ def run_predictor(ratefiles, model_file, start_date, end_date):
             png_filename = prepare_wisp_pngs.run(working_filepath, out_dir=working_dir)
 
             # Predict
-            prediction = predict_wisp(model, png_filename, transform)
+            prediction, probability, threshold = predict_wisp(model, png_filename, transform)
 
             # If a wisp is predicted, set the wisp flag in the anomalies database
             if prediction == "wisp":
                 # Create the rootname. Strip off the path info, and remove '.fits' and the suffix
                 # (i.e. 'rate'')
                 rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
-                logging.info(f"\tFound wisp in {rootfile}\n")
+                logging.info(f"\tFound wisp in {rootfile} (probability {probability} < threshold {threshold})\n\n")
 
                 # Add the wisp flag to the RootFileInfo object for the rootfile
                 add_wisp_flag(rootfile)
             else:
                 rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
-                logging.info(f'\tNo wisp in {rootfile}\n')
+                logging.info(f'\tNo wisp in {rootfile} (probability {probability} < threshold {threshold})\n')
 
             # Delete the png and fits files
             os.remove(png_filename)

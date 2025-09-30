@@ -720,7 +720,8 @@ MONITOR_TABLE_NAMES = [
     "niriss_readnoise_query_history", "niriss_readnoise_stats",
     "nirspec_readnoise_query_history", "nirspec_readnoise_stats",
     "miri_ta_query_history", "miri_ta_stats",
-    "nirspec_ta_query_history", "nirspec_ta_stats", "nirspec_wata_stats", "nirspec_msata_stats"
+    "nirspec_ta_query_history", "nirspec_ta_stats", "nirspec_wata_stats", "nirspec_msata_stats",
+    "wisp_finder_b4_query_history"
 ]
 
 # Suffix for msa files

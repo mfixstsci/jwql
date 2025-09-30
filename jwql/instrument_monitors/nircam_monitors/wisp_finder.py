@@ -466,25 +466,6 @@ def run_predictor(ratefiles, model_file, start_date, end_date):
         MJD of the ending date of the range encompassing ``ratefiles``.
         Used for populating the history database table.
     """
-
-
-
-    from glob import glob
-    ratefiles = sorted(glob('/grp/jwst/ins/jwql/filesystem/public/*/*/*nrcb4_rate.fits'))
-    progs = list(set([e[37:44] for e in ratefiles]))
-    newratefiles = []
-    for p in progs:
-        for rfile in ratefiles:
-            if p in rfile:
-                newratefiles.append(rfile)
-                break
-    ratefiles = [os.path.basename(e) for e in newratefiles]
-
-
-
-
-
-
     if len(ratefiles) > 0:
         monitor_run = True
 

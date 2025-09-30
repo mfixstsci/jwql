@@ -13,7 +13,6 @@ from astropy.stats import sigma_clipped_stats
 import os
 from PIL import Image
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
 
 
 def create_figure(image, outfile):

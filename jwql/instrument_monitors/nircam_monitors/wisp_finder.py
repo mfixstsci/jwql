@@ -48,7 +48,7 @@ from torchvision import transforms
 import torchvision.models as models
 
 from jwql.utils import monitor_utils
-from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
+from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS, WISP_PROBABILITY_THRESHOLD
 from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
@@ -263,7 +263,7 @@ def predict_wisp(model, image_path, transform):
     # The model outputs a single probability (e.g., for "wisp"). So, use a threshold
     # to determine whether the prediction is wisp or no_wisp.
     probability = torch.sigmoid(output).item()
-    threshold = 0.01  # Determined during test runs on the test server using the MAST filesystem
+    threshold = WISP_PROBABILITY_THRESHOLD
     prediction_label = "wisp" if probability >= threshold else "no wisp"
     return prediction_label, probability, threshold
 

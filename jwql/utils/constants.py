@@ -1062,3 +1062,6 @@ MAX_LEN_VISIT = 30
 
 # STScI VAO server url
 STSCI_VO_URL = "https://mast.stsci.edu/vo-tap/api/v0.1/caom"
+
+# Threshold probability needed by the wisp finder to declare a wisp
+WISP_PROBABILITY_THRESHOLD = 0.01  # Determined during test runs on the test server using the MAST filesystem

@@ -263,7 +263,7 @@ def predict_wisp(model, image_path, transform):
     # The model outputs a single probability (e.g., for "wisp"). So, use a threshold
     # to determine whether the prediction is wisp or no_wisp.
     probability = torch.sigmoid(output).item()
-    threshold = 0.5
+    threshold = 0.01  # Determined during test runs on the test server using the MAST filesystem
     prediction_label = "wisp" if probability >= threshold else "no wisp"
     return prediction_label, probability, threshold
 
@@ -324,7 +324,7 @@ def query_mast(starttime, endtime):
                                                          productType='SCIENCE',
                                                          productSubGroupDescription='RATE',
                                                          calib_level=[2])
-        logging.info(f"\tExpore {i+1} of {len(sci_obs_id_table)}: {len(products)} products filters to {len(filtered_products)} rate files")
+        logging.info(f"\tExposure {i+1} of {len(sci_obs_id_table)}: {len(products)} products filters to {len(filtered_products)} rate files")
         sci_files_to_download.extend(filtered_products['dataURI'])
 
     # The current ML wisp finder model is only trained for the wisps on the B4 detector,

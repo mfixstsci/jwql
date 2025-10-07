@@ -509,7 +509,7 @@ def run_predictor(ratefiles, model_file, start_date, end_date):
                 # Create the rootname. Strip off the path info, and remove '.fits' and the suffix
                 # (i.e. 'rate'')
                 rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
-                logging.info(f"\tFound wisp in {rootfile} (probability {probability} < threshold {threshold})\n\n")
+                logging.info(f"\tFound wisp in {rootfile} (probability {probability} > threshold {threshold})\n\n")
 
                 # Add the wisp flag to the RootFileInfo object for the rootfile
                 add_wisp_flag(rootfile)

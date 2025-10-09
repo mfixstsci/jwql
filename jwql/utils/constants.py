@@ -448,6 +448,7 @@ FILTERS_PER_INSTRUMENT = {
         "F322W2",
     ],
     "niriss": [
+        "CLEAR",
         "F090W",
         "F115W",
         "F140M",

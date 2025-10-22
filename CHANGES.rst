@@ -1,5 +1,33 @@
 ## What's Changed
 
+1.4.0 (2025-10-22)
+====================
+
+Web Application
+~~~~~~~~~~~~~~~
+* Adding CLEAR to list of niriss filters by @rcooper295 in https://github.com/spacetelescope/jwql/pull/1704
+* Fix program type info from new link by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1665
+* Update query date range picker by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1689
+* Create a page to show all observations of a program by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1680
+
+Project & API Documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Filter rootnames and filenames before calling the filename_parser in archive_database_update by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1657
+* Update Filesystem Monitor to use Django DB Models by @mfixstsci in https://github.com/spacetelescope/jwql/pull/1498
+* Changing celery worker logs to be daily rather than per-task by @york-stsci in https://github.com/spacetelescope/jwql/pull/1669
+* Update data_containers and bokeh_dashboard to use Django models by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1668
+* Add wisp finder monitor by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1666
+* Update update_monitor_table() to use django models by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1659
+* Jdaviz integration by @york-stsci in https://github.com/spacetelescope/jwql/pull/1658
+* Update jwqldb page with django model names by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1681
+* Fix scaling in WATA and MIRI TA preview images by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1686
+* Wisp finder fixes by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1698
+* wisp finder - nans in png, close figures by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1700
+* Set wisp probability threshold to 1% by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1702
+* Fix < sign in log statement of wisp finder by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1703
+
+
+
 1.3.0 (2024-12-19)
 ==================
 

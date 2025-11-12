@@ -91,8 +91,20 @@
                                     minDate: "2021-12-05",
 
                                     onChange: function(selectedDates, dateStr, instance) {
-                                    const formattedStr = dateStr.replace(" to ", " - ");
-                                    instance.input.value = formattedStr;
+                                    instance.input.value = dateStr;
+                                    },
+                                    onReady: function(selectedDates, dateStr, instance) {
+                                    // Wait one tick so Flatpickr can render defaults before we format manually
+                                    setTimeout(() => {
+                                        if (selectedDates.length === 2) {
+                                                const formattedStr =
+                                                        instance.formatDate(selectedDates[0], "Y/m/d h:iK") +
+                                                        " to " +
+                                                        instance.formatDate(selectedDates[1], "Y/m/d h:iK");
+                                                instance.input.value = formattedStr;
+                                                }
+                                            },
+                                        0);
                                     }
                                 });
                                 </script>

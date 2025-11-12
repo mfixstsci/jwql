@@ -62,7 +62,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt  # noqa
 import matplotlib.colors as colors  # noqa
 from matplotlib.colors import SymLogNorm  # noqa
-from matplotlib.ticker import AutoMinorLocator  # noqa
+from matplotlib.ticker import AutoMinorLocator, SymmetricalLogLocator  # noqa
 from mpl_toolkits.axes_grid1 import make_axes_locatable  # no_qa
 
 if not ON_READTHEDOCS:
@@ -1522,6 +1522,9 @@ class Level3PreviewImage():
         # Find sigma-clipped standard deviation of the data
         dev = np.std(clipped)
 
+        # Set the threshold for the linearly-scaled portion of the map
+        linthresh = dev
+
         # Define colormap that shows NaNs as black
         cmap = plt.cm.viridis.copy()
         cmap.set_bad(color='black')
@@ -1533,7 +1536,7 @@ class Level3PreviewImage():
                                         maxsize=self.maxsize)
 
         # Use SymLogNorm with a linear region around zero
-        norm = SymLogNorm(linthresh=dev, vmin=vmin, vmax=vmax)
+        norm = SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
 
         self.fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, constrained_layout=True)
         im = ax.imshow(self.model.data, cmap=cmap, norm=norm, aspect=aspect)
@@ -1551,11 +1554,45 @@ class Level3PreviewImage():
         cbar = self.fig.colorbar(im, ax=ax, orientation=colorbar_orient, fraction=0.15, pad=0.05)
         #cbar.set_ticks(ticks)
         #cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
+        #cbar.locator = SymmetricalLogLocator(linthresh=dev, base=10)
+        #cbar.update_ticks()
+        # ----- Tick generation -----
+        ticks = []
+
+        # Always include full range endpoints
+        ticks.extend([vmin, vmax])
+
+        # Linear region ticks
+        lin_ticks = np.linspace(-linthresh, linthresh, 3)
+
+        # Negative log region (only if needed)
+        if vmin < -linthresh:
+            neg_log_min = np.log10(-vmin)
+            neg_log_max = np.log10(linthresh)
+            neg_ticks = -np.logspace(neg_log_max, neg_log_min, nlog, base=base)
+            ticks.extend(neg_ticks)
+
+        # Positive log region
+        if vmax > linthresh:
+            pos_log_min = np.log10(linthresh)
+            pos_log_max = np.log10(vmax)
+            pos_ticks = np.logspace(pos_log_min, pos_log_max, nlog, base=base)
+            ticks.extend(pos_ticks)
+
+        # Combine all and filter
+        ticks = np.unique(np.concatenate((ticks, lin_ticks)))
+        ticks = ticks[(ticks >= vmin) & (ticks <= vmax)]
+        ticks = np.sort(ticks)
+
+        # Apply
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels([f"{t:.2g}" for t in ticks])
+        cbar.ax.set_ylabel("Signal (SymLog scale)")
 
         # Remove unlabeled minor ticks
         #cbar.ax.tick_params(which="minor", length=0)
         cbar.set_label(self.model.meta.bunit_data)
-        #plt.show()
+        plt.show()
         #self.fig.close()
         self.figures.append(self.fig)
 

@@ -54,7 +54,7 @@ requires-python = ">=3.10"
 
 [project.optional-dependencies]
 test = [
-    "pytest",
+    "pytest>=9.0",
     "pytest-cov",
     "pytest-mock",
 ]
@@ -89,8 +89,6 @@ namespaces = false
 
 [tool.pytest]
 junit_family = "xunit2"
-
-[tool.pytest.ini_options]
 norecursedirs = [
     "jwql/website/apps/jwql/static",
 ]

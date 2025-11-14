@@ -1517,13 +1517,13 @@ class Level3PreviewImage():
         vmax = np.nanpercentile(self.model.data, 99)
 
         # Use to determine linearly scaled signals
-        clipped = sigma_clip_ignore_nan(self.model.data)
+        #clipped = sigma_clip_ignore_nan(self.model.data)
 
         # Find sigma-clipped standard deviation of the data
-        dev = np.std(clipped)
+        #dev = np.std(clipped)
 
         # Set the threshold for the linearly-scaled portion of the map
-        linthresh = dev
+        #linthresh = dev
 
         # Define colormap that shows NaNs as black
         cmap = plt.cm.viridis.copy()
@@ -1536,14 +1536,15 @@ class Level3PreviewImage():
                                         maxsize=self.maxsize)
 
         # Use SymLogNorm with a linear region around zero
-        norm = SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
+        #norm = SymLogNorm(linthresh=linthresh, vmin=vmin, vmax=vmax)
 
-        self.fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, constrained_layout=True)
-        im = ax.imshow(self.model.data, cmap=cmap, norm=norm, aspect=aspect)
+        #self.fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize, constrained_layout=True)
+        self.fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize)
+        #im = ax.imshow(self.model.data, cmap=cmap, norm=norm, aspect=aspect)
         ax.set_title(self.model.meta.filename)
-        ax.set_xlabel("Pixels")
-        ax.set_ylabel("Pixels")
-        ax.invert_yaxis()
+        #ax.set_xlabel("Pixels")
+        #ax.set_ylabel("Pixels")
+        #ax.invert_yaxis()
 
         # Choose symmetric ticks around zero for the colorbar
         #pos_ticks = np.logspace(np.log10(vmax) - 3, np.log10(vmax*1.01), 4)
@@ -1551,38 +1552,69 @@ class Level3PreviewImage():
         #ticks = np.concatenate([-neg_ticks[::-1], np.array([0]), pos_ticks])
 
         # Shared colorbar
-        cbar = self.fig.colorbar(im, ax=ax, orientation=colorbar_orient, fraction=0.15, pad=0.05)
+        #cbar = self.fig.colorbar(im, ax=ax, orientation=colorbar_orient, fraction=0.15, pad=0.05)
         #cbar.set_ticks(ticks)
         #cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
         #cbar.locator = SymmetricalLogLocator(linthresh=dev, base=10)
         #cbar.update_ticks()
         # ----- Tick generation -----
+
+
+        """
         ticks = []
 
         # Always include full range endpoints
-        ticks.extend([vmin, vmax])
+        #ticks.extend([vmin, vmax])
 
         # Linear region ticks
-        lin_ticks = np.linspace(-linthresh, linthresh, 3)
+        nlin_ticks = 3
+        lin_ticks = np.linspace(-linthresh, linthresh, nlin_ticks)
 
         # Negative log region (only if needed)
+        nlog_neg_ticks = 3
         if vmin < -linthresh:
             neg_log_min = np.log10(-vmin)
             neg_log_max = np.log10(linthresh)
-            neg_ticks = -np.logspace(neg_log_max, neg_log_min, nlog, base=base)
-            ticks.extend(neg_ticks)
+            neg_ticks = -np.logspace(neg_log_max, neg_log_min, nlog_neg_ticks, base=10)
+            ticks.extend(neg_ticks[1:])  # Skip the first so we don't repeat
 
         # Positive log region
+        nlog_pos_ticks = 3
         if vmax > linthresh:
             pos_log_min = np.log10(linthresh)
             pos_log_max = np.log10(vmax)
-            pos_ticks = np.logspace(pos_log_min, pos_log_max, nlog, base=base)
-            ticks.extend(pos_ticks)
+            pos_ticks = np.logspace(pos_log_min, pos_log_max, nlog_pos_ticks, base=10)
+            ticks.extend(pos_ticks[1:])  # Skip the first so we don't repeat
 
         # Combine all and filter
         ticks = np.unique(np.concatenate((ticks, lin_ticks)))
         ticks = ticks[(ticks >= vmin) & (ticks <= vmax)]
         ticks = np.sort(ticks)
+
+
+
+        ticks = [0]
+
+        # Positive side
+        if vmax > linthresh:
+            # Find the midpoint in log space between linthresh and vmax
+            log_linthresh = np.log10(linthresh)
+            log_vmax = np.log10(vmax)
+            log_mid = (log_linthresh + log_vmax) / 2
+            mid_positive = 10 ** log_mid
+            ticks.extend([linthresh, mid_positive, vmax])
+        else:
+            ticks.append(vmax)
+
+        if vmin < -linthresh:
+            # Find the midpoint in log space between -linthresh and vmin
+            log_linthresh = np.log10(linthresh)
+            log_vmin = np.log10(abs(vmin))
+            log_mid = (log_linthresh + log_vmin) / 2
+            mid_negative = -(10 ** log_mid)
+            ticks = [vmin, mid_negative, -linthresh] + ticks
+        else:
+            ticks.insert(0, vmin)
 
         # Apply
         cbar.set_ticks(ticks)
@@ -1590,8 +1622,156 @@ class Level3PreviewImage():
         cbar.ax.set_ylabel("Signal (SymLog scale)")
 
         # Remove unlabeled minor ticks
-        #cbar.ax.tick_params(which="minor", length=0)
-        cbar.set_label(self.model.meta.bunit_data)
+        cbar.ax.tick_params(which="minor", length=0)
+        # Critical: Remove all minor ticks
+        #cbar.ax.yaxis.set_minor_locator(plt.NullLocator())
+        """
+
+        shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(self.model.data, vmin, vmax, num_ticks=5)
+        tlabelstr = formatted_tick_labels(tlabelflt)
+
+
+
+        """
+        shiftdata = image - min_value + 1
+        shiftmin = 1
+        shiftmax = max_value - min_value + 1
+
+        # Generate tick labels
+        tickvals = np.logspace(np.log10(shiftmin), np.log10(shiftmax), 5)
+        tlabelflt = tickvals + min_value - 1
+        """
+
+        # Image object
+        cax = ax.imshow(shiftdata,
+                            norm=colors.LogNorm(vmin=shiftmin,
+                                                vmax=shiftmax),
+                            cmap=cmap,
+                            aspect=aspect)
+
+        # Invert y axis in all cases
+        ax.invert_yaxis()
+
+        # For preview images, add colorbar, and create tick labels for it
+        if 1>0:
+            ysize, xsize = self.model.data.shape
+
+            """
+            # Adjust the number of digits after the decimal point
+            # in the colorbar labels based on the signal range
+            delta = tlabelflt[-1] - tlabelflt[0]
+            if delta >= 100:
+                dig = 0
+            elif ((delta < 100) & (delta >= 10)):
+                dig = 1
+            elif ((delta < 10) & (delta >= 1)):
+                dig = 2
+            elif delta < 1:
+                dig = 3
+            else:
+                dig = 2
+            format_string = "%.{}f".format(dig)
+            tlabelstr = [format_string % number for number in tlabelflt]
+            """
+            xyratio = xsize / ysize
+            print('xyratio: ', xyratio)
+            divider = make_axes_locatable(ax)
+            #if xyratio < 1.6:
+            if colorbar_orient == 'vertical':
+                # For apertures that are taller than they are wide, square, or that are wider than
+                # they are tall but still reasonably close to square, put the colorbar on the right
+                # side of the image.
+                cax_colorbar = divider.append_axes("right", size="5%", pad=0.5)
+
+                cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
+
+                cbar.ax.yaxis.minorticks_off()
+                cbar.ax.set_yticklabels(tlabelstr)
+                cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=15, rotation=270)
+
+
+                """
+                # Some magic numbers arrived at through testing aspect ratios for all apertures
+                if xyratio > 0.4:
+                    cb_width = 0.05
+                else:
+                    cb_width = 0.05 * 0.4 / xyratio
+
+                upper_x_anchor = 0.02
+                if xyratio < 0.1:
+                    upper_x_anchor = 0.12
+
+                cbax = self.fig.add_axes([ax.get_position().x1 + upper_x_anchor,
+                                          ax.get_position().y0,
+                                          cb_width,
+                                          ax.get_position().height
+                                          ])
+                cbar = self.fig.colorbar(cax, cax=cbax, orientation='vertical', ticks=tickvals)
+
+                cbar.ax.yaxis.minorticks_off()
+                cbar.ax.set_yticklabels(tlabelstr)
+                cbar.ax.set_ylabel(self.units, labelpad=7, rotation=270)
+                """
+            elif colorbar_orient == 'horizontal':
+                # For apertures that are significantly wider than they are tall, put the colorbar
+                # under the image.
+                cax_colorbar = divider.append_axes("bottom", size="5%", pad=0.5)
+
+
+
+
+
+
+                # Again, some magic numbers controlling the positioning and height of the
+                # colorbar, based on testing.
+                #lower_y_anchor = 0. - (xyratio / 14.5)
+                #cb_height = 0.07 * (np.log2(xyratio) - 1)
+
+
+                # Check if colorbar is within bounds
+                #cb_y_position = ax.get_position().y0 + lower_y_anchor
+                #print(f"Colorbar y position: {cb_y_position}")
+                #if cb_y_position < 0:
+                #    print("WARNING: Colorbar is below figure bounds!")
+
+
+
+
+                #cbax = self.fig.add_axes([ax.get_position().x0,
+                #                          ax.get_position().y0 + lower_y_anchor,
+                #                          ax.get_position().width,
+                #                          cb_height])
+                cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
+
+                cbar.ax.xaxis.minorticks_off()
+                cbar.ax.set_xticklabels(tlabelstr)
+                cbar.ax.set_xlabel(self.model.meta.bunit_data, labelpad=7, rotation=0)
+
+            # Set text sizes
+            maxsize = self.maxsize
+            ax.set_xlabel('Pixels', fontsize=maxsize * 5. / 4)
+            ax.set_ylabel('Pixels', fontsize=maxsize * 5. / 4)
+            ax.tick_params(labelsize=maxsize)
+            plt.rcParams.update({'axes.titlesize': 'small'})
+            plt.rcParams.update({'font.size': maxsize * 5. / 4})
+            plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
+            plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
+            plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        #cbar.set_label(self.model.meta.bunit_data)
         plt.show()
         #self.fig.close()
         self.figures.append(self.fig)
@@ -2412,7 +2592,9 @@ class Level3PreviewImage():
         if end_frame > nframes:
             end_frame = nframes
 
-        slice_mean = np.nanmean(self.model.data[strt_frame:end_frame, :, :], axis=0)
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', message='Mean of empty slice')
+            slice_mean = np.nanmean(self.model.data[strt_frame:end_frame, :, :], axis=0)
         vmin = np.nanpercentile(slice_mean, 1)
         vmax = np.nanpercentile(slice_mean, 99)
         if vmin < -vmax:
@@ -2427,9 +2609,30 @@ class Level3PreviewImage():
             slice_full = ax.imshow(self.model.data[frame, :, :],
                                    norm=ImageNormalize(vmin=vmin, vmax=vmax, stretch=LogStretch()),
                                    origin='lower', cmap=cmap, aspect=aspect)
+            ax.invert_yaxis()
             ax.set_xlabel('Pixel')
             ax.set_ylabel('Pixel')
             ax.set_title(f'{self.model.meta.filename}: slice {frame}')
+
+
+
+
+            #shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(self.model.data[frame,:,:], vmin, vmax, num_ticks=5)
+            #tlabelstr = formatted_tick_labels(tlabelflt)
+
+            #divider = make_axes_locatable(ax)
+            #cax_colorbar = divider.append_axes("right", size="5%", pad=0.5)
+            #cbar = self.fig.colorbar(slice_full, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
+            #cbar.ax.yaxis.minorticks_off()
+            #cbar.ax.set_yticklabels(tlabelstr)
+            #cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=15, rotation=270)
+
+            #print(vmin, np.nanmin(self.model.data[frame, :, :]))
+
+
+
+
+
             plt.colorbar(slice_full, ax=ax, orientation=colorbar_orient,
                          fraction=0.05, pad=0.04).set_label(self.model.meta.bunit_data, fontsize=15)
             self.figures.append(self.fig)
@@ -2713,6 +2916,36 @@ def Fnu_to_Flam(wave_micron, flux_jansky):
     return f_lambda
 
 
+def formatted_tick_labels(tick_vals):
+    """Given an array of tick values, create formatted tick labels based on the value of
+    the numbers.
+
+    Parameters
+    ----------
+    tick_vals : numpy.ndarray
+        Array of tick values (floats)
+
+    Returns
+    -------
+    tick_str : list
+        List of string tick labels
+    """
+    delta = tick_vals[-1] - tick_vals[0]
+    if delta >= 100:
+        dig = 0
+    elif ((delta < 100) & (delta >= 10)):
+        dig = 1
+    elif ((delta < 10) & (delta >= 1)):
+        dig = 2
+    elif delta < 1:
+        dig = 3
+    else:
+        dig = 2
+    format_string = "%.{}f".format(dig)
+    tick_str = [format_string % number for number in tick_vals]
+    return tick_str
+
+
 def hide_axes(fig):
     """Hide all axes and labels for the given figure. This helps when making a thumbnail
     image.
@@ -2744,3 +2977,50 @@ def sigma_clip_ignore_nan(data, sigma=3):
         warnings.filterwarnings("ignore", message="Input data contains invalid values", module="astropy.stats.sigma_clipping")
         clp = sigma_clip(data, sigma=sigma)
     return clp
+
+def shift_data_get_ticks(image, minval, maxval, num_ticks=5):
+    """Given a multi-dimensional array along with the minimum and maximum values for the colorbar in imshow(),
+    along with the desired number of ticks to add to the colorbar, shift the data in the image such that the
+    minimum pixel value is 1. Then calculate values for the number of tick marks. Note that the tick mark values
+    here will be in the shifted data space. Then calculate the corresponding tick values in the unshifted data space.
+
+    Parameters
+    ----------
+    image : numpy.ndarray
+        Multidimensional array
+
+    minval : float
+        Minimum value for the colormap to use in imshow
+
+    maxval : float
+        Maximum value for the colormap to use in imshow
+
+    num_ticks : int
+        Number of tick values to create
+
+    Returns
+    -------
+    shifted_image : numpy.ndarray
+        ``image``, shifted such that the minimum pixel value is 1.0. Primarily intended
+        for log scaling in imshow
+
+    shifted_min : float
+        Minimum pixel value in the shifted data
+
+    shifted_max : float
+        Maximum pixel value in the shifted data
+
+    shifted_tickvals : numpy.ndarray
+        Array of tick values in the shifted data space
+
+    unshifted_tickvals : numpy.ndarray
+        Array of tick values in the original data (``image``) data space
+    """
+    shifted_image = image - minval + 1
+    shifted_min = 1
+    shifted_max = maxval - minval + 1
+
+    # Generate tick labels
+    shifted_tickvals = np.logspace(np.log10(shifted_min), np.log10(shifted_max), num_ticks)
+    unshifted_tickvals =  shifted_tickvals + minval - 1
+    return shifted_image, shifted_min, shifted_max, shifted_tickvals, unshifted_tickvals

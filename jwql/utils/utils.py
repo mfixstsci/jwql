@@ -703,9 +703,12 @@ def filename_parser(filename):
                 l3_info = mast_query_filenames_by_instrument(filename_dict['instrument'],
                                                              filename_dict['program_id'],
                                                              other_columns=['observtn'])
-                obs = [e['observtn'] for e in l3_info['data'] if root_name in e['filename']][0]
+
+                obs = [e['observtn'] for e in l3_info['data'] if root_name in e['filename']]
+                # We don't support having multiple observations associated with a single level 3 file
+                if len(obs) > 0:
+                    obs = obs[0]
                 filename_dict['observation'] = str(obs).zfill(3)
-                print(root_name, obs)
 
     # Raise error if unable to parse the filename
     except AttributeError:

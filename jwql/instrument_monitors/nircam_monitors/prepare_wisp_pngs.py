@@ -7,6 +7,7 @@ prediction model.
 
 import argparse
 import numpy as np
+from astropy.convolution import Gaussian2DKernel, interpolate_replace_nans
 from astropy.io import fits
 from astropy.stats import sigma_clipped_stats
 import os
@@ -28,6 +29,28 @@ def create_figure(image, outfile):
     plt.imshow(image, origin='lower')
     plt.axis('off')
     plt.savefig(outfile, bbox_inches='tight')
+    plt.close('all')
+
+
+def fill_nan_with_nearest_neighbor(arr):
+    """
+    Replaces NaN values in a 2D NumPy array with values interpolated
+    from the nearest non-NaN neighbors.
+
+    Parameters
+    ----------
+    arr : numpy.ndarray
+        A 2D NumPy array potentially containing NaN values.
+
+    Returns
+    -------
+    filled_arr : numpy.ndarray
+        A new array with NaNs replaced by nearest neighbor interpolation.
+    """
+    kernel = Gaussian2DKernel(x_stddev=1, y_stddev=1)
+    filled_arr = interpolate_replace_nans(arr, kernel)
+
+    return filled_arr
 
 
 def rescale_array(arr):
@@ -56,7 +79,8 @@ def rescale_array(arr):
 
     # Rescale the image
     adjusted_image = alpha * arr + beta
-    adjusted_image = np.clip(adjusted_image, 0, 255).astype(np.uint8)
+    mask = ~np.isnan(adjusted_image)
+    adjusted_image[mask] = np.clip(adjusted_image[mask], 0, 255).astype(np.uint8)
 
     return adjusted_image
 
@@ -124,6 +148,9 @@ def run(filename, out_dir=None):
         Full path to the output png file
     """
     data = fits.getdata(filename)
+
+    # Replace NaN values with interpolated values from nearest neighbors
+    data = fill_nan_with_nearest_neighbor(data)
 
     # Get the basename of the input file. This will be used to create
     # the output png file name

@@ -448,6 +448,7 @@ FILTERS_PER_INSTRUMENT = {
         "F322W2",
     ],
     "niriss": [
+        "CLEAR",
         "F090W",
         "F115W",
         "F140M",
@@ -720,7 +721,8 @@ MONITOR_TABLE_NAMES = [
     "niriss_readnoise_query_history", "niriss_readnoise_stats",
     "nirspec_readnoise_query_history", "nirspec_readnoise_stats",
     "miri_ta_query_history", "miri_ta_stats",
-    "nirspec_ta_query_history", "nirspec_ta_stats", "nirspec_wata_stats", "nirspec_msata_stats"
+    "nirspec_ta_query_history", "nirspec_ta_stats", "nirspec_wata_stats", "nirspec_msata_stats",
+    "wisp_finder_b4_query_history"
 ]
 
 # Suffix for msa files
@@ -1061,3 +1063,6 @@ MAX_LEN_VISIT = 30
 
 # STScI VAO server url
 STSCI_VO_URL = "https://mast.stsci.edu/vo-tap/api/v0.1/caom"
+
+# Threshold probability needed by the wisp finder to declare a wisp
+WISP_PROBABILITY_THRESHOLD = 0.01  # Determined during test runs on the test server using the MAST filesystem

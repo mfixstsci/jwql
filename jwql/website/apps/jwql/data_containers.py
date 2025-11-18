@@ -1871,7 +1871,7 @@ def get_rootnames_from_query(parameters):
 
     # Parse DATE_RANGE string into correct format
     date_range = parameters[QueryConfigKeys.DATE_RANGE]
-    start_date_range, stop_date_range = date_range.split(" - ")
+    start_date_range, stop_date_range = date_range.split(" to ")
     # Parse the strings into datetime objects
     start_datetime = datetime.strptime(start_date_range, DATE_FORMAT)
     stop_datetime = datetime.strptime(stop_date_range, DATE_FORMAT)

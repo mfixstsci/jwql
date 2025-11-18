@@ -1066,9 +1066,10 @@ class Level3PreviewImage():
         self.fig, ax = plt.subplots(figsize=(self.maxsize, self.maxsize))
         ax.plot(baseline_waves, baseline, color='blue', label='Baseline', alpha=0.5)
         ax.plot(eclipse_waves, eclipse, color='red', label='Lowest mean', alpha=0.5)
-        ax.set_xlabel(f'Wavelength {self.wavelength_units}')
-        ax.set_ylabel(f'Flux {self.flux_units}')
-        self.fig.legend(loc='upper right')
+        ax.set_xlabel(f'Wavelength ({self.wavelength_units})')
+        ax.set_ylabel(f'Flux ({self.flux_units})')
+        ax.set_title(f'{self.model.meta.filename}: {self.model.meta.target.catalog_name}', fontsize=12)
+        ax.legend(loc='upper right')
         self.figures.append(self.fig)
 
     def miri_lrs_slitless_x1dints_plot_old_format(self):
@@ -1456,11 +1457,6 @@ class Level3PreviewImage():
         Save matplotlib figures as preview images and possibly thumbnail images,
         and set the appropriate permissions
         """
-
-        print(len(self.figures))
-
-
-
         for i, figure in enumerate(self.figures):
 
             # Preview image filename is the name of the input file with jpg at the end
@@ -1506,7 +1502,7 @@ class Level3PreviewImage():
             logging.info(f'\tSaved {img_type} image to {thumb_outname}')
             print(f'\tSaved {img_type} image to {thumb_outname}')
 
-        # Close the first figure
+        # Close the figures
         for figure in self.figures:
             plt.close(figure)
 
@@ -2563,6 +2559,7 @@ class Level3PreviewImage():
         # Shared colorbar
         cbar = self.fig.colorbar(im, ax=axes[-1], orientation=colorbar_orient, fraction=0.2, pad=0.05)
         cbar.set_ticks(ticks)
+        cbar.ax.xaxis.minorticks_off()
         cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
 
         # Looks like the units don't always make it into the datamodel (e.g. NIRSpec fixedslit crf)

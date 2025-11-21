@@ -498,7 +498,7 @@ class PreviewImage():
 
             # Catch images where all pixel values are zero. e.g. trapsfilled files
             if delta == 0:
-                delta = 1e-6
+                delta = 0.01
 
             # For cases where the the distance between min_value and max_value is very small,
             # adjust the tick labels to avoid having the same number label for all ticks

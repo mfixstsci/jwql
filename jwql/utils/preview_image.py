@@ -1876,8 +1876,9 @@ class Level3PreviewImage():
 
         Returns
         -------
-        wh_cal : int
-            Extension number where the source_id exists
+        cal_ex_orders : dict
+            Keys are the order numbers, values are the extension of the file that
+            holds the data for that order number
         """
         # Get a list of SOURCE_IDs for all extensions. Set all non-SCI extension values to -999
         cal_source_ids = np.array([cal_hdu[ext].header['SOURCEID'] if cal_hdu[ext].header['EXTNAME'] == 'SCI'
@@ -1885,9 +1886,24 @@ class Level3PreviewImage():
         cal_orders = np.array([cal_hdu[ext].header['SPORDER'] if cal_hdu[ext].header['EXTNAME'] == 'SCI'
                                   else -999 for ext in range(1, len(cal_hdu))])
 
-        # Get extension numbers for order 1 and 2 spectra. Add 1 for the primary header
+        # Get extension numbers for each order. Support arbitrary order numbers
+        cal_ex_orders = {}
+        source_idxs = np.where(cal_source_ids == source_id)[0]
+
+        for source_idx in source_idxs:
+            order = cal_orders[source_idx]
+            cal_ex_orders[order] = source_idx + 1  # Add 1 to account for the primary header
+
+        return cal_ex_orders
+
+        """
         cal_ex_o1 = np.where((cal_source_ids == source_id) & (cal_orders == 1))[0] + 1
         cal_ex_o2 = np.where((cal_source_ids == source_id) & (cal_orders == 2))[0] + 1
+
+
+        print(f'extensions are: ', cal_ex_o1, cal_ex_o2)
+        if len(cal_ex_o1) == 1:
+            print(cal_hdu[cal_ex_o1[0]].header['SOURCEID'])
 
         if len(cal_ex_o1) > 0:
             cal_ex_o1 = cal_ex_o1[0]
@@ -1898,6 +1914,7 @@ class Level3PreviewImage():
         else:
             cal_ex_o2 = -999
         return (cal_ex_o1, cal_ex_o2)
+        """
 
     def get_wfss_cal_data(self, hdulists, source_num):
         """Find and extract the 2D spectrum from the WFSS cal file for a given source ID
@@ -1917,16 +1934,34 @@ class Level3PreviewImage():
         """
         # Find the cal file extension where the 2D spectrum is located.
         # Get the cal data if the source is present
-        cal_data = None
-        cal_width = 0
-        cal_name = ''
-        cal_ext = -999
-        cal_order = -999
-        for hdulist in hdulists:
+        #cal_data = None
+        #cal_width = 0
+        #cal_name = ''
+        #cal_ext = -999
+        #cal_order = -999
+        #cal_units = ''
 
-            ext_o1, ext_o2 = self.find_wfss_source_ext(hdulist, source_num)
+        cal_info = {'order': {'data': None, 'width': 0, 'name': '', 'ext': -999, 'units': ''}}
 
-            for ext in [ext_o1, ext_o2]:
+
+
+        print(f'Found {len(hdulists)} hdulists')
+        print([hdulists[ii][0].header['FILENAME'] for ii in range(len(hdulists))])
+
+        # For the give source, loop over hdulists, and determine the extension within each
+        # that contains the source. Do this for all orders.
+        for ii, hdulist in enumerate(hdulists):
+
+            # Output of find_wfss_source_ext is dict where key is order number, value is the extension containing the source
+            source_exts = self.find_wfss_source_ext(hdulist, source_num)
+
+            # Now go through the identified extensions for the source, and figure out
+            # which one to use to display the data.
+            # For each order, find the hdulist/extension with the longest 2D cutout,
+            # indicating that the trace is not being cut off by the detector edges, and
+            # show that. This means we may show traces from different files for different
+            # orders.
+            for order, ext in source_exts.items():
                 if ext != -999:
                     data = hdulist[ext].data
 
@@ -1939,7 +1974,7 @@ class Level3PreviewImage():
                         width = data.shape[-2]
 
                     # If the 2D array is longer than the previous longest, keep it.
-                    if width > cal_width:
+                    if width > cal_info[order]['width']:
                         # If the dispersion direction is along columns, transpose in
                         # order to make plotting easier.
                         if dispersion_direction == 2:
@@ -1954,18 +1989,13 @@ class Level3PreviewImage():
                         name = hdulist[0].header['FILENAME']
                         units = hdulist[ext].header['BUNIT']
 
-                        cal_width = width
-                        cal_data = data
-                        cal_name = name
-                        cal_ext = ext
-                        cal_units = units
+                        cal_info[order]['data'] = data
+                        cal_info[order]['width'] = width
+                        cal_info[order]['name'] = name
+                        cal_info[order]['ext'] = ext
+                        cal_info[order]['units'] = units
 
-                        if ext == ext_o1:
-                            cal_order = 1
-                        elif ext == ext_o2:
-                            cal_order = 2
-
-        return cal_data, cal_name, cal_ext, cal_order, cal_units
+        return cal_info
 
     def wfss_calc_yrange(self, spec, ignore_frac=0.2, padding=0.1):
         """Try to do something sort of intelligent to come up with a plot range
@@ -2000,15 +2030,63 @@ class Level3PreviewImage():
         bright_idx = self.find_brightest_wfss_sources(nbrightest=2)
         self.wfss_source_ids = []
 
+
+
+        print(f'Brightest source index nums: {bright_idx}')
+        print(f'This corresponds to source numbers: {[self.model.spec[0].spec_table.SOURCE_ID[idx] for idx in bright_idx]}')
+
+
+        print(self.model.spec[0].spec_table.SOURCE_ID)
+        print(self.model.spec[0].spec_table.SOURCE_ID[bright_idx])
+
+
+
         # Get the corresponding cal file data
         if '-' in self.model.meta.filename:
             if 'x1d' in self.model.meta.filename:  # Stage 3 x1d file
                 cal_files = [ext.filename for ext in self.model.spec]
+
+
+                print(f'Found cal files from x1d: {cal_files}')
+
+
             elif 'c1d' in self.model.meta.filename:  # Stage 3 c1d file
                 x1dname = self.filename.replace('c1d', 'x1d')
                 x1dmodel = datamodels.open(x1dname)
                 cal_files = [ext.filename for ext in x1dmodel.spec]
-            cal_files = list(set(cal_files))
+
+
+                print(f'Found cal files from c1d via x1d: {cal_files}')
+
+
+            cal_files = sorted(list(set(cal_files)))
+
+
+
+            ##### TEST TEST TEST
+            ### manually add blong files, which are not in the cal file list
+            #print('\n\n\n\n\n\n\n############## IS THIS A PIPELINE BUG??  JIRA JP-4188 #####################\n\n\n\n\n\n')
+            #cal_files = sorted(cal_files + [fname.replace('along', 'blong') for fname in cal_files])
+            #print(f'Now cal files are: ', cal_files)
+
+            # Deal with this bug by checking for the existence of A mod and B mod versions of all
+            # cal files, regardless of which are in the filename metadata (only for NIRCam)
+            if 'nircam' in self.model.meta.filename:
+                # BEST SOLUTON HERE, WHILE WE ARE WAITING FOR A PIPELINE FIX, WOULD BE TO DOWNLOAD AND READ IN
+                # THE ASN FILE, AND GET ALL THE FILENAMES FROM THERE. THEN WE WOULDN'T HAVE TO WORRY ABOUT WHETHER
+                # A PARTICULAR CAL FILE IS JUST MISSING FROM THE FILESYSTEM, OR WAS NEVER USED IN THE OBSERVATION
+                modified_cal_files = []
+                for cal_file in cal_files:
+                    if 'along' in cal_file:
+                        new_cal = cal_file.replace['along', 'blong']
+                    elif 'blong' in cal_files:
+                        new_cal = cal_file.replace['blong', 'along']
+                    modified_cal_files += [cal_file, new_cal]
+                cal_files = modified_cal_files
+                print(f'Now cal files are: ', cal_files)
+
+
+
 
             # cal files are located in a different directory from the level 3 files
             cal_files = [filesystem_path(filename, check_existence=True) for filename in cal_files]
@@ -2030,7 +2108,8 @@ class Level3PreviewImage():
 
             # Find the cal file extension where the 2D spectrum is located.
             # Get the cal data if the source is present
-            cal_data, cal_name, cal_ext, cal_order, cal_units = self.get_wfss_cal_data(cal_hdus, source_id)
+            #cal_data, cal_name, cal_ext, cal_order, cal_units = self.get_wfss_cal_data(cal_hdus, source_id)
+            cal_info = self.get_wfss_cal_data(cal_hdus, source_id)
 
             # Determine the source type and which flux units to use
             source_type = self.model.spec[0].spec_table.SOURCE_TYPE[idx]
@@ -2047,15 +2126,13 @@ class Level3PreviewImage():
             spec1d['flux'] = [np.array(self.model.spec[0].spec_table[flux_col][idx, :])]
             spec1d['wavelength'] = [np.array(self.model.spec[0].spec_table['WAVELENGTH'][idx, :])]
 
-            # Convert Jy to f_lambda
-            if flux_col == 'FLUX':
-                spec1d['flux'] = [Fnu_to_Flam(spec1d['wavelength'][0], spec1d['flux'][0])]
-                #spec1d['flux'] = [Fnu_to_Flam(ele['wavelength'], ele['flux']) for ele in spec1d['flux']]
-
             # Get the units for later plotting
             flux_units = self.model.spec[0].spec_table.columns[flux_col].unit
             wavelength_units = self.model.spec[0].spec_table.columns['WAVELENGTH'].unit
+
+            # If we're looking at flux, then convert Jy to Flambda
             if flux_col == 'FLUX':
+                spec1d['flux'] = [Fnu_to_Flam(spec1d['wavelength'][0], spec1d['flux'][0])]
                 flux_units = 'F_lambda (erg/cm2/s/A)'
 
             # Loop over other extensions and look for the same source_id.
@@ -2073,46 +2150,60 @@ class Level3PreviewImage():
             # Remove any entries where e.g. the 2nd order data are all NaN
             spec1d = self.remove_wfss_nan_data(spec1d)
 
-            orders = set(spec1d['order'])
+            orders = sorted(list(set(spec1d['order'])))
             if len(orders) > 2:
                 raise ValueError((f'Extracted {len(orders)} orders: {orders}. '
                                   'Plotting only supported for up to 2 orders.'))
 
-            # Create the figure
-            self.fig = plt.figure(figsize=(12, 12))
-            ax_i2d = plt.subplot2grid((3, 3), (0, 0))
-            ax_2dspec = plt.subplot2grid((3, 3), (0, 1), colspan=2)
-            ax_1d_o1 = plt.subplot2grid((3, 3), (1, 0), colspan=3)
-            ax_1d_o2 = plt.subplot2grid((3, 3), (2, 0), colspan=3)
+            # Create the figure. At the moment, we support plotting only order 1,
+            # or orders 1 and 2. For the moment we ignore the possibility of a source
+            # where only order 2 is present, since that is unlikely to be one of the
+            # N brightest sources.
+            figsize = (12, 8 + (len(orders) - 1) * 8)
+            nrows = 2 + (len(orders) - 1) * 2
+            self.fig = plt.figure(figsize=figsize)
+            #ax_i2d = plt.subplot2grid((3, 3), (0, 0))
+            #ax_2dspec = plt.subplot2grid((3, 3), (0, 1), colspan=2)
+            #ax_1d_o1 = plt.subplot2grid((3, 3), (1, 0), colspan=3)
+            #ax_1d_o2 = plt.subplot2grid((3, 3), (2, 0), colspan=3)
 
-            # If 2nd order spectra are present, set the plot limits
+
+            ax_i2d = plt.subplot2grid((nrows, 3), (0, 0))
+            ax_2d_a = plt.subplot2grid((nrows, 3), (0, 1), colspan=2)
+            ax_1d_a = plt.subplot2grid((nrows, 3), (1, 0), colspan=3)
+
+            # If both order 1 and 2 are present, add plots for order 2,
+            # and set the plot limits
             if len(orders) == 2:
+                ax_2d_b = plt.subplot2grid((nrows, 3), (2, 0), colspan=2)
+                ax_1d_b = plt.subplot2grid((nrows, 3), (3, 0), colspan=3)
                 second = np.where(np.array(spec1d['order']) == 2)[0][0]
-                ylower_o2, yupper_o2 = self.wfss_calc_yrange(spec1d['flux'][second])
-                ax_1d_o2.set_ylim(ylower_o2, yupper_o2)
-            else:
-                ax_1d_o2.set_ylim(0, 1)
-                ax_1d_o2.set_xlim(0, 1)
-                ax_1d_o2.annotate('No order 2 data found', xy=(0.4, 0.5), color='black')
-
-            # Set title and labels for second order plot regardless of whether the spectrum
-            # is present or not
-            ax_1d_o2.set_title(f'{self.model.meta.filename}, Source {source_id}, Order 2')
-            ax_1d_o2.set_xlabel(f'Wavelength ({wavelength_units})')
-            ax_1d_o2.set_ylabel(f'{flux_units}')
+                ylower_b, yupper_b = self.wfss_calc_yrange(spec1d['flux'][second])
+                ax_1d_b.set_ylim(ylower_b, yupper_b)
+                ax_1d_b.set_title(f'{self.model.meta.filename}, Source {source_id}, Order 2')
+                ax_1d_b.set_xlabel(f'Wavelength ({wavelength_units})')
+                ax_1d_b.set_ylabel(f'{flux_units}')
 
             # Overplot all 1d spectra for both orders
-            num_o1 = len(np.where(np.array(spec1d['order']) == 1)[0])
-            num_o2 = len(np.where(np.array(spec1d['order']) == 2)[0])
+            order_a = orders[0]
+            num_a = len(np.where(np.array(spec1d['order']) == order_a)[0])
+
+            order_b = -999  # Will be ignored unless it changes to 2 below.
+            if len(orders) == 2:
+                order_b = orders[1]
+                num_b = len(np.where(np.array(spec1d['order']) == order_b)[0])
+
+            #num_o1 = len(np.where(np.array(spec1d['order']) == 1)[0])
+            #num_o2 = len(np.where(np.array(spec1d['order']) == 2)[0])
             for i in range(len(spec1d['order'])):
-                if spec1d['order'][i] == 1:
-                    ax_tmp = ax_1d_o1
-                    alpha = 1. / num_o1
+                if spec1d['order'][i] == order_a:
+                    ax_tmp = ax_1d_a
+                    alpha = 1. / num_a
                     if alpha < 1:
                         alpha *= 2
-                elif spec1d['order'][i] == 2:
-                    ax_tmp = ax_1d_o2
-                    alpha = 1. / num_o2
+                elif spec1d['order'][i] == order_b:
+                    ax_tmp = ax_1d_b
+                    alpha = 1. / num_b
                     if alpha < 1:
                         alpha *= 2
                 else:
@@ -2121,40 +2212,82 @@ class Level3PreviewImage():
                 # Plot the 1D spectrum
                 ax_tmp.plot(spec1d['wavelength'][i], spec1d['flux'][i], alpha=alpha, ds='steps-mid')
 
-            first = np.where(np.array(spec1d['order']) == 1)[0][0]
-            ylower_o1, yupper_o1 = self.wfss_calc_yrange(spec1d['flux'][first])
+            first = np.where(np.array(spec1d['order']) == order_a)[0][0]
+            ylower_a, yupper_a = self.wfss_calc_yrange(spec1d['flux'][first])
 
             # Set 1st order 1D plot title and labels
-            ax_1d_o1.set_title(f'{self.model.meta.filename}, Source {source_id}, Order 1')
-            ax_1d_o1.set_xlabel(f'Wavelength ({wavelength_units})')
-            ax_1d_o1.set_ylabel(f'{flux_units}')
-            ax_1d_o1.set_ylim(ylower_o1, yupper_o1)
+            ax_1d_a.set_title(f'{self.model.meta.filename}, Source {source_id}, Order {order_a}')
+            ax_1d_a.set_xlabel(f'Wavelength ({wavelength_units})')
+            ax_1d_a.set_ylabel(f'{flux_units}')
+            ax_1d_a.set_ylim(ylower_a, yupper_a)
 
             # Show the 2D extracted spectrum
             # Clip brightest and dimmest 1% of pixels to find min and max values
             # Throw out the outermost 4 rows on each side when determining colormap
             # scaling, just in case they are reference pixels
-            cal_vmin = np.nanpercentile(cal_data[4:-4, 4:-4], 1)
-            cal_vmax = np.nanpercentile(cal_data[4:-4, 4:-4], 99)
+            #cal_vmin = np.nanpercentile(cal_data[4:-4, 4:-4], 1)
+            #cal_vmax = np.nanpercentile(cal_data[4:-4, 4:-4], 99)
+            cal_vmin_a = np.nanpercentile(cal_info[order_a]['data'][4:-4, 4:-4], 1)
+            cal_vmax_a = np.nanpercentile(cal_info[order_a]['data'][4:-4, 4:-4], 99)
 
             # Use to determine linearly scaled signals
-            clipped = sigma_clip_ignore_nan(cal_data)
+            clipped_a = sigma_clip_ignore_nan(cal_info[order_a]['data'])
 
             # Find sigma-clipped standard deviation of the data
-            dev = np.std(clipped)
+            dev_a = np.std(clipped_a)
 
             # Use SymLogNorm with a linear region around zero
-            norm = SymLogNorm(linthresh=dev/1000., vmin=cal_vmin, vmax=cal_vmax)
-            im2d = ax_2dspec.imshow(cal_data, norm=norm, cmap=cmap, origin='lower', aspect='auto')
-            ax_2dspec.set_xlabel('Pixel')
-            ax_2dspec.set_ylabel('Pixel')
-            ax_2dspec.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
+            norm_a = SymLogNorm(linthresh=dev_a/1000., vmin=cal_vmin_a, vmax=cal_vmax_a)
+            im2d_a = ax_2d_a.imshow(cal_info[order_a]['data'], norm=norm_a, cmap=cmap, origin='lower', aspect='auto')
+            ax_2d_a.set_xlabel('Pixel')
+            ax_2d_a.set_ylabel('Pixel')
+            #ax_2d_a.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
+            ax_2d_a.set_title(f'{cal_info[order_a]['name']}, Ext {cal_info[order_a]['ext']}, Order {order_a}')
 
             # Add colorbar
             # Create a separate axes for the colorbar, right next to the image
-            divider = make_axes_locatable(ax_2dspec)
+            divider = make_axes_locatable(ax_2d_a)
             cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
-            self.fig.colorbar(im2d, cax=cax_2d, label=cal_units)
+            self.fig.colorbar(im2d_a, cax=cax_2d, label=cal_info[order_a]['units'])
+
+
+
+            if len(orders) == 2:
+                first = np.where(np.array(spec1d['order']) == order_b)[0][0]
+                ylower_b, yupper_b = self.wfss_calc_yrange(spec1d['flux'][first])
+
+                # Set 1st order 1D plot title and labels
+                ax_1d_b.set_title(f'{self.model.meta.filename}, Source {source_id}, Order {order_b}')
+                ax_1d_b.set_xlabel(f'Wavelength ({wavelength_units})')
+                ax_1d_b.set_ylabel(f'{flux_units}')
+                ax_1d_b.set_ylim(ylower_b, yupper_b)
+
+                # Show the 2D extracted spectrum
+                # Clip brightest and dimmest 1% of pixels to find min and max values
+                # Throw out the outermost 4 rows on each side when determining colormap
+                # scaling, just in case they are reference pixels
+                cal_vmin_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 1)
+                cal_vmax_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 99)
+
+                # Use to determine linearly scaled signals
+                clipped_b = sigma_clip_ignore_nan(cal_info[order_b]['data'])
+
+                # Find sigma-clipped standard deviation of the data
+                dev_b = np.std(clipped_b)
+
+                # Use SymLogNorm with a linear region around zero
+                norm_b = SymLogNorm(linthresh=dev_b/1000., vmin=cal_vmin, vmax=cal_vmax)
+                im2d_b = ax_2dspec.imshow(cal_info[order_b]['data'], norm=norm, cmap=cmap, origin='lower', aspect='auto')
+                ax_2d_b.set_xlabel('Pixel')
+                ax_2d_b.set_ylabel('Pixel')
+                #ax_2d_a.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
+                ax_2d_b.set_title(f'{cal_info[order_b]['name']}, Ext {cal_info[order_b]['ext']}, Order {order_b}')
+
+                # Add colorbar
+                # Create a separate axes for the colorbar, right next to the image
+                divider = make_axes_locatable(ax_2d_b)
+                cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
+                self.fig.colorbar(im2d_b, cax=cax_2d, label=cal_info[order_b]['units'])
 
 
             #cbar_2dspec = self.fig.colorbar(im2d, ax=ax_2dspec, orientation="vertical") #, fraction=0.15, pad=0.05)
@@ -2296,7 +2429,7 @@ class Level3PreviewImage():
         brightest : numpy.ndarray
             1D array of index numbers corresponding to the `nsources` brightest sources.
         """
-        num_ext = len(self.model.spec)
+        #num_ext = len(self.model.spec)
 
         num_sources = self.model.spec[0].spec_table.shape[0]
 

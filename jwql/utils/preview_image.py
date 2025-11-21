@@ -496,6 +496,18 @@ class PreviewImage():
             format_string = "%.{}f".format(dig)
             tlabelstr = [format_string % number for number in tlabelflt]
 
+            # Catch images where all pixel values are zero. e.g. trapsfilled files
+            if delta == 0:
+                delta = 1e-6
+
+            # For cases where the the distance between min_value and max_value is very small,
+            # adjust the tick labels to avoid having the same number label for all ticks
+            zeros = np.log10(np.abs(delta))
+            if zeros < -3:
+                # For cases where the signal range is only 1e-3, use scientific notation for
+                # the tick labels
+                tlabelstr = [f"{num:.3e}" for num in tlabelflt]
+
             xyratio = xsize / ysize
             if xyratio < 1.6:
                 # For apertures that are taller than they are wide, square, or that are wider than
@@ -525,6 +537,10 @@ class PreviewImage():
             else:
                 # For apertures that are significantly wider than they are tall, put the colorbar
                 # under the image.
+
+                # Adjustment to prevent negative colorbar width
+                if xyratio < 2:
+                    xyratio = 2.5
 
                 # Again, some magic numbers controlling the positioning and height of the
                 # colorbar, based on testing.

@@ -33,6 +33,7 @@ import multiprocessing
 import os
 import re
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from jwql.utils import permissions
@@ -598,7 +599,9 @@ def generate_preview_images(overwrite, programs=None):
                 logging.info(f'Program {prog} not present in filesystem. Excluding.')
 
     if len(program_list) > 0:
-        program_list = sorted(program_list, reverse=True)
+        # Remove any repeats due to programs being listed in public and proprietary dirs at the same time.
+        # Sort into descending order
+        program_list = sorted(list(set(program_list)), reverse=True)
     else:
         no_prog_message = f'Empty list of programs. No preview images to be made.'
         logging.info(no_prog_message)
@@ -822,6 +825,9 @@ def process_program(program, overwrite):
 
         except (ValueError, AttributeError) as error:
             logging.warning(error)
+        finally:
+            # Make sure all figures are closed.
+            plt.close('all')
 
     logging.info(f"Created {new_preview_counter} new preview images.")
     logging.info(f"Skipped {existing_preview_counter} previously-existing preview images.")

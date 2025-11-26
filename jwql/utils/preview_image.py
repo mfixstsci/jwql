@@ -864,17 +864,29 @@ class Level3PreviewImage():
         self.figures = []
         self.wfss_source_ids = []
 
+        # Define colormap that shows NaNs as black
+        self.cmap = plt.cm.viridis.copy()
+        self.cmap.set_bad(color='black')
+
         # Read in the data
         self.get_data()
 
         # Fall back to the standard preview image and thumbnail output directory if a
         # directory is not given
         if preview_output_directory is None:
-            self.preview_output_directory = os.path.join(CONFIGS["preview_image_filesystem"],
-                                                         self.model.meta.filename[0:7])
+            try:
+                self.preview_output_directory = os.path.join(CONFIGS["preview_image_filesystem"],
+                                                             self.model.meta.filename[0:7])
+            except AttributeError:
+                self.preview_output_directory = os.path.join(CONFIGS["preview_image_filesystem"],
+                                                             'jw' + self.metadata["program_id"])
         if thumbnail_output_directory is None:
-            self.thumbnail_output_directory = os.path.join(CONFIGS["thumbnail_filesystem"],
-                                                           self.model.meta.filename[0:7])
+            try:
+                self.thumbnail_output_directory = os.path.join(CONFIGS["thumbnail_filesystem"],
+                                                               self.model.meta.filename[0:7])
+            except AttributeError:
+                self.thumbnail_output_directory = os.path.join(CONFIGS["thumbnail_filesystem"],
+                                                               'jw' + self.metadata["program_id"])
 
 
         print(self.filename)
@@ -898,10 +910,10 @@ class Level3PreviewImage():
                 self.niriss_soss_plot()
             elif self.exp_type == 'NRS_BRIGHTOBJ':
                 print('nirspec bright obj')
-                try:
-                    self.miri_lrs_slitless_x1dints_plot_old_format()
-                except IndexError:
-                    self.miri_lrs_slitless_x1dints_plot()
+                #try:
+                #    self.miri_lrs_slitless_x1dints_plot_old_format()
+                #except IndexError:
+                self.miri_lrs_slitless_x1dints_plot()
         elif self.exp_type == 'NIS_AMI':
             if 'amilg' in self.filename:
                 self.amilg_preview()
@@ -1417,6 +1429,7 @@ class Level3PreviewImage():
             self.model = pd.read_csv(self.filename, header=data_start_line, delimiter=' ')
             self.num_ext = 1
             self.exp_type = self.metadata['exp_type']
+            self.metadata['program_id'] = self.filename[2:7]
         """
         # This is based on a nirspec fixed slit file
         # jw06550001001_03104_00003_nrs2_x1d.fits (MultiSpecModel)
@@ -1521,10 +1534,6 @@ class Level3PreviewImage():
         # Set the threshold for the linearly-scaled portion of the map
         #linthresh = dev
 
-        # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
-
         # Get basic figure properties
         yd, xd = self.model.data.shape
         aspect, colorbar_orient, figsize = \
@@ -1553,224 +1562,131 @@ class Level3PreviewImage():
         #cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
         #cbar.locator = SymmetricalLogLocator(linthresh=dev, base=10)
         #cbar.update_ticks()
-        # ----- Tick generation -----
+
+
+        self.show_image_in_axis(ax, self.model.data, vmin, vmax, aspect, colorbar_orient, num_ticks=5)
+
 
 
         """
-        ticks = []
-
-        # Always include full range endpoints
-        #ticks.extend([vmin, vmax])
-
-        # Linear region ticks
-        nlin_ticks = 3
-        lin_ticks = np.linspace(-linthresh, linthresh, nlin_ticks)
-
-        # Negative log region (only if needed)
-        nlog_neg_ticks = 3
-        if vmin < -linthresh:
-            neg_log_min = np.log10(-vmin)
-            neg_log_max = np.log10(linthresh)
-            neg_ticks = -np.logspace(neg_log_max, neg_log_min, nlog_neg_ticks, base=10)
-            ticks.extend(neg_ticks[1:])  # Skip the first so we don't repeat
-
-        # Positive log region
-        nlog_pos_ticks = 3
-        if vmax > linthresh:
-            pos_log_min = np.log10(linthresh)
-            pos_log_max = np.log10(vmax)
-            pos_ticks = np.logspace(pos_log_min, pos_log_max, nlog_pos_ticks, base=10)
-            ticks.extend(pos_ticks[1:])  # Skip the first so we don't repeat
-
-        # Combine all and filter
-        ticks = np.unique(np.concatenate((ticks, lin_ticks)))
-        ticks = ticks[(ticks >= vmin) & (ticks <= vmax)]
-        ticks = np.sort(ticks)
-
-
-
-        ticks = [0]
-
-        # Positive side
-        if vmax > linthresh:
-            # Find the midpoint in log space between linthresh and vmax
-            log_linthresh = np.log10(linthresh)
-            log_vmax = np.log10(vmax)
-            log_mid = (log_linthresh + log_vmax) / 2
-            mid_positive = 10 ** log_mid
-            ticks.extend([linthresh, mid_positive, vmax])
-        else:
-            ticks.append(vmax)
-
-        if vmin < -linthresh:
-            # Find the midpoint in log space between -linthresh and vmin
-            log_linthresh = np.log10(linthresh)
-            log_vmin = np.log10(abs(vmin))
-            log_mid = (log_linthresh + log_vmin) / 2
-            mid_negative = -(10 ** log_mid)
-            ticks = [vmin, mid_negative, -linthresh] + ticks
-        else:
-            ticks.insert(0, vmin)
-
-        # Apply
-        cbar.set_ticks(ticks)
-        cbar.set_ticklabels([f"{t:.2g}" for t in ticks])
-        cbar.ax.set_ylabel("Signal (SymLog scale)")
-
-        # Remove unlabeled minor ticks
-        cbar.ax.tick_params(which="minor", length=0)
-        # Critical: Remove all minor ticks
-        #cbar.ax.yaxis.set_minor_locator(plt.NullLocator())
-        """
-
         shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(self.model.data, vmin, vmax, num_ticks=5)
         tlabelstr = formatted_tick_labels(tlabelflt)
-
-
-
-        """
-        shiftdata = image - min_value + 1
-        shiftmin = 1
-        shiftmax = max_value - min_value + 1
-
-        # Generate tick labels
-        tickvals = np.logspace(np.log10(shiftmin), np.log10(shiftmax), 5)
-        tlabelflt = tickvals + min_value - 1
-        """
 
         # Image object
         cax = ax.imshow(shiftdata,
                             norm=colors.LogNorm(vmin=shiftmin,
                                                 vmax=shiftmax),
-                            cmap=cmap,
+                            cmap=self.cmap,
                             aspect=aspect)
 
         # Invert y axis in all cases
         ax.invert_yaxis()
 
         # For preview images, add colorbar, and create tick labels for it
-        if 1>0:
-            ysize, xsize = self.model.data.shape
+        ysize, xsize = self.model.data.shape
 
-            """
-            # Adjust the number of digits after the decimal point
-            # in the colorbar labels based on the signal range
-            delta = tlabelflt[-1] - tlabelflt[0]
-            if delta >= 100:
-                dig = 0
-            elif ((delta < 100) & (delta >= 10)):
-                dig = 1
-            elif ((delta < 10) & (delta >= 1)):
-                dig = 2
-            elif delta < 1:
-                dig = 3
-            else:
-                dig = 2
-            format_string = "%.{}f".format(dig)
-            tlabelstr = [format_string % number for number in tlabelflt]
-            """
-            xyratio = xsize / ysize
-            print('xyratio: ', xyratio)
-            divider = make_axes_locatable(ax)
-            #if xyratio < 1.6:
-            if colorbar_orient == 'vertical':
-                # For apertures that are taller than they are wide, square, or that are wider than
-                # they are tall but still reasonably close to square, put the colorbar on the right
-                # side of the image.
-                cax_colorbar = divider.append_axes("right", size="5%", pad=0.5)
+        xyratio = xsize / ysize
+        divider = make_axes_locatable(ax)
 
-                cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
+        if colorbar_orient == 'vertical':
+            # For apertures that are taller than they are wide, square, or that are wider than
+            # they are tall but still reasonably close to square, put the colorbar on the right
+            # side of the image.
+            cax_colorbar = divider.append_axes("right", size="5%", pad=0.5)
 
-                cbar.ax.yaxis.minorticks_off()
-                cbar.ax.set_yticklabels(tlabelstr)
-                cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=15, rotation=270)
+            cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
 
+            cbar.ax.yaxis.minorticks_off()
+            cbar.ax.set_yticklabels(tlabelstr)
+            cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=15, rotation=270)
 
-                """
-                # Some magic numbers arrived at through testing aspect ratios for all apertures
-                if xyratio > 0.4:
-                    cb_width = 0.05
-                else:
-                    cb_width = 0.05 * 0.4 / xyratio
+        elif colorbar_orient == 'horizontal':
+            # For apertures that are significantly wider than they are tall, put the colorbar
+            # under the image.
+            cax_colorbar = divider.append_axes("bottom", size="5%", pad=0.5)
 
-                upper_x_anchor = 0.02
-                if xyratio < 0.1:
-                    upper_x_anchor = 0.12
+            cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
 
-                cbax = self.fig.add_axes([ax.get_position().x1 + upper_x_anchor,
-                                          ax.get_position().y0,
-                                          cb_width,
-                                          ax.get_position().height
-                                          ])
-                cbar = self.fig.colorbar(cax, cax=cbax, orientation='vertical', ticks=tickvals)
+            cbar.ax.xaxis.minorticks_off()
+            cbar.ax.set_xticklabels(tlabelstr)
+            cbar.ax.set_xlabel(self.model.meta.bunit_data, labelpad=7, rotation=0)
+        """
 
-                cbar.ax.yaxis.minorticks_off()
-                cbar.ax.set_yticklabels(tlabelstr)
-                cbar.ax.set_ylabel(self.units, labelpad=7, rotation=270)
-                """
-            elif colorbar_orient == 'horizontal':
-                # For apertures that are significantly wider than they are tall, put the colorbar
-                # under the image.
-                cax_colorbar = divider.append_axes("bottom", size="5%", pad=0.5)
-
-
-
-
-
-
-                # Again, some magic numbers controlling the positioning and height of the
-                # colorbar, based on testing.
-                #lower_y_anchor = 0. - (xyratio / 14.5)
-                #cb_height = 0.07 * (np.log2(xyratio) - 1)
-
-
-                # Check if colorbar is within bounds
-                #cb_y_position = ax.get_position().y0 + lower_y_anchor
-                #print(f"Colorbar y position: {cb_y_position}")
-                #if cb_y_position < 0:
-                #    print("WARNING: Colorbar is below figure bounds!")
-
-
-
-
-                #cbax = self.fig.add_axes([ax.get_position().x0,
-                #                          ax.get_position().y0 + lower_y_anchor,
-                #                          ax.get_position().width,
-                #                          cb_height])
-                cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
-
-                cbar.ax.xaxis.minorticks_off()
-                cbar.ax.set_xticklabels(tlabelstr)
-                cbar.ax.set_xlabel(self.model.meta.bunit_data, labelpad=7, rotation=0)
-
-            # Set text sizes
-            maxsize = self.maxsize
-            ax.set_xlabel('Pixels', fontsize=maxsize * 5. / 4)
-            ax.set_ylabel('Pixels', fontsize=maxsize * 5. / 4)
-            ax.tick_params(labelsize=maxsize)
-            plt.rcParams.update({'axes.titlesize': 'small'})
-            plt.rcParams.update({'font.size': maxsize * 5. / 4})
-            plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
-            plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
-            plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        #cbar.set_label(self.model.meta.bunit_data)
-        plt.show()
-        #self.fig.close()
+        # Set text sizes
+        maxsize = self.maxsize
+        ax.set_xlabel('Pixels', fontsize=maxsize * 5. / 4)
+        ax.set_ylabel('Pixels', fontsize=maxsize * 5. / 4)
+        ax.tick_params(labelsize=maxsize)
+        plt.rcParams.update({'axes.titlesize': 'small'})
+        plt.rcParams.update({'font.size': maxsize * 5. / 4})
+        plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
         self.figures.append(self.fig)
+
+    def show_image_in_axis(self, axis, image, disp_min, disp_max, aspect, colorbar_orient, num_ticks=5, colorbar_pad=0.5,
+        colorbar_labelpad={'vertical': 15, 'horizontal': 7}, add_colorbar=True):
+        """
+        """
+        shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(image, disp_min, disp_max, num_ticks=num_ticks)
+        tlabelstr = formatted_tick_labels(tlabelflt)
+
+        if shiftmax - shiftmin > 1:
+            norm = colors.LogNorm(vmin=shiftmin, vmax=shiftmax)
+        else:
+            norm = colors.Normalize(vmin=shiftmin, vmax=shiftmax)
+
+        # Image object
+        cax = axis.imshow(shiftdata,
+                          norm=norm,
+                          cmap=self.cmap,
+                          aspect=aspect)
+
+        # Invert y axis in all cases
+        axis.invert_yaxis()
+
+        # If no colorbar is to be added, then we're done
+        if not add_colorbar:
+            return cax
+
+        # For preview images, add colorbar, and create tick labels for it
+        ysize, xsize = image.shape
+
+        xyratio = xsize / ysize
+        divider = make_axes_locatable(axis)
+
+        # If the figure is particularly narrow, bump up the width of the colorbar in order
+        # to make it more visible
+        colorbar_size = "5%"
+        figure_size = self.fig.get_size_inches()
+        if np.min(figure_size) < 2:
+            colorbar_size = "15%"
+
+        if colorbar_orient == 'vertical':
+            # For apertures that are taller than they are wide, square, or that are wider than
+            # they are tall but still reasonably close to square, put the colorbar on the right
+            # side of the image.
+            cax_colorbar = divider.append_axes("right", size=colorbar_size, pad=colorbar_pad)
+
+            cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
+
+            cbar.ax.yaxis.minorticks_off()
+            cbar.ax.set_yticklabels(tlabelstr)
+            cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=colorbar_labelpad[colorbar_orient], rotation=270)
+
+        elif colorbar_orient == 'horizontal':
+            # For apertures that are significantly wider than they are tall, put the colorbar
+            # under the image.
+            cax_colorbar = divider.append_axes("bottom", size=colorbar_size, pad=colorbar_pad)
+
+            cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
+
+            cbar.ax.xaxis.minorticks_off()
+            cbar.ax.set_xticklabels(tlabelstr)
+            cbar.ax.set_xlabel(self.model.meta.bunit_data, labelpad=colorbar_labelpad[colorbar_orient], rotation=0)
+
+        else:
+            logging.debug(f"No colorbar requested")
 
     def tso_whitelight_curve_prev_version(self):
         """Plot the whitelight curve. This function covers NRC_TSGRISM, MIR_LRS-SLITLESS and NIS_SOSS,
@@ -1801,32 +1717,42 @@ class Level3PreviewImage():
         """
         # There are two options for the column name that contains the MJD dates
         # of the data
-        time_key = 'MJD'
-        if self.metadata['exp_type'] in ['NRC_TSGRISM', 'NIS_SOSS']:
-            #if 'NRC' in self.metadata['exp_type'] or 'NIS' in self.metadata['exp_type']:
-            time_key = 'MJD_UTC'
+        time_key = ''
+        for colname in self.model.columns:
+            if 'MJD' in colname:
+                time_key = colname
+        if time_key == '':
+            raise ValueError(f"Unable to find time-related column in {self.filename}")
 
         # NIS_SOSS will have a separate whitelight column for each spectral order
         # NRC_TSGRISM will have a single whitelight_flux column
         flux_keys = [c for c in self.model.columns if 'whitelight' in c]
-        print(flux_keys)
+        flux_keys.sort()
 
-        #flux_key = 'whitelight_flux'
         if 'phot.ecsv' in self.filename:
             flux_keys = ['net_aperture_sum']
 
         # --------------------------Set up figures--------------------------
         #self.fig, axes = plt.subplots(2, 1, figsize=(15, 10), height_ratios=[1, 2])
-        self.fig, axes = plt.subplots(figsize=(self.maxsize, self.maxsize))
-        #self.fig.subplots_adjust(hspace=0.3, wspace=0.2)
-        #axlc, axslc = axes
-        axlc = axes
+
+        xfigsize = 12
+        yfigsize = 8 + (len(flux_keys) - 1) * 4.2
+        self.fig, axes = plt.subplots(ncols=1, nrows=len(flux_keys), figsize=(xfigsize, yfigsize))
 
         n_spec = len(self.model[time_key])  # Number of spectra (integrations).
         all_times = self.model[time_key]
         time_axis = (all_times - np.nanmean(all_times)) * 24.0
 
-        for flux_key in flux_keys:
+        # Calculate tick labels for the secondary x-axis
+        integration_indices = np.arange(n_spec)
+        tick_positions = np.linspace(time_axis.min(),
+                                     time_axis.max(),
+                                     len(integration_indices))
+        count = min(10, len(tick_positions))
+        indices = np.linspace(0, len(tick_positions) - 1, count, dtype=int)
+
+
+        for i, flux_key in enumerate(flux_keys):
             if 'order' in flux_key:
                 order_str = 'order ' + flux_key.split('_')[-1]
             else:
@@ -1835,34 +1761,85 @@ class Level3PreviewImage():
             # ---------------------Obtain white light curve---------------------
             wlc_flux = self.model[flux_key]
 
-            # Calculate light curve scatter from first ~100 points.
+            # Calculate light curve scatter
             wlc_flux_scatter = sigma_clip(wlc_flux, sigma=2, maxiters=2, masked=False)
-            sigma_wlc = np.sqrt(np.nanvar(wlc_flux_scatter[2:100]))
+            wlc_flux_median = np.nanmedian(wlc_flux_scatter[2:100])
+
+            # Normalize the flux by the median in the early integrations
+            wlc_flux /= wlc_flux_median
+
+            # Calculate the noise
+            sigma_wlc = np.sqrt(np.nanvar(wlc_flux_scatter[2:100] / wlc_flux_median))
             sigma_wlc_ppm = round(sigma_wlc * 1e6, 0)
+
+            # Try to get a good y-range for the plot. Use the standard deviation across the
+            # entire white light curve, in case there is a large difference between beginning and
+            # ending signals
+            full_median = np.median(wlc_flux)
+            full_sigma = np.std(wlc_flux)
 
             # Plot white light curve
             if 'whitelight' in flux_key:
-                label = f"White light curve, " + order_str + f"(r.m.s.={round(sigma_wlc * 1e6, 0)} ppm)"
+                title_str = f"White light curve, order: {order_str}"
+                label = f"(r.m.s.={round(sigma_wlc * 1e6, 0)} ppm)"
             elif flux_key == 'net_aperture_sum':
-                label = f"Photometry curve, (r.m.s.={round(sigma_wlc * 1e6, 0)} ppm)"
-            axlc.plot(time_axis, wlc_flux, marker='o', markersize=2,
-                      label=label)
+                title_str = f"Photometry curve"
+                label = f"(r.m.s.={round(sigma_wlc * 1e6, 0)} ppm)"
 
-        axlc.set_title(f"{os.path.basename(self.filename)}: White Light Curve", fontsize=12)
-        axlc.legend(loc="lower right")
-        axlc.set_xlabel("Time since mid-exposure, (hr)", fontsize=15)
-        axlc.set_ylabel("Normalized flux", fontsize=15)
+            # If there is a single white light column then axes will be an axis object.
+            # If there are mulitple columns, then axes will be a subscriptable list.
+            if len(flux_keys) == 1:
+                tmp_axis = axes
+            elif len(flux_keys) > 1:
+                tmp_axis = axes[i]
+            else:
+                raise ValueError(f'Unsupported number of flux columns: {len(flux_keys)}')
+
+            tmp_axis.plot(time_axis, wlc_flux, marker='o', markersize=2,
+                          label=label)
+            tmp_axis.legend(loc="lower right")
+            tmp_axis.set_xlabel("Time since mid-exposure, (hr)", fontsize=15)
+            tmp_axis.set_ylabel("Normalized flux", fontsize=15)
+            tmp_axis.set_ylim(full_median - 3.* full_sigma, full_median + 3.*full_sigma)
+
+            if i == 0:
+                tmp_axis.set_title(f"{os.path.basename(self.filename)}: {title_str}", fontsize=12, pad=10)
+            else:
+                tmp_axis.set_title(f"{title_str}", pad=10)
+
+            # Add secondary x-axis for integration indices
+            axes_secondary = tmp_axis.secondary_xaxis('top')
+            axes_secondary.set_xlabel("Integration Index", fontsize=12)
+
+            axes_secondary.set_xticks(tick_positions[indices])
+            axes_secondary.set_xticklabels([f"{int(idx)}" for idx in
+                                            integration_indices[indices]])
+            plt.tight_layout()
+
+
+        #axlc.set_title(f"{os.path.basename(self.filename)}: White Light Curve", fontsize=12)
+        #axlc.legend(loc="lower right")
+        #axlc.set_xlabel("Time since mid-exposure, (hr)", fontsize=15)
+        #axlc.set_ylabel("Normalized flux", fontsize=15)
 
         # Add secondary x-axis for integration indices
-        integration_indices = np.arange(n_spec)
-        tick_positions = np.linspace(time_axis.min(),
-                                     time_axis.max(),
-                                     len(integration_indices))
-        axlc_secondary = axlc.secondary_xaxis('top')
-        axlc_secondary.set_xlabel("Integration Index", fontsize=12)
-        axlc_secondary.set_xticks(tick_positions[::len(tick_positions) // 10])
-        axlc_secondary.set_xticklabels([f"{int(idx)}" for idx in
-                                        integration_indices[::len(integration_indices) // 10]])
+        #integration_indices = np.arange(n_spec)
+        #tick_positions = np.linspace(time_axis.min(),
+        #                             time_axis.max(),
+        #                             len(integration_indices))
+        #axlc_secondary = axlc.secondary_xaxis('top')
+        #axlc_secondary.set_xlabel("Integration Index", fontsize=12)
+
+
+        #count = min(10, len(tick_positions))
+        #indices = np.linspace(0, len(tick_positions) - 1, count, dtype=int)
+        #axlc_secondary.set_xticks(tick_positions[indices])
+        #axlc_secondary.set_xticklabels([f"{int(idx)}" for idx in
+        #                                integration_indices[indices]])
+
+        #axlc_secondary.set_xticks(tick_positions[::len(tick_positions) // 10])
+        #axlc_secondary.set_xticklabels([f"{int(idx)}" for idx in
+        #                                integration_indices[::len(integration_indices) // 10]])
         self.figures = [self.fig]
 
 
@@ -1893,6 +1870,16 @@ class Level3PreviewImage():
         for source_idx in source_idxs:
             order = cal_orders[source_idx]
             cal_ex_orders[order] = source_idx + 1  # Add 1 to account for the primary header
+
+
+        print('\n\n\n')
+        print(cal_hdu[0].header['FILENAME'])
+        print(f'Looking for {source_id}')
+        print(cal_ex_orders)
+        print('\n')
+        print(source_idxs)
+        print('\n\n\n')
+
 
         return cal_ex_orders
 
@@ -1941,8 +1928,8 @@ class Level3PreviewImage():
         #cal_order = -999
         #cal_units = ''
 
-        cal_info = {'order': {'data': None, 'width': 0, 'name': '', 'ext': -999, 'units': ''}}
-
+        #cal_info = {'order': {'data': None, 'width': 0, 'name': '', 'ext': -999, 'units': ''}}
+        cal_info = {}
 
 
         print(f'Found {len(hdulists)} hdulists')
@@ -1963,6 +1950,14 @@ class Level3PreviewImage():
             # orders.
             for order, ext in source_exts.items():
                 if ext != -999:
+
+
+                    print('in get_Wfss_cal_data: order and ext are: ', order, ext)
+
+
+                    if order not in cal_info:
+                        cal_info[order] = {'data': None, 'width': 0, 'name': '', 'ext': -999, 'units': '', 'source_id': -999}
+
                     data = hdulist[ext].data
 
                     # Check the size of the 2D cutout. In order to avoid showing a
@@ -1994,16 +1989,37 @@ class Level3PreviewImage():
                         cal_info[order]['name'] = name
                         cal_info[order]['ext'] = ext
                         cal_info[order]['units'] = units
+                        cal_info[order]['source_id'] = hdulist[ext].header['SOURCEID']
 
         return cal_info
 
-    def wfss_calc_yrange(self, spec, ignore_frac=0.2, padding=0.1):
+    def wfss_calc_yrange(self, spec, ignore_frac=0.1, padding=0.1):
         """Try to do something sort of intelligent to come up with a plot range
         for the 1d spectral plots. Often the flux values go unrealistically high
         at the red and blue ends. Would be nice to not let that drive the plot range.
 
         Parameters
         ----------
+        spec : numpy.ndarray
+            1D spectrum
+
+        ignore_frac : float
+            Fraction of pixels to ignore on each of the red and blue ends of
+            the spectum. The max and min of the remaining values are used to
+            determine the plot max and min
+
+        padding : float
+            Padding to add to the top and bottom of the plot so that the max and min
+            points don't fall exactly at the plot edges. Units are fraction of
+            the min/max values.
+
+        Returns
+        -------
+        ylower : float
+            Lower bound of the plot
+
+        yupper : float
+            Upper bound of the plot
         """
         fin = np.isfinite(spec)
         finite_flux = spec[fin]
@@ -2027,7 +2043,7 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_idx = self.find_brightest_wfss_sources(nbrightest=2)
+        bright_idx = self.find_brightest_wfss_sources(nbrightest=8)
         self.wfss_source_ids = []
 
 
@@ -2036,8 +2052,9 @@ class Level3PreviewImage():
         print(f'This corresponds to source numbers: {[self.model.spec[0].spec_table.SOURCE_ID[idx] for idx in bright_idx]}')
 
 
-        print(self.model.spec[0].spec_table.SOURCE_ID)
-        print(self.model.spec[0].spec_table.SOURCE_ID[bright_idx])
+
+        #print(self.model.spec[0].spec_table.SOURCE_ID)
+        #print(self.model.spec[0].spec_table.SOURCE_ID[bright_idx])
 
 
 
@@ -2078,9 +2095,9 @@ class Level3PreviewImage():
                 modified_cal_files = []
                 for cal_file in cal_files:
                     if 'along' in cal_file:
-                        new_cal = cal_file.replace['along', 'blong']
+                        new_cal = cal_file.replace('along', 'blong')
                     elif 'blong' in cal_files:
-                        new_cal = cal_file.replace['blong', 'along']
+                        new_cal = cal_file.replace('blong', 'along')
                     modified_cal_files += [cal_file, new_cal]
                 cal_files = modified_cal_files
                 print(f'Now cal files are: ', cal_files)
@@ -2133,19 +2150,39 @@ class Level3PreviewImage():
             # If we're looking at flux, then convert Jy to Flambda
             if flux_col == 'FLUX':
                 spec1d['flux'] = [Fnu_to_Flam(spec1d['wavelength'][0], spec1d['flux'][0])]
-                flux_units = 'F_lambda (erg/cm2/s/A)'
+                flux_units = r'$F_\lambda$ ($erg/cm^2/s/\AA$)'
 
             # Loop over other extensions and look for the same source_id.
             for exten in range(1, n_ext):
                 if source_id in self.model.spec[exten].spec_table['SOURCE_ID']:
                     row = self.model.spec[exten].spec_table[self.model.spec[exten].spec_table['SOURCE_ID'] == source_id][0]
 
+                    fluxes = np.array(row[flux_col])
                     if flux_col == 'FLUX':
                         fluxes = Fnu_to_Flam(np.array(row['WAVELENGTH']), np.array(row[flux_col]))
+
+
+                        #print('row len: ', len(row['WAVELENGTH']), len(row[flux_col]))
+
+
+
+                    #print('appended lengths: ', self.model.spec[exten].spectral_order, len(fluxes), len(np.array(row['WAVELENGTH'])))
 
                     spec1d['order'].append(self.model.spec[exten].spectral_order)
                     spec1d['flux'].append(fluxes)
                     spec1d['wavelength'].append(np.array(row['WAVELENGTH']))
+
+
+
+
+            print(f'spec1d sizes for order, flux, wavelength: {len(spec1d["order"])}, {len(spec1d["flux"])}, {len(spec1d["wavelength"])},')
+            for ordernum, flu, wav in zip(spec1d["order"], spec1d["flux"], spec1d["wavelength"]):
+                status = 'OK'
+                if len(flu) != len(wav):
+                    status = "MISMATCH IN LENGTHS!"
+                print(ordernum, len(flu), len(wav), status)
+            print('')
+
 
             # Remove any entries where e.g. the 2nd order data are all NaN
             spec1d = self.remove_wfss_nan_data(spec1d)
@@ -2175,7 +2212,7 @@ class Level3PreviewImage():
             # If both order 1 and 2 are present, add plots for order 2,
             # and set the plot limits
             if len(orders) == 2:
-                ax_2d_b = plt.subplot2grid((nrows, 3), (2, 0), colspan=2)
+                ax_2d_b = plt.subplot2grid((nrows, 3), (2, 0), colspan=3)
                 ax_1d_b = plt.subplot2grid((nrows, 3), (3, 0), colspan=3)
                 second = np.where(np.array(spec1d['order']) == 2)[0][0]
                 ylower_b, yupper_b = self.wfss_calc_yrange(spec1d['flux'][second])
@@ -2198,18 +2235,23 @@ class Level3PreviewImage():
             for i in range(len(spec1d['order'])):
                 if spec1d['order'][i] == order_a:
                     ax_tmp = ax_1d_a
-                    alpha = 1. / num_a
-                    if alpha < 1:
-                        alpha *= 2
+                    #alpha = 1. / num_a
+                    #if alpha < 1:
+                    #    alpha *= 2
                 elif spec1d['order'][i] == order_b:
                     ax_tmp = ax_1d_b
-                    alpha = 1. / num_b
-                    if alpha < 1:
-                        alpha *= 2
+                    #alpha = 1. / num_b
+                    #if alpha < 1:
+                    #    alpha *= 2
                 else:
                     raise ValueError(f'Encountered unsupported spectral order {spec1d["order"][i]}')
 
+                alpha = 1.
+                if num_a > 1:
+                    alpha = 0.5
+
                 # Plot the 1D spectrum
+                print(f'idx is {idx}. i in ax_tmp.plot:', i)
                 ax_tmp.plot(spec1d['wavelength'][i], spec1d['flux'][i], alpha=alpha, ds='steps-mid')
 
             first = np.where(np.array(spec1d['order']) == order_a)[0][0]
@@ -2230,25 +2272,68 @@ class Level3PreviewImage():
             cal_vmin_a = np.nanpercentile(cal_info[order_a]['data'][4:-4, 4:-4], 1)
             cal_vmax_a = np.nanpercentile(cal_info[order_a]['data'][4:-4, 4:-4], 99)
 
-            # Use to determine linearly scaled signals
-            clipped_a = sigma_clip_ignore_nan(cal_info[order_a]['data'])
 
-            # Find sigma-clipped standard deviation of the data
-            dev_a = np.std(clipped_a)
 
-            # Use SymLogNorm with a linear region around zero
-            norm_a = SymLogNorm(linthresh=dev_a/1000., vmin=cal_vmin_a, vmax=cal_vmax_a)
-            im2d_a = ax_2d_a.imshow(cal_info[order_a]['data'], norm=norm_a, cmap=cmap, origin='lower', aspect='auto')
+
+
+
+
+
+
+
+
+            # Similar to what's done for the i2d files, shfit the data to be positive, use a log stretch,
+            # and adjust colorbar tick values to show the unshifted data values.
+            shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(cal_info[order_a]['data'], cal_vmin_a, cal_vmax_a, num_ticks=5)
+            tlabelstr = formatted_tick_labels(tlabelflt)
+
+            # Image object
+            im2d_a = ax_2d_a.imshow(shiftdata,
+                               norm=colors.LogNorm(vmin=shiftmin,
+                                                   vmax=shiftmax),
+                               cmap=self.cmap,
+                               aspect='auto',
+                               origin='lower')
+
             ax_2d_a.set_xlabel('Pixel')
             ax_2d_a.set_ylabel('Pixel')
+            ax_2d_a.set_title(f"{cal_info[order_a]['name']}, Source {cal_info[order_a]['source_id']}, Ext {cal_info[order_a]['ext']}, Order {order_a}")
+
+            # Add colorbar, and create tick labels for it
+            # Create a separate axes for the colorbar, right next to the image
+            divider = make_axes_locatable(ax_2d_a)
+
+            # Colorbar will always be on the right side of the cutout
+            cax_colorbar = divider.append_axes("right", size="5%", pad=0.05)
+
+            cbar = self.fig.colorbar(im2d_a, cax=cax_colorbar, label=cal_info[order_a]['units'], ticks=tickvals) #, orientation='vertical', pad=0.01)
+
+            cbar.ax.yaxis.minorticks_off()
+            cbar.ax.set_yticklabels(tlabelstr)
+
+
+
+
+
+            # Use to determine linearly scaled signals
+            #clipped_a = sigma_clip_ignore_nan(cal_info[order_a]['data'])
+
+            # Find sigma-clipped standard deviation of the data
+            #dev_a = np.std(clipped_a)
+
+            # Use SymLogNorm with a linear region around zero
+            #norm_a = SymLogNorm(linthresh=dev_a/1000., vmin=cal_vmin_a, vmax=cal_vmax_a)
+            #im2d_a = ax_2d_a.imshow(cal_info[order_a]['data'], norm=norm_a, cmap=cmap, origin='lower', aspect='auto')
+            #ax_2d_a.set_xlabel('Pixel')
+            #ax_2d_a.set_ylabel('Pixel')
             #ax_2d_a.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
-            ax_2d_a.set_title(f'{cal_info[order_a]['name']}, Ext {cal_info[order_a]['ext']}, Order {order_a}')
+            #ax_2d_a.set_title(f"{cal_info[order_a]['name']}, Source {cal_info[order_a]['source_id']}, Ext {cal_info[order_a]['ext']}, Order {order_a}")
 
             # Add colorbar
             # Create a separate axes for the colorbar, right next to the image
-            divider = make_axes_locatable(ax_2d_a)
-            cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
-            self.fig.colorbar(im2d_a, cax=cax_2d, label=cal_info[order_a]['units'])
+            #divider = make_axes_locatable(ax_2d_a)
+            #cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
+            #self.fig.colorbar(im2d_a, cax=cax_2d, label=cal_info[order_a]['units'])
 
 
 
@@ -2269,33 +2354,74 @@ class Level3PreviewImage():
                 cal_vmin_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 1)
                 cal_vmax_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 99)
 
-                # Use to determine linearly scaled signals
-                clipped_b = sigma_clip_ignore_nan(cal_info[order_b]['data'])
 
-                # Find sigma-clipped standard deviation of the data
-                dev_b = np.std(clipped_b)
 
-                # Use SymLogNorm with a linear region around zero
-                norm_b = SymLogNorm(linthresh=dev_b/1000., vmin=cal_vmin, vmax=cal_vmax)
-                im2d_b = ax_2dspec.imshow(cal_info[order_b]['data'], norm=norm, cmap=cmap, origin='lower', aspect='auto')
+
+
+                # Similar to what's done for the i2d files, shfit the data to be positive, use a log stretch,
+                # and adjust colorbar tick values to show the unshifted data values.
+                shiftdata_b, shiftmin_b, shiftmax_b, tickvals_b, tlabelflt_b = shift_data_get_ticks(cal_info[order_b]['data'], cal_vmin_b, cal_vmax_b, num_ticks=5)
+                tlabelstr_b = formatted_tick_labels(tlabelflt_b)
+
+                # Image object
+                im2d_b = ax_2d_b.imshow(shiftdata_b,
+                                        norm=colors.LogNorm(vmin=shiftmin_b,
+                                                            vmax=shiftmax_b),
+                                        cmap=self.cmap,
+                                        aspect='auto',
+                                        origin='lower')
+
                 ax_2d_b.set_xlabel('Pixel')
                 ax_2d_b.set_ylabel('Pixel')
-                #ax_2d_a.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
-                ax_2d_b.set_title(f'{cal_info[order_b]['name']}, Ext {cal_info[order_b]['ext']}, Order {order_b}')
+                ax_2d_b.set_title(f"{cal_info[order_b]['name']}, Source {cal_info[order_b]['source_id']}, Ext {cal_info[order_b]['ext']}, Order {order_b}")
+
+                # Add colorbar, and create tick labels for it
+                # Create a separate axes for the colorbar, right next to the image
+                divider_b = make_axes_locatable(ax_2d_b)
+
+                # Colorbar will always be on the right side of the cutout
+                cax_colorbar_b = divider_b.append_axes("right", size="5%", pad=0.05)
+
+                cbar_b = self.fig.colorbar(im2d_b, cax=cax_colorbar_b, label=cal_info[order_b]['units'], ticks=tickvals_b) #, orientation='vertical', pad=0.01)
+
+                cbar_b.ax.yaxis.minorticks_off()
+                cbar_b.ax.set_yticklabels(tlabelstr_b)
+
+
+
+
+
+
+
+
+
+                # Use to determine linearly scaled signals
+                #clipped_b = sigma_clip_ignore_nan(cal_info[order_b]['data'])
+
+                # Find sigma-clipped standard deviation of the data
+                #dev_b = np.std(clipped_b)
+
+                # Use SymLogNorm with a linear region around zero
+                #norm_b = SymLogNorm(linthresh=dev_b/1000., vmin=cal_vmin_b, vmax=cal_vmax_b)
+                #im2d_b = ax_2d_b.imshow(cal_info[order_b]['data'], norm=norm_b, cmap=cmap, origin='lower', aspect='auto')
+                #ax_2d_b.set_xlabel('Pixel')
+                #ax_2d_b.set_ylabel('Pixel')
+                ##ax_2d_a.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
+                #ax_2d_b.set_title(f"{cal_info[order_b]['name']}, Source {cal_info[order_a]['source_id']}, Ext {cal_info[order_b]['ext']}, Order {order_b}")
 
                 # Add colorbar
                 # Create a separate axes for the colorbar, right next to the image
-                divider = make_axes_locatable(ax_2d_b)
-                cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
-                self.fig.colorbar(im2d_b, cax=cax_2d, label=cal_info[order_b]['units'])
+                #divider = make_axes_locatable(ax_2d_b)
+                #cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
+                #self.fig.colorbar(im2d_b, cax=cax_2d, label=cal_info[order_b]['units'])
 
 
             #cbar_2dspec = self.fig.colorbar(im2d, ax=ax_2dspec, orientation="vertical") #, fraction=0.15, pad=0.05)
             #cbar_2dspec.set_label(cal_units)
 
             # Show the i2d cutout
-            i2d_file = os.path.join(os.path.dirname(self.filename), self.model.meta.direct_image)
-            ax_i2d, im_i2d = self.plot_i2d_plus_source(i2d_file, source_id, ax_i2d)
+            i2d_filename = os.path.join(os.path.dirname(self.filename), self.model.meta.direct_image)
+            ax_i2d, im_i2d = self.plot_i2d_plus_source(i2d_filename, source_id, ax_i2d)
 
             self.fig.tight_layout(pad=2.0)
             self.figures.append(self.fig)
@@ -2355,14 +2481,10 @@ class Level3PreviewImage():
         xstop = int(xcentroid + box_hw)
         ystop = int(ycentroid + box_hw)
 
-        # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
-
         # Plot the image
         with fits.open(i2dname) as i2d:
             if ystart < 0:
-                ystart == 0
+                ystart = 0
             if xstart < 0:
                 xstart = 0
             if xstop > i2d['SCI'].data.shape[-1]:
@@ -2371,20 +2493,33 @@ class Level3PreviewImage():
                 ystop = i2d['SCI'].data.shape[-2]
 
             cutout = i2d[1].data[ystart: ystop, xstart: xstop]
+            colorbar_units = i2d[1].header['BUNIT']
 
-            # Clip brightest and dimmest 1% of pixels to find min and max values
-            vmin = np.nanpercentile(cutout, 1)
-            vmax = np.nanpercentile(cutout, 99)
+        # Clip brightest and dimmest 1% of pixels to find min and max values
+        vmin = np.nanpercentile(cutout, 1)
+        vmax = np.nanpercentile(cutout, 99)
 
-            # Use to determine linearly scaled signals
-            clipped = sigma_clip_ignore_nan(cutout)
+        if np.isnan(vmin):
+            vmin = np.nanmin(cutout)
+            if np.isnan(vmin):
+                vmin = 0.
+        if np.isnan(vmax):
+            vmax = np.nanmax(cutout)
+            if np.isnan(vmax):
+                vmax = vmin + 1.
 
-            # Find sigma-clipped standard deviation of the data
-            dev = np.std(clipped)
+        # Similar to what's done for the i2d files, shfit the data to be positive, use a log stretch,
+        # and adjust colorbar tick values to show the unshifted data values.
+        shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(cutout, vmin, vmax, num_ticks=5)
+        tlabelstr = formatted_tick_labels(tlabelflt)
 
-            # Use SymLogNorm with a linear region around zero
-            norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
-            imi2d = ax.imshow(cutout, norm=norm, cmap=cmap, origin='lower', aspect='auto')
+        # Image object
+        imi2d = ax.imshow(shiftdata,
+                          norm=colors.LogNorm(vmin=shiftmin,
+                                              vmax=shiftmax),
+                          cmap=self.cmap,
+                          aspect='auto',
+                          origin='lower')
 
         # Shift the tick values to the full frame coordinate system
         ax.set_xticks(np.arange(0, 2*box_hw+1, 5))
@@ -2404,11 +2539,25 @@ class Level3PreviewImage():
                     color='magenta')
         ax.set_title(i2dname, fontsize=10)
 
-        # Add colorbar
+        # Add colorbar, and create tick labels for it
         # Create a separate axes for the colorbar, right next to the image
         divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
-        self.fig.colorbar(imi2d, cax=cax, label=i2d[1].header['BUNIT'])
+
+        # Colorbar will always be on the right side of the cutout
+        cax_colorbar = divider.append_axes("right", size="5%", pad=0.05)
+
+        cbar = self.fig.colorbar(imi2d, cax=cax_colorbar, label=colorbar_units, ticks=tickvals, orientation='vertical', pad=0.01)
+
+        cbar.ax.yaxis.minorticks_off()
+        cbar.ax.set_yticklabels(tlabelstr)
+        #cbar.ax.set_ylabel(colorbar_units, labelpad=15, rotation=270)
+
+
+        # Add colorbar
+        # Create a separate axes for the colorbar, right next to the image
+        #divider = make_axes_locatable(ax)
+        #cax = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
+        #self.fig.colorbar(imi2d, cax=cax, label=i2d[1].header['BUNIT'])
 
         #cbar_i2d = self.fig.colorbar(imi2d, ax=ax, orientation="vertical", label=i2d[1].header['BUNIT'], pad=0.01)
 
@@ -2433,7 +2582,12 @@ class Level3PreviewImage():
 
         num_sources = self.model.spec[0].spec_table.shape[0]
 
+
+        print('\n\n\nWhile looking for brightest sources')
+
+
         medians = []
+        sources = []
         for source in range(num_sources):
 
 
@@ -2447,12 +2601,27 @@ class Level3PreviewImage():
             ##flux_units = self.model.spec[0].spec_table.columns[flux_col].unit
 
 
+
             # Ignore sources where the source_id is empty, which indicates a larger problem.
             if self.model.spec[0].spec_table['SOURCE_TYPE'][source] != '':
-                medians.append(np.nanmedian(self.model.spec[0].spec_table['SURF_BRIGHT'][source, :]))
+                medians.append(np.nansum(self.model.spec[0].spec_table['SURF_BRIGHT'][source, :]))
+                sources.append(source)
+                print(source, self.model.spec[0].spec_table["SOURCE_ID"][source], medians[-1])
 
         idxs = np.argsort(medians)[::-1]
-        brightest = idxs[0:nbrightest]
+        brightest = np.array(sources)[idxs][0:nbrightest]
+
+        #print(f'               BRIGHTEST INDEXES:         {brightest}')
+
+        #print(f'first, check medians: {np.array(medians)[brightest]}')
+        #print(f'next, src brightness:')
+        #print(f"{[np.nansum(self.model.spec[0].spec_table['SURF_BRIGHT'][source, :] for source in brightest)]}")
+
+        #print('check source ids')
+        #print([self.model.spec[0].spec_table.SOURCE_ID[idx] for idx in brightest])
+        #stop
+
+
         return brightest
 
     def remove_wfss_nan_data(self, data):
@@ -2602,11 +2771,11 @@ class Level3PreviewImage():
         """Create preview image for NIRSpec or MIRI fixed slit cal, crf, and s2d files
         """
         # Modify fig size based on number of nods
-        figure_size = {'1': (12, 4),
-                       '2': (12, 6),
-                       '3': (12, 8),
-                       '5': (12, 12)
-                       }
+        #figure_size = {'1': (12, 4),
+        #               '2': (12, 6),
+        #               '3': (12, 8),
+        #               '5': (12, 12)
+        #               }
 
         # MIRI slits are presented vertically in the data, while NIRSpec slits are
         # presented horizontally. If we have a MIRI file, we need to essentially swap
@@ -2615,7 +2784,8 @@ class Level3PreviewImage():
 
         if 'cal' in self.model.meta.filename or 'crf' in self.model.meta.filename:
             num_nods = len(self.model.exposures)
-            figsize = figure_size[str(num_nods)]
+            #figsize = figure_size[str(num_nods)]
+            figsize = (12, 4 + (num_nods*2))
             aspect = "auto"
             colorbar_orient = "horizontal"
 
@@ -2632,11 +2802,12 @@ class Level3PreviewImage():
             vmax = np.nanpercentile(self.model.exposures[0].data, 99)
 
             # Use to determine linearly scaled signals
-            clipped = sigma_clip_ignore_nan(self.model.exposures[0].data)
+            #clipped = sigma_clip_ignore_nan(self.model.exposures[0].data)
 
         elif 's2d' in self.model.meta.filename:
             num_nods = 1
-            figsize = figure_size[str(num_nods)]
+            #figsize = figure_size[str(num_nods)]
+            figsize = (12, 4 + (num_nods*2))
             aspect = "auto"
             colorbar_orient = "horizontal"
 
@@ -2652,55 +2823,135 @@ class Level3PreviewImage():
             vmax = np.nanpercentile(self.model.data, 99)
 
             # Use to determine linearly scaled signals
-            clipped = sigma_clip_ignore_nan(self.model.data)
+            #clipped = sigma_clip_ignore_nan(self.model.data)
 
         # Find sigma-clipped standard deviation of the data
-        dev = np.std(clipped)
-
-        # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
+        #dev = np.std(clipped)
 
         # Use SymLogNorm with a linear region around zero
-        norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
+        #norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
 
         # Create figure with 3 stacked subplots
-        self.fig, axes = plt.subplots(nrows=num_nods, ncols=1, figsize=figsize, constrained_layout=True)
+
+
+        print('vmin, vmax: ', vmin, vmax)
+
+
+        self.fig, axes = plt.subplots(nrows=num_nods, ncols=1, figsize=figsize)#, constrained_layout=True)
+        plt.tight_layout(pad=4.0)
+        #plt.subplots_adjust(hspace=0.5)
+        #self.fig.set_layout_engine('constrained')
 
         if inst == 'miri':
-            print('HERE')
-            print(aspect, colorbar_orient)
-            self.fig, axes = plt.subplots(nrows=1, ncols=num_nods, figsize=figsize, constrained_layout=True)
+            self.fig, axes = plt.subplots(nrows=1, ncols=num_nods, figsize=figsize)#, constrained_layout=True)
 
         # For s2d files, there will be only one set of axes. We need to put this into
         # a numpy array so that we can iterate over it below.
         if not isinstance(axes, np.ndarray):
             axes = np.array([axes])
 
+        # Looks like the units don't always make it into the datamodel (e.g. NIRSpec fixedslit crf)
+        try:
+            units = self.model.meta.bunit_data
+        except AttributeError:
+            #units = fits.getheader(self.filename, 1)['BUNIT']
+            self.model.meta.bunit_data = fits.getheader(self.filename, 1)['BUNIT']
+
         for ax, arr, title in zip(axes, arrs, titles):
-            im = ax.imshow(arr, cmap=cmap, norm=norm, aspect=aspect)
+
+
+
+
+            # Get tick values and labels
+            #shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(arr, vmin, vmax, num_ticks=5)
+            #tlabelstr = formatted_tick_labels(tlabelflt)
+
+
+
+
+
+            colorbar_labelpad={'vertical': 15, 'horizontal': 3}
+            #im = ax.imshow(arr, cmap=self.cmap, norm=norm, aspect=aspect)
+            # Turn off the colorbars for the individual axes
+            self.show_image_in_axis(ax, arr, vmin, vmax, aspect, colorbar_orient, num_ticks=5, colorbar_pad=0.5, colorbar_labelpad=colorbar_labelpad)
             ax.set_title(title)
             ax.set_xlabel("Pixels")
             ax.set_ylabel("Pixels")
-            ax.invert_yaxis()
+            #ax.invert_yaxis()
 
         # Choose symmetric ticks around zero for the colorbar
-        pos_ticks = np.logspace(np.log10(vmax) - 3, np.log10(vmax*1.01), 4)
-        neg_ticks = np.logspace(np.log10(-vmin) - 3, np.log10(-vmin), 4)
-        ticks = np.concatenate([-neg_ticks[::-1], np.array([0]), pos_ticks])
+        #pos_ticks = np.logspace(np.log10(vmax) - 3, np.log10(vmax*1.01), 4)
+        #neg_ticks = np.logspace(np.log10(-vmin) - 3, np.log10(-vmin), 4)
+        #ticks = np.concatenate([-neg_ticks[::-1], np.array([0]), pos_ticks])
 
-        # Shared colorbar
-        cbar = self.fig.colorbar(im, ax=axes[-1], orientation=colorbar_orient, fraction=0.2, pad=0.05)
-        cbar.set_ticks(ticks)
-        cbar.ax.xaxis.minorticks_off()
-        cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
 
+
+
+
+
+
+
+
+        # For preview images, add colorbar, and create tick labels for it
+        #ysize, xsize = image.shape
+
+        #xyratio = xsize / ysize
+
+        """
         # Looks like the units don't always make it into the datamodel (e.g. NIRSpec fixedslit crf)
         try:
             units = self.model.meta.bunit_data
         except AttributeError:
             units = fits.getheader(self.filename, 1)['BUNIT']
-        cbar.set_label(units)
+
+        # Add colorbar below the bottom axis (or to the right of the right-most axis)
+        divider = make_axes_locatable(ax)
+
+        if colorbar_orient == 'vertical':
+            # For apertures that are taller than they are wide, square, or that are wider than
+            # they are tall but still reasonably close to square, put the colorbar on the right
+            # side of the image.
+            cax_colorbar = divider.append_axes("right", size="5%", pad=0.05)
+
+            cbar = self.fig.colorbar(imax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
+
+            cbar.ax.yaxis.minorticks_off()
+            cbar.ax.set_yticklabels(tlabelstr)
+            cbar.ax.set_ylabel(units, labelpad=15, rotation=270)
+
+        elif colorbar_orient == 'horizontal':
+            # For apertures that are significantly wider than they are tall, put the colorbar
+            # under the image.
+            cax_colorbar = divider.append_axes("bottom", size="5%", pad=0.05)
+
+            cbar = self.fig.colorbar(imax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
+
+            cbar.ax.xaxis.minorticks_off()
+            cbar.ax.set_xticklabels(tlabelstr)
+            cbar.ax.set_xlabel(units, labelpad=7, rotation=0)
+        """
+
+
+
+
+
+
+
+
+
+
+        # Shared colorbar
+        #cbar = self.fig.colorbar(im, ax=axes[-1], orientation=colorbar_orient, fraction=0.2, pad=0.05)
+        #cbar.set_ticks(ticks)
+        #cbar.ax.xaxis.minorticks_off()
+        #cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
+
+        # Looks like the units don't always make it into the datamodel (e.g. NIRSpec fixedslit crf)
+        #try:
+        #    units = self.model.meta.bunit_data
+        #except AttributeError:
+        #    units = fits.getheader(self.filename, 1)['BUNIT']
+        #cbar.set_label(units)
         #plt.show()
         #self.fig.close()
         self.figures.append(self.fig)
@@ -2725,8 +2976,8 @@ class Level3PreviewImage():
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message='Mean of empty slice')
             slice_mean = np.nanmean(self.model.data[strt_frame:end_frame, :, :], axis=0)
-        vmin = np.nanpercentile(slice_mean, 1)
-        vmax = np.nanpercentile(slice_mean, 99)
+        vmin = np.nanpercentile(slice_mean, 5)
+        vmax = np.nanpercentile(slice_mean, 95)
         if vmin < -vmax:
             vmin = -vmax
 
@@ -2739,7 +2990,7 @@ class Level3PreviewImage():
             slice_full = ax.imshow(self.model.data[frame, :, :],
                                    norm=ImageNormalize(vmin=vmin, vmax=vmax, stretch=LogStretch()),
                                    origin='lower', cmap=cmap, aspect=aspect)
-            ax.invert_yaxis()
+            #ax.invert_yaxis()
             ax.set_xlabel('Pixel')
             ax.set_ylabel('Pixel')
             ax.set_title(f'{self.model.meta.filename}: slice {frame}')
@@ -2795,14 +3046,14 @@ class Level3PreviewImage():
         vmax = np.nanpercentile(self.model.data[0, :, :], 99)
 
         # Use to determine linearly scaled signals
-        clipped = sigma_clip_ignore_nan(self.model.data[0, :, :])
+        #clipped = sigma_clip_ignore_nan(self.model.data[0, :, :])
 
         # Find sigma-clipped standard deviation of the data
-        dev = np.std(clipped)
+        #dev = np.std(clipped)
 
         # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
+        #cmap = plt.cm.viridis.copy()
+        #cmap.set_bad(color='black')
 
         # Get basic figure properties
         aspect, colorbar_orient, figsize = \
@@ -2810,34 +3061,37 @@ class Level3PreviewImage():
                                         maxsize=self.maxsize)
 
         # Use SymLogNorm with a linear region around zero
-        norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
+        #norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
 
         for frame in frames_to_view:
             # Create figure
             self.fig, ax = plt.subplots(nrows=1, ncols=1, figsize=figsize,
                                         constrained_layout=True)
-            im = ax.imshow(self.model.data[frame, :, :], norm=norm, origin='lower', aspect=aspect,
-                           cmap=cmap)
+
+            self.show_image_in_axis(ax, self.model.data[frame, :, :], vmin, vmax, aspect, colorbar_orient, num_ticks=5)
+
+            #im = ax.imshow(self.model.data[frame, :, :], norm=norm, origin='lower', aspect=aspect,
+            #               cmap=cmap)
             ax.set_title(f'{self.model.meta.filename}, Frame: {frame}')
             ax.set_xlabel("Pixels")
             ax.set_ylabel("Pixels")
 
-            cbar = self.fig.colorbar(im, ax=ax, orientation=colorbar_orient, shrink=0.8)
+            #cbar = self.fig.colorbar(im, ax=ax, orientation=colorbar_orient, shrink=0.8)
 
             # If there are limited ticks, create them manually
-            default_tick_labels = [t.get_text() for t in cbar.ax.get_yticklabels()]
-            if len(default_tick_labels) < 2:
-                minval = 1e-4
-                if vmin > 0:
-                    minval = vmin
-                new_ticks = np.logspace(np.log10(minval), np.log10(vmax), 5)
-                cbar.set_ticks(new_ticks)
-                new_ticks_str = [f"{value:.1e}" for value in new_ticks]
-                cbar.set_ticklabels(new_ticks_str)
+            #default_tick_labels = [t.get_text() for t in cbar.ax.get_yticklabels()]
+            #if len(default_tick_labels) < 2:
+            #    minval = 1e-4
+            #    if vmin > 0:
+            #        minval = vmin
+            #    new_ticks = np.logspace(np.log10(minval), np.log10(vmax), 5)
+            #    cbar.set_ticks(new_ticks)
+            #    new_ticks_str = [f"{value:.1e}" for value in new_ticks]
+            #    cbar.set_ticklabels(new_ticks_str)
             #print(cbar.ax.get)
 
 
-            cbar.set_label(self.model.meta.bunit_data)
+            #cbar.set_label(self.model.meta.bunit_data)
             self.figures.append(self.fig)
 
 
@@ -2934,7 +3188,14 @@ def determine_figure_properties(xdim, ydim, threshold=0.15, maxsize=8):
     """
     aspect_value = determine_aspect(xdim, ydim, threshold=threshold)
     cbar_orient = determine_cbar_orient(xdim, ydim)
-    figsize_value = determine_default_figsize(xdim, ydim, maxsize=maxsize)
+    figsize_value = determine_default_figsize(xdim, ydim, maxsize=maxsize, aspect=aspect_value)
+
+
+    print('xdim, ydim, threshold:', xdim, ydim, threshold)
+    print('aspect cbar orient, figsize: ', aspect_value, cbar_orient, figsize_value)
+
+
+
     return aspect_value, cbar_orient, figsize_value
 
 
@@ -3000,8 +3261,8 @@ def determine_cbar_orient(xdim, ydim):
     return orient
 
 
-def determine_default_figsize(xdim, ydim, maxsize=8):
-    """Determine the default figure size, given the array dimensions.
+def determine_default_figsize(xdim, ydim, maxsize=8, aspect=None, ratio_limit=5):
+    """Determine the default figure size (NOT axes size within a figure), given the array dimensions.
 
     Parameters
     ----------
@@ -3014,6 +3275,11 @@ def determine_default_figsize(xdim, ydim, maxsize=8):
     maxsize : float
         Length of the largest dimension, in units accepted by plt.subplots
 
+    aspect : str
+        Description of the aspect ratio matplotlib will use. 'auto' means
+        pixels are not required to be square. This is good for figures that
+        are much wider than they are long. 'equal' will keep the pixels square.
+
     Returns
     -------
     figsize : tup
@@ -3023,6 +3289,20 @@ def determine_default_figsize(xdim, ydim, maxsize=8):
         figsize = (maxsize, maxsize * ydim / xdim)
     else:
         figsize = (maxsize * xdim / ydim, maxsize)
+
+    # If the aspect is "auto" and the x/y ratio is over N or under 1/N,
+    # then reshape the figure to have a ratio of N.
+    if aspect == 'auto':
+        ratio = xdim / ydim
+        if ratio > ratio_limit:
+            ratio = ratio_limit
+        if ratio < (1. / ratio_limit):
+            ratio = (1. / ratio_limit)
+
+        if xdim >= ydim:
+            figsize = (maxsize, maxsize / ratio)
+        else:
+            figsize = (maxsize * ratio, maxsize)
 
     return figsize
 
@@ -3073,6 +3353,11 @@ def formatted_tick_labels(tick_vals):
         dig = 2
     format_string = "%.{}f".format(dig)
     tick_str = [format_string % number for number in tick_vals]
+
+    # For cases with very small ranges in the signal, use scientific notation
+    zeros = np.log10(np.abs(delta))
+    if zeros < -3:
+        tick_str = [f"{num:.3e}" for num in tick_vals]
     return tick_str
 
 

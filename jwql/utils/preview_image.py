@@ -59,6 +59,7 @@ from jwql.utils.utils import filesystem_path, get_config
 # Use the 'Agg' backend to avoid invoking $DISPLAY
 import matplotlib as mpl
 #matplotlib.use('Agg') - uncomment before merging!!!!!!!!!!!!!
+from matplotlib.patches import Circle  # noqa
 import matplotlib.pyplot as plt  # noqa
 import matplotlib.colors as colors  # noqa
 from matplotlib.colors import SymLogNorm  # noqa
@@ -70,6 +71,18 @@ if not ON_READTHEDOCS:
 
 if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     CONFIGS = get_config()
+
+WFSS_2D_EDGES = {'nircam': {'grismr': {'f322w2': (200, 0),
+                                       'f277w': (0, 150)
+                                       },
+                            'grismc': {}
+                            },
+                 'niriss': {'gr150r': {'f090w': (10, 10),
+                                       'f115w': (20, 20)
+                                       },
+                            'gr150c': {}
+                            }
+                 }
 
 
 class PreviewImage():
@@ -850,7 +863,7 @@ class Level3PreviewImage():
     Used by``generate_preview_images``.
     """
     def __init__(self, filename, data_type=None, maxsize=8, preview_output_directory=None,
-                 create_thumbnail=False, thumbnail_output_directory=None):
+                 create_thumbnail=False, thumbnail_output_directory=None, min_range_for_logscale=1.):
         self.filename = filename
         self.data_type = data_type
         self.maxsize = maxsize
@@ -863,6 +876,7 @@ class Level3PreviewImage():
         self.threshold_for_nonsquare_pix = 0.15
         self.figures = []
         self.wfss_source_ids = []
+        self.min_range_for_logscale = min_range_for_logscale
 
         # Define colormap that shows NaNs as black
         self.cmap = plt.cm.viridis.copy()
@@ -894,6 +908,7 @@ class Level3PreviewImage():
 
 
         if 'x1dints' in self.filename:
+            print('check x1dints')
             # Time Series data from NIRCAM
             if self.exp_type == 'NRC_TSGRISM':
                 print('nrc_tsgrism x1dints')
@@ -915,35 +930,46 @@ class Level3PreviewImage():
                 #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
         elif self.exp_type == 'NIS_AMI':
+            print('check ami')
             if 'amilg' in self.filename:
                 self.amilg_preview()
             elif 'ami-oi' in self.filename or 'aminorm-oi' in self.filename:
                 self.ami_preview()
         elif 'whtlt.ecsv' in self.filename or 'phot.ecsv' in filename:
+            print('check whitelight')
             self.tso_whitelight_curve()
         elif self.exp_type in ['NRS_FIXEDSLIT', 'MIR_LRS-FIXEDSLIT'] and ('cal' in self.filename or
                                                                           'crf' in self.filename or
                                                                           's2d' in self.filename):
+            print('check fixed slit')
             print('fixed slit 2d')
             self.fixed_slit_cal_crf_s2d()
         elif 'x1d' in self.filename and self.exp_type in ['NRS_FIXEDSLIT',
                                                           'NRS_IFU',
-                                                          'MIR_LRS-FIXEDSLIT',
+                                                          'MIR_LRS-FIXEDSLIT'
                                                           ]:
+            print('check x1d for fixedslit, ifu')
             print('fixed slit 1d')
             #self.miri_nirspec_fixed_slit_or_ifu_x1d()
             self.miri_lrs_fixed_slit_nirspec_ifu_x1d()
-        elif 'x1d' in self.filename and self.exp_type == ['MIRI_MRS']:
+        elif 'x1d' in self.filename and self.exp_type == 'MIR_MRS':
+            print('check x1d for mrs')
+            print('MIRI MRS file')
             self.miri_mrs_x1d()
-        elif ('x1d' in self.filename or 'c1d' in self.filename) and self.exp_type in ['NRC_WFSS', 'NIS_WFSS']:
+        elif ('x1d' in self.filename or 'c1d' in self.filename) and self.exp_type in ['NRC_WFSS', 'NIS_WFSS', 'MIRI_WFSS']:
+            print('check x1d for wfss')
             self.wfss_x1d()
         elif 's3d' in self.filename and self.exp_type in ['NRS_IFU', 'MIR_MRS']:
+            print('check s3d for nrs ifu and miri mrs')
             print('ifu 3d')
             self.nirspec_miri_ifu_s3d()
-        elif 'i2d' in self.filename:
+        elif (('i2d' in self.filename) or ('segm' in self.filename)):
+            print('check i2d')
             self.i2d_file()
         elif ('psfstack' in self.filename or 'psfalign' in self.filename or 'psfsub' in self.filename):
             self.psfstack_file()
+        else:
+            print('NOT PROCESSED')
 
         self.save_figures()
 
@@ -1525,6 +1551,16 @@ class Level3PreviewImage():
         vmin = np.nanpercentile(self.model.data, 1)
         vmax = np.nanpercentile(self.model.data, 99)
 
+
+        # For segm files, very few pixels will have non-zero values. So if the percentile
+        # values above end up being identical, fall back to use the full range of the data
+        if vmin == vmax:
+            vmin = np.nanmin(self.model.data)
+            vmax = np.nanmax(self.model.data)
+            print(f'vmin and vmax are identical. Falling back to use full range of the data. {vmin} to {vmax}')
+
+
+
         # Use to determine linearly scaled signals
         #clipped = sigma_clip_ignore_nan(self.model.data)
 
@@ -1625,10 +1661,11 @@ class Level3PreviewImage():
         self.figures.append(self.fig)
 
     def show_image_in_axis(self, axis, image, disp_min, disp_max, aspect, colorbar_orient, num_ticks=5, colorbar_pad=0.5,
-        colorbar_labelpad={'vertical': 15, 'horizontal': 7}, add_colorbar=True):
+        colorbar_labelpad={'vertical': 15, 'horizontal': 7}, add_colorbar=True, override_unit=None):
         """
         """
-        shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(image, disp_min, disp_max, num_ticks=num_ticks)
+        shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(image, disp_min, disp_max, num_ticks=num_ticks,
+                                                                                  min_range_for_logscale=self.min_range_for_logscale)
         tlabelstr = formatted_tick_labels(tlabelflt)
 
         if shiftmax - shiftmin > 1:
@@ -1662,6 +1699,15 @@ class Level3PreviewImage():
         if np.min(figure_size) < 2:
             colorbar_size = "15%"
 
+        # If the datamodel does not include information on the data units, then set that to
+        # an empty string, unless the user overrides with a specific value.
+        try:
+            units = self.model.meta.bunit_data
+        except AttributeError:
+            units = ''
+        if override_unit is not None:
+            units = override_unit
+
         if colorbar_orient == 'vertical':
             # For apertures that are taller than they are wide, square, or that are wider than
             # they are tall but still reasonably close to square, put the colorbar on the right
@@ -1672,7 +1718,7 @@ class Level3PreviewImage():
 
             cbar.ax.yaxis.minorticks_off()
             cbar.ax.set_yticklabels(tlabelstr)
-            cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=colorbar_labelpad[colorbar_orient], rotation=270)
+            cbar.ax.set_ylabel(units, labelpad=colorbar_labelpad[colorbar_orient], rotation=270)
 
         elif colorbar_orient == 'horizontal':
             # For apertures that are significantly wider than they are tall, put the colorbar
@@ -1683,7 +1729,7 @@ class Level3PreviewImage():
 
             cbar.ax.xaxis.minorticks_off()
             cbar.ax.set_xticklabels(tlabelstr)
-            cbar.ax.set_xlabel(self.model.meta.bunit_data, labelpad=colorbar_labelpad[colorbar_orient], rotation=0)
+            cbar.ax.set_xlabel(units, labelpad=colorbar_labelpad[colorbar_orient], rotation=0)
 
         else:
             logging.debug(f"No colorbar requested")
@@ -1754,7 +1800,7 @@ class Level3PreviewImage():
 
         for i, flux_key in enumerate(flux_keys):
             if 'order' in flux_key:
-                order_str = 'order ' + flux_key.split('_')[-1]
+                order_str = ', order ' + flux_key.split('_')[-1]
             else:
                 order_str = ''
 
@@ -1780,7 +1826,7 @@ class Level3PreviewImage():
 
             # Plot white light curve
             if 'whitelight' in flux_key:
-                title_str = f"White light curve, order: {order_str}"
+                title_str = f"White light curve{order_str}"
                 label = f"(r.m.s.={round(sigma_wlc * 1e6, 0)} ppm)"
             elif flux_key == 'net_aperture_sum':
                 title_str = f"Photometry curve"
@@ -1978,8 +2024,8 @@ class Level3PreviewImage():
                         # NIRISS data are dispersed in the -x direction, so flip the
                         # 2D cutout horizontally so that the wavelength direction will
                         # match that in the 1D figure
-                        if hdulist[0].header['INSTRUME'] == 'NIRISS':
-                            data = np.fliplr(data)
+                        #if hdulist[0].header['INSTRUME'] == 'NIRISS':
+                        data = np.fliplr(data)
 
                         name = hdulist[0].header['FILENAME']
                         units = hdulist[ext].header['BUNIT']
@@ -2269,15 +2315,49 @@ class Level3PreviewImage():
             # scaling, just in case they are reference pixels
             #cal_vmin = np.nanpercentile(cal_data[4:-4, 4:-4], 1)
             #cal_vmax = np.nanpercentile(cal_data[4:-4, 4:-4], 99)
-            cal_vmin_a = np.nanpercentile(cal_info[order_a]['data'][4:-4, 4:-4], 1)
-            cal_vmax_a = np.nanpercentile(cal_info[order_a]['data'][4:-4, 4:-4], 99)
+
+            exclude_cols = 4
+            exclude_rows = 4
+            cal_ydim, cal_xdim = cal_info[order_a]['data'].shape
+
+
+            if cal_xdim > cal_ydim:
+                exclude_cols = cal_xdim // 3
+            else:
+                exclude_row = cal_ydim // 3
+
+
+            if cal_ydim < 10:
+                exclude_rows = 1
+            if cal_xdim < 10:
+                exclude_cols = 1
+
+            # In here, we can customize the area used to determine scaling based on instrument, filter, etc.
+
+
+            cal_vmin_a = np.nanpercentile(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols], 1)
+            cal_vmax_a = np.nanpercentile(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols], 99)
+
+            if np.all(np.isnan(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols])):
+                print('\n\nALL NAN!\n\n')
+                print(np.all(np.isnan(cal_info[order_a]['data'])))
+                cal_vmin_a = np.nanmin(cal_info[order_a]['data'])
+                cal_vmax_a = np.nanmax(cal_info[order_a]['data'])
+
+            #print('cal_vmin_a and cal_vmax_a, the straight min and max of the data are:')
+            #print(np.nanmin(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols]), np.nanmax(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols]))
+            #print(cal_info[order_a]['data'].shape)
+
+
+
+            # In 1076 o105, the left-most ~150 columns of the 2d extracted boxes was often very noisy. would be best if that didn't drive
+            # the scaling range. But will this vary with e.g. filter?
 
 
 
 
-
-
-
+            ###### BLOCK BELOW WORKS. CAN WE REPLACE WITH 2 CALLS TO show_image_in_axis?????
+            #######
 
 
 
@@ -2310,6 +2390,18 @@ class Level3PreviewImage():
 
             cbar.ax.yaxis.minorticks_off()
             cbar.ax.set_yticklabels(tlabelstr)
+
+
+
+
+
+
+            """
+            ax_2d_a = self.show_image_in_axis(ax_2d_a, cal_info[order_a]['data'], cal_vmin_a, cal_vmax_a, "auto", "vertical", num_ticks=5)
+            ax_2d_a.set_xlabel('Pixel')
+            ax_2d_a.set_ylabel('Pixel')
+            ax_2d_a.set_title(f"{cal_info[order_a]['name']}, Source {cal_info[order_a]['source_id']}, Ext {cal_info[order_a]['ext']}, Order {order_a}")
+            """
 
 
 
@@ -2351,8 +2443,43 @@ class Level3PreviewImage():
                 # Clip brightest and dimmest 1% of pixels to find min and max values
                 # Throw out the outermost 4 rows on each side when determining colormap
                 # scaling, just in case they are reference pixels
-                cal_vmin_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 1)
-                cal_vmax_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 99)
+                exclude_cols = 4
+                exclude_rows = 4
+                cal_ydim, cal_xdim = cal_info[order_b]['data'].shape
+
+
+                if cal_xdim > cal_ydim:
+                    exclude_cols = cal_xdim // 3
+                else:
+                    exclude_row = cal_ydim // 3
+
+                #exclude_left_cols, exclude_right_cols = WFSS_2D_EDGES[instrument][grism][filter_name]
+
+
+
+                if cal_ydim < 10:
+                    exclude_rows = 1
+                if cal_xdim < 10:
+                    exclude_cols = 1
+
+                # In here, we can customize the area used to determine scaling based on instrument, filter, etc.
+
+
+                cal_vmin_b = np.nanpercentile(cal_info[order_b]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols], 1)
+                cal_vmax_b = np.nanpercentile(cal_info[order_b]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols], 99)
+
+
+
+                print('cal_vmin_b and cal_vmax_b, the straight min and max of the data are:')
+                print(np.nanmin(cal_info[order_b]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols]), np.nanmax(cal_info[order_b]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols]))
+                print(cal_info[order_b]['data'].shape)
+
+
+
+
+
+                #cal_vmin_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 1)
+                #cal_vmax_b = np.nanpercentile(cal_info[order_b]['data'][4:-4, 4:-4], 99)
 
 
 
@@ -2643,7 +2770,10 @@ class Level3PreviewImage():
         """
         """
         dirname, fname  = os.path.split(self.filename)
-        x1dfiles = sorted(glob(os.path.join(dirname, '*x1d.fits')))
+        x1dfiles = sorted(glob(os.path.join(dirname, f'{fname[0:18]}*x1d.fits')))
+
+        print('x1dfiles is:')
+        print(x1dfiles)
 
         # Remove self.filename so that we don't double count it
         #x1dfiles.remove(self.filename)
@@ -2662,14 +2792,21 @@ class Level3PreviewImage():
         one self.model.spec extension, and the flux and wavelength data within
         that extension is 1-dimensional.
         """
+
+        print('In miri_mrs_x1d')
+
+
         self.fig, ax = plt.subplots(ncols=1, nrows=2, figsize=(self.maxsize, self.maxsize * 1.5))
 
+        flux_type = 'RF_FLUX'
         flux = self.model.spec[0].spec_table.RF_FLUX
 
         # MRS x1d files have both regular ('flux') and residual-fringe (RF) corrected ('rf_flux') spectra.
         # The RF-corrected spectra will have NaN values if RF correction was disabled or failed to converge.
         # Plot the RF corrected spectrum if available, otherwise plot the regular spectrum.
-        if np.nansum(flux == 0):
+        if (np.nansum(flux == 0) or np.all(np.isnan(flux))):
+            print(f'{self.model.meta.filename} RF_FLUX is all NaN, using FLUX')
+            use_flux = 'FLUX'
             flux = self.model.spec[0].spec_table.FLUX
 
         waves = self.model.spec[0].spec_table.WAVELENGTH
@@ -2678,12 +2815,17 @@ class Level3PreviewImage():
 
         # Determine plot range
         clipped = sigma_clip_ignore_nan(flux, sigma=9)
-        vmax = np.nanmax(clipped) * 1.1
-        vmin = np.nanmin(clipped)
-        if vmin >= 0:
-            vmin = vmin * 0.9
+
+        if np.all(np.isnan(clipped)):
+            vmin = 0
+            vmax = 1
         else:
-            vmin = vmin * 1.1
+            vmax = np.nanmax(clipped) * 1.1
+            vmin = np.nanmin(clipped)
+            if vmin >= 0:
+                vmin = vmin * 0.9
+            else:
+                vmin = vmin * 1.1
 
         ax[0].plot(waves, flux, color='blue', label=channel_band)
         ax[0].set_xlabel(f'Wavelength ({self.wavelength_units})')
@@ -2700,27 +2842,54 @@ class Level3PreviewImage():
 
         if len(x1dfiles) > 1:
             vmin, vmax = np.nan, np.nan
+            #fluxes = []
+            #wavelengths = []
+            #channels = []
             for x1dfile in x1dfiles:
 
                 mod = datamodels.open(x1dfile)
-                flux = mod.spec[0].spec_table.RF_FLUX
+                flux = mod.spec[0].spec_table[use_flux]
                 waves = mod.spec[0].spec_table.WAVELENGTH
                 channel_band = f'{mod.meta.instrument.channel} {mod.meta.instrument.band}'
 
                 # MRS x1d files have both regular ('flux') and residual-fringe (RF) corrected ('rf_flux') spectra.
                 # The RF-corrected spectra will have NaN values if RF correction was disabled or failed to converge.
                 # Plot the RF corrected spectrum if available, otherwise plot the regular spectrum.
-                if np.nansum(flux == 0):
-                    flux = mod.spec[0].spec_table.RF_FLUX
+                if (np.nansum(flux == 0) or np.all(np.isnan(flux))):
+                    print(f'{x1dfile} flux is all NaN, using FLUX')
+                #    flux = mod.spec[0].spec_table.RF_FLUX
+
+                #fluxes.append(flux)
+                #wavelengths.append(waves)
+                #channels.append(channel_band)
 
                 # Determine plot range
                 clipped = sigma_clip_ignore_nan(flux, sigma=9)
-                vfilemax = np.nanmax(clipped) * 1.1
-                vfilemin = np.nanmin(clipped)
-                if vfilemin >= 0:
-                    vfilemin = vfilemin * 0.9
+
+                if np.all(np.isnan(clipped)):
+                    vfilemin = np.nan
+                    vfilemax = np.nan
                 else:
-                    vfilemin = vfilemin * 1.1
+                    vfilemax = np.nanmax(clipped) * 1.1
+                    vfilemin = np.nanmin(clipped)
+
+                    # Add some padding to the top and bottom of the range
+                    if vfilemin >= 0:
+                        vfilemin = vfilemin * 0.9
+                    else:
+                        vfilemin = vfilemin * 1.1
+                    if vfilemax >= 0:
+                        vfilemax *= 1.1
+                    else:
+                        vfilemax *= 0.9
+
+
+
+                print('file, vmin, vmax:', x1dfile, vfilemin, vfilemax)
+                print('current vmin, vmax:', vmin, vmax)
+
+
+
                 vmin = np.nanmin([vmin, vfilemin])
                 vmax = np.nanmax([vmax, vfilemax])
 
@@ -2735,7 +2904,7 @@ class Level3PreviewImage():
             ax[1].remove()
         self.figures.append(self.fig)
 
-    def miri_lrs_fixed_slit_nirspec_ifu_x1d(self):
+    def miri_lrs_fixed_slit_nirspec_ifu_x1d_only(self):
         """Plot spectrum from x1d file from NIRSpec fixed slit or IFU file,
         or MIRI LRS fixed slit or IFU (MRS) mode. In these cases, there is only
         one self.model.spec extension, and the flux and wavelength data within
@@ -2766,6 +2935,141 @@ class Level3PreviewImage():
 
         self.figures.append(self.fig)
 
+
+    def miri_lrs_fixed_slit_nirspec_ifu_x1d(self):
+        """For the NIRSpec IFU x1d file, show a plot of the 1D spectrum. Next to that
+        plot, show the s3d image where the spectrum came from. Overlay a circle indicating
+        the aperture over which the flux is summed in order to create the 1D spectrum.
+        """
+        # Get the x1d data
+        flux = self.model.spec[0].spec_table.FLUX
+        waves = self.model.spec[0].spec_table.WAVELENGTH
+        targname = self.model.meta.target.proposer_name
+
+        # Determine plot range
+        clipped = sigma_clip_ignore_nan(flux, sigma=9)
+        vmax = np.nanmax(clipped) * 1.1
+        vmin = np.nanmin(clipped)
+        if vmin >= 0:
+            vmin = vmin * 0.9
+        else:
+            vmin = vmin * 1.1
+
+        # Find s3d file
+        s3d_file = self.filename.replace('x1d', 's3d')
+        if os.path.isfile(s3d_file):
+            s3d_model = datamodels.open(s3d_file)
+
+            # Find the index of the brightest point in the 1D spectrum. We'll display
+            # that frame from the s3d file
+            brightest_idx = np.where(self.model.spec[0].spec_table['FLUX'] == np.nanmax(self.model.spec[0].spec_table['FLUX']))[0]
+            if len(brightest_idx) >= 1:
+                brightest_idx = brightest_idx[0]
+            else:
+                # Somehow there's no index matching the brightest value
+                brightest_idx = len(self.model.spec[0].spec_table['FLUX']) // 2
+
+            s3d_frame = s3d_model.data[brightest_idx, :, :]
+            yd, xd = s3d_frame.shape
+
+            # Create figure
+            figsize = (self.maxsize * 2, self.maxsize)
+            self.fig = plt.figure(figsize=figsize)
+            ax_x1d = plt.subplot2grid((1, 3), (0, 0), colspan=2)
+            ax_s3d = plt.subplot2grid((1, 3), (0, 2), colspan=1)
+
+            # Populate the s3d axes
+            # Make sure the aspect and colorbar orient are correct
+            aspect_s3d, colorbar_orient_s3d, figsize = \
+                determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
+                                            maxsize=self.maxsize)
+
+            # Get the vmin and vmax for the s3d image
+            vmin_s3d = np.nanpercentile(s3d_frame, 1)
+            vmax_s3d = np.nanpercentile(s3d_frame, 99)
+
+            # Show the image in the s3d axes
+            self.show_image_in_axis(ax_s3d, s3d_frame, vmin_s3d, vmax_s3d, aspect_s3d,
+                                    colorbar_orient_s3d, num_ticks=5, override_unit=s3d_model.meta.bunit_data)
+            ax_s3d.set_xlabel('Pixel')
+            ax_s3d.set_ylabel('Pixel')
+            ax_s3d.set_title(f's3d: slice {brightest_idx}\n{waves[brightest_idx]:.5f} microns')
+
+            # Get the coordinates of the center of the aperture summed over to create the 1D spectrum
+            # This info does not make it into the datamodel metadata, so we retrieve it via astropy.io.fits
+            x1dheader = fits.getheader(self.model.meta.filename, 1)
+            centerx = x1dheader['EXTR_X']
+            centery = x1dheader['EXTR_Y']
+            source_type = x1dheader['SRCTYPE']
+
+
+            print('centerx,y from x1d file: ', centerx, centery)
+
+
+            #check what happens when you use the ra,dec to get a pixel x,y. im not sure if extr_x,y are in the s3d coord system, or the unrectified coord system
+            #this seems to agree with the centerx,y values from the x1d file, although those from the x1d file are rounded to integer values.
+            #world_to_detector = s3d_model.meta.wcs.get_transform('world', 'detector')
+            #centerx, centery, _ = world_to_detector(s3d_model.meta.target.ra, s3d_model.meta.target.dec, 3.25)
+
+
+            #print('centerx,y from 3dd file WCS: ', centerx, centery)
+
+            # We will need to convert the circle radius from units of image pixels to
+            # screen points
+            #points_per_pixel = get_screen_points_per_image_pixel(self.fig, ax_s3d)
+
+            if source_type == 'POINT':
+                # Find the median number of pixels in the aperture, using the table
+                median_numpix = np.nanmedian(self.model.spec[0].spec_table["NPIXELS"])
+
+                # Calculate circular aperture radius
+                aperture_radius = np.sqrt(median_numpix / np.pi)
+                print('APERTURE_RADIUS is: ', aperture_radius)
+
+                # Add a circle to the s3d image, showing the summation aperture
+                circle = Circle((centerx, centery), aperture_radius,
+                                fill=False, edgecolor='red', linewidth=2)
+                ax_s3d.add_patch(circle)
+
+                # Convert radius to scatter size (scatter uses area = size in points^2)
+                #radius_points = aperture_radius * points_per_pixel
+                #scatter_size = radius_points ** 2
+            else:
+                # For extended sources, the entire aperture is extracted to create the 1D spectrum,
+                # so we use a square marker and set it to the width of the array
+                #marker = 's' or rectangle???
+
+                #half_width = s3d_model.data.shape[0]
+
+                # Convert the half-width from image pixel units to screen units
+                #half_width_points = half_width * points_per_pixel
+                #scatter_size = half_width_points**2
+
+                from matplotlib.patches import Rectangle
+                print('s3d shape:', s3d_model.data.shape)
+                rect = Rectangle((0, 0), s3d_model.data.shape[2] - 1, s3d_model.data.shape[1] - 1,
+                                 linewidth=2, edgecolor='red', facecolor='none')
+                ax_s3d.add_patch(rect)
+
+
+            # Overlay a circle indicating the area used to create the 1D spectrum
+            #ax_s3d.scatter(centerx, centery, marker=marker, s=scatter_size, facecolors='None', edgecolors='blue', alpha=0.9)
+
+            # Say what the circle or rectangle represents
+            ax_s3d.annotate('Summed aperture', (1, 1), fontsize=12, color='red')
+
+
+        else:
+            # In this case the s3d file is not present, so just show the 1D spectral plot
+            self.fig, ax_x1d = plt.subplots(ncols=1, nrows=1, figsize=(self.maxsize, self.maxsize))
+
+        # Populate the x1d axes whether the s3d data exist or not
+        ax_x1d.plot(waves, flux, color='blue')
+        ax_x1d.set_xlabel(f'Wavelength ({self.wavelength_units})')
+        ax_x1d.set_ylabel(f'Flux ({self.flux_units})')
+        ax_x1d.set_ylim(vmin, vmax)
+        ax_x1d.set_title(f'{self.model.meta.filename}\n{targname}')
+        self.figures.append(self.fig)
 
     def fixed_slit_cal_crf_s2d(self):
         """Create preview image for NIRSpec or MIRI fixed slit cal, crf, and s2d files
@@ -2976,20 +3280,24 @@ class Level3PreviewImage():
         with warnings.catch_warnings():
             warnings.filterwarnings('ignore', message='Mean of empty slice')
             slice_mean = np.nanmean(self.model.data[strt_frame:end_frame, :, :], axis=0)
-        vmin = np.nanpercentile(slice_mean, 5)
-        vmax = np.nanpercentile(slice_mean, 95)
-        if vmin < -vmax:
-            vmin = -vmax
+        vmin = np.nanpercentile(slice_mean, 1)
+        vmax = np.nanpercentile(slice_mean, 99)
 
-        # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
+
+        print('initial vmin, vmax: ', vmin, vmax)
+
+
+
+        #if vmin < -vmax:
+        #    vmin = -vmax
 
         for frame in frames_to_view:
             self.fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
-            slice_full = ax.imshow(self.model.data[frame, :, :],
-                                   norm=ImageNormalize(vmin=vmin, vmax=vmax, stretch=LogStretch()),
-                                   origin='lower', cmap=cmap, aspect=aspect)
+            self.show_image_in_axis(ax, self.model.data[frame, :, :], vmin, vmax, aspect, colorbar_orient, num_ticks=5)
+
+            #slice_full = ax.imshow(self.model.data[frame, :, :],
+            #                       norm=ImageNormalize(vmin=vmin, vmax=vmax, stretch=LogStretch()),
+            #                       origin='lower', cmap=self.cmap, aspect=aspect)
             #ax.invert_yaxis()
             ax.set_xlabel('Pixel')
             ax.set_ylabel('Pixel')
@@ -3014,8 +3322,8 @@ class Level3PreviewImage():
 
 
 
-            plt.colorbar(slice_full, ax=ax, orientation=colorbar_orient,
-                         fraction=0.05, pad=0.04).set_label(self.model.meta.bunit_data, fontsize=15)
+            #plt.colorbar(slice_full, ax=ax, orientation=colorbar_orient,
+            #             fraction=0.05, pad=0.04).set_label(self.model.meta.bunit_data, fontsize=15)
             self.figures.append(self.fig)
 
     def output_name(self):
@@ -3149,6 +3457,44 @@ def compile_segments(data_products):
     wave_um = wave_um[5:-5]
 
     return all_spec_1D, all_times, wave_um
+
+
+def get_screen_points_per_image_pixel(figure, axis):
+    """When using matplotlib.pyplot.scatter, the marker size is specified in points
+    squared (where a point is 1/72 of an inch), while we often want to overlay a
+    circle with a radius in units of pixels in the image data coordinates. This
+    function will calculate the number of screen points per image pixel
+
+    Parameters
+    ----------
+    figure : matplotlib.pyplot.figure.Figure
+        Figure where the plotting will be done
+
+    axis : matplotlib.pyplot.axis.Axis
+        Axis from the figure where the plotting will be done
+
+    Returns
+    -------
+    points_per_pixel : float
+        The number of screen points per pixel for the given figure and axis
+    """
+    # Convert radius from data coordinates (pixels) to points
+    # Get the axis size in pixels
+    bbox = axis.get_window_extent().transformed(figure.dpi_scale_trans.inverted())
+    axis_width_inches = bbox.width
+    axis_height_inches = bbox.height
+
+    # Get data limits
+    xlim = axis.get_xlim()
+    ylim = axis.get_ylim()
+    data_width = xlim[1] - xlim[0]
+    data_height = ylim[1] - ylim[0]
+
+    # Calculate points per data unit (average of x and y)
+    points_per_pixel_x = (axis_width_inches * 72) / data_width
+    points_per_pixel_y = (axis_height_inches * 72) / data_height
+    points_per_pixel = (points_per_pixel_x + points_per_pixel_y) / 2
+    return points_per_pixel
 
 
 def determine_figure_properties(xdim, ydim, threshold=0.15, maxsize=8):
@@ -3393,7 +3739,7 @@ def sigma_clip_ignore_nan(data, sigma=3):
         clp = sigma_clip(data, sigma=sigma)
     return clp
 
-def shift_data_get_ticks(image, minval, maxval, num_ticks=5):
+def shift_data_get_ticks(image, minval, maxval, num_ticks=5, min_range_for_logscale=1):
     """Given a multi-dimensional array along with the minimum and maximum values for the colorbar in imshow(),
     along with the desired number of ticks to add to the colorbar, shift the data in the image such that the
     minimum pixel value is 1. Then calculate values for the number of tick marks. Note that the tick mark values
@@ -3412,6 +3758,10 @@ def shift_data_get_ticks(image, minval, maxval, num_ticks=5):
 
     num_ticks : int
         Number of tick values to create
+
+    min_range_for_logscale : float
+        maxval - minval must be at least this much in order to use log scaling. If the
+        difference is less, linear scaling is used.
 
     Returns
     -------
@@ -3436,6 +3786,18 @@ def shift_data_get_ticks(image, minval, maxval, num_ticks=5):
     shifted_max = maxval - minval + 1
 
     # Generate tick labels
-    shifted_tickvals = np.logspace(np.log10(shifted_min), np.log10(shifted_max), num_ticks)
+    if shifted_max - shifted_min > min_range_for_logscale:
+        shifted_tickvals = np.logspace(np.log10(shifted_min), np.log10(shifted_max), num_ticks)
+    else:
+        shifted_tickvals = np.linspace(shifted_min, shifted_max, num_ticks)
+
     unshifted_tickvals =  shifted_tickvals + minval - 1
+
+
+    print('minval, maxval: ', minval, maxval)
+    print('shifted_min, shifted_max:', shifted_min, shifted_max)
+    print('shifted tickvals:', shifted_tickvals)
+    print('unshifted tickvals:', unshifted_tickvals)
+
+
     return shifted_image, shifted_min, shifted_max, shifted_tickvals, unshifted_tickvals

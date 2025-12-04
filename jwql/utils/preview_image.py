@@ -35,7 +35,9 @@ Use:
 """
 
 from glob import glob
+import json
 import logging
+import math
 import os
 import re
 import socket
@@ -49,6 +51,7 @@ from astropy.visualization import LinearStretch, LogStretch, MinMaxInterval, Sqr
 from astropy.visualization.mpl_normalize import ImageNormalize
 import numpy as np
 import pandas as pd
+import pysiaf
 
 from jwst import datamodels
 
@@ -59,11 +62,9 @@ from jwql.utils.utils import filesystem_path, get_config
 # Use the 'Agg' backend to avoid invoking $DISPLAY
 import matplotlib as mpl
 #matplotlib.use('Agg') - uncomment before merging!!!!!!!!!!!!!
-from matplotlib.patches import Circle  # noqa
+from matplotlib.patches import Circle, Rectangle  # noqa
 import matplotlib.pyplot as plt  # noqa
 import matplotlib.colors as colors  # noqa
-from matplotlib.colors import SymLogNorm  # noqa
-from matplotlib.ticker import AutoMinorLocator, SymmetricalLogLocator  # noqa
 from mpl_toolkits.axes_grid1 import make_axes_locatable  # no_qa
 
 if not ON_READTHEDOCS:
@@ -72,6 +73,7 @@ if not ON_READTHEDOCS:
 if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     CONFIGS = get_config()
 
+"""
 WFSS_2D_EDGES = {'nircam': {'grismr': {'f322w2': (200, 0),
                                        'f277w': (0, 150)
                                        },
@@ -83,6 +85,7 @@ WFSS_2D_EDGES = {'nircam': {'grismr': {'f322w2': (200, 0),
                             'gr150c': {}
                             }
                  }
+"""
 
 
 class PreviewImage():
@@ -863,7 +866,8 @@ class Level3PreviewImage():
     Used by``generate_preview_images``.
     """
     def __init__(self, filename, data_type=None, maxsize=8, preview_output_directory=None,
-                 create_thumbnail=False, thumbnail_output_directory=None, min_range_for_logscale=1.):
+                 create_thumbnail=False, thumbnail_output_directory=None, min_range_for_logscale=1.,
+                 wfss_nbrightest_sources=8):
         self.filename = filename
         self.data_type = data_type
         self.maxsize = maxsize
@@ -877,6 +881,7 @@ class Level3PreviewImage():
         self.figures = []
         self.wfss_source_ids = []
         self.min_range_for_logscale = min_range_for_logscale
+        self.wfss_nbrightest_sources = wfss_nbrightest_sources
 
         # Define colormap that shows NaNs as black
         self.cmap = plt.cm.viridis.copy()
@@ -963,6 +968,8 @@ class Level3PreviewImage():
             print('check s3d for nrs ifu and miri mrs')
             print('ifu 3d')
             self.nirspec_miri_ifu_s3d()
+        elif (('i2d' in self.filename) and ('mask' in self.filename)):
+            self.coron_i2d()
         elif (('i2d' in self.filename) or ('segm' in self.filename)):
             print('check i2d')
             self.i2d_file()
@@ -1660,8 +1667,200 @@ class Level3PreviewImage():
         plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
         self.figures.append(self.fig)
 
+    def coron_i2d(self):
+        """Create a preview image for coronagraphic i2d files. Show the coron image, and next to it, show the
+        associated TA image, with an optional region of interest outlined. Also add text giving the calculated
+        centroid value.
+        """
+        vmin = np.nanpercentile(self.model.data, 1)
+        vmax = np.nanpercentile(self.model.data, 99)
+
+        # If the percentile values above end up being identical, fall back to use the full range of the data
+        if vmin == vmax:
+            vmin = np.nanmin(self.model.data)
+            vmax = np.nanmax(self.model.data)
+            print(f'vmin and vmax are identical. Falling back to use full range of the data. {vmin} to {vmax}')
+
+        # Get basic figure properties
+        yd, xd = self.model.data.shape
+        aspect, colorbar_orient, figsize = \
+            determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
+                                        maxsize=self.maxsize)
+
+
+
+
+        # In order to determine how many axes to include in the figure, we need to identify all
+        # of the TA images associated with the i2d file. The TA filenames are listed in the
+        # association file. So we first locate and read that in
+        self.get_ta_filenames()
+        num_ta = len(self.ta_files)
+
+
+        print('number of ta images: ', num_ta)
+        for t in self.ta_files:
+            print(t)
+
+        # Arrange the images
+        n_files = num_ta + 1
+        ncols = 2
+        nrows = math.ceil(n_files / ncols)
+
+
+
+        print('NUM_IMG, NROWS, NCOLS:', num_ta+1, nrows, ncols)
+        #stop
+
+
+
+        figsize = (self.maxsize * 2, self.maxsize * nrows)
+        #self.fig = plt.figure(figsize=figsize)
+        #ax_i2d = plt.subplot2grid((8, 8), (0, 0), colspan=5, rowspan=5)
+        #ax_ta = plt.subplot2grid((8, 8), (1, 5), colspan=3, rowspan=3)
+
+        self.fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=figsize)
+
+        if nrows == 1:
+            axes = axes.reshape(1, -1)
+        axes = axes.flatten()
+
+        # Show the i2d file in the top left
+        ax_i2d = axes[0]
+        self.show_image_in_axis(ax_i2d, self.model.data, vmin, vmax, aspect, colorbar_orient, num_ticks=5)
+        ax_i2d.set_title(self.model.meta.filename)
+
+        # Show each of the TA images, along with the ROI, if present
+        for i, ta_file in enumerate(self.ta_files):
+            index = i + 1
+
+            ta_data = fits.getdata(ta_file)
+            ta_vmin = np.nanpercentile(ta_data, 1)
+            ta_vmax = np.nanpercentile(ta_data, 99)
+            ta_yd, ta_xd = ta_data.shape
+            ta_aspect, ta_colorbar_orient, _ = \
+            determine_figure_properties(ta_xd, ta_yd, threshold=self.threshold_for_nonsquare_pix,
+                                        maxsize=self.maxsize)
+            self.show_image_in_axis(axes[index], ta_data, ta_vmin, ta_vmax, ta_aspect, ta_colorbar_orient, num_ticks=5)
+            axes[index].set_title(os.path.basename(ta_file))
+
+            # Use pysiaf to get information about the subarray and/or ROI
+            inst_siaf = pysiaf.Siaf(self.model.meta.instrument.name)
+            ta_apername = fits.getval(ta_file, 'APERNAME', 0)
+            roi_aper = inst_siaf[ta_apername]
+
+            if self.model.meta.instrument.name.lower() == 'miri':
+                # Use the header information to get the right pySIAF aperture objects
+                readout_name = fits.getval(ta_file, 'SUBARRAY', 0)
+                readout_aper = inst_siaf["MIRIM_" + readout_name]
+
+                # Convert the corners and reference position to SCI coordinates and subtract 1 for
+                # the pixel indexing convention
+                ref_pt = readout_aper.det_to_sci(*roi_aper.reference_point("det"))
+                corners = readout_aper.det_to_sci(*roi_aper.corners("det"))
+                ref_pt = np.array(ref_pt) - 0.5
+                corners = np.array(corners) - 0.5
+
+            # Overplot the ROI for NIRCam. This will be the entire subarray, but the advantage here
+            # is that the reference location is also shown
+            elif self.model.meta.instrument.name.lower() == 'nircam':
+                corners = roi_aper.corners("sci")
+                corners = np.array(corners) - 0.5
+                ref_pt = roi_aper.reference_point("sci")
+                ref_pt = np.array(ref_pt) - 0.5
+
+            # Plot the ROI as a Rectangular patch
+            roi_box = Rectangle((corners[0][0], corners[1][0]), roi_aper.XSciSize, roi_aper.YSciSize,
+                                lw=2, edgecolor='red', facecolor='none', alpha=0.75)
+            axes[index].add_patch(roi_box)
+
+            # Show the reference location as a +
+            axes[index].scatter(ref_pt[0], ref_pt[1], color='red', marker='+', alpha=0.75)
+
+        # Hide unused subplots if odd number of images
+        for i in range(n_files, len(axes)):
+            axes[i].axis('off')
+
+        # Set text sizes
+        maxsize = self.maxsize
+        ax_i2d.set_xlabel('Pixels', fontsize=maxsize * 5. / 4)
+        ax_i2d.set_ylabel('Pixels', fontsize=maxsize * 5. / 4)
+        ax_i2d.tick_params(labelsize=maxsize)
+        #plt.rcParams.update({'axes.titlesize': 'small'})
+        plt.rcParams.update({'font.size': maxsize * 5. / 4})
+        plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+        plt.tight_layout()
+        self.figures.append(self.fig)
+
+    def get_ta_filenames(self):
+        """Get the name of the TA file associated with the level 3 file
+        """
+        asn_base = self.model.meta.asn.table_name
+        #self.asn_file = xxlocate_file_in_filesystem(asn_base)
+        self.asn_file = os.path.join('asn', asn_base)  ##need to update utils/filesystem_path()
+        self.asn_file = asn_base    ##################TEMPORARY, FOR TESTING################
+
+        # Read in association file
+        self.read_association_file()
+
+        # Get a list of contributing filenames and file types
+        self.get_level2_contributing_files()
+
+        # Get TA files
+        try:
+            self.ta_files = self.contributing_files['target_acquisition']
+        except KeyError:
+            self.ta_files = []
+
+        # Filter TA files. For NIRCam, keep only those for the detector where
+        # the TA is actually done.
+        self.filter_coron_ta_files()
+
+    def filter_coron_ta_files(self):
+        """For NIRCam coron observations, there will be files listed as "target_acquisition"
+        for all detectors. But the TA source is actually only in one detector. Filter out the
+        files for the other detectors, so that we can ignore them.
+        """
+        # Keep only the ALONG files
+        if self.model.meta.instrument.name.lower() == 'nircam':
+            self.ta_files = [element for element in self.ta_files if 'nrcalong' in element]
+
+            # Now throw out the TA_CONFIRM files, and keep only the first of the three
+            # dithers in the TA files.
+            ta_only = []
+            for file in self.ta_files:
+                header = fits.getheader(file)
+                if ((header['EXP_TYPE'] == 'NRC_TACQ') and (header['EXPOSURE'] == '1')):
+                    ta_only.append(file)
+            self.ta_files = ta_only
+
+
+    def read_association_file(self):
+        """
+        """
+        # Read in the association file
+        with open(self.asn_file) as obj:
+            self.asn = json.load(obj)
+
+    def get_level2_contributing_files(self):
+        """
+        """
+        self.contributing_files = {}
+        for element in self.asn['products'][0]['members']:
+            try:
+                full_path = filesystem_path(element['expname'], check_existence=True)
+            except FileNotFoundError:
+                #continue
+                full_path = filesystem_path(element['expname'], check_existence=False)  # for testing. REMOVE BEFORE MERGE
+            if element['exptype'] in self.contributing_files:
+                self.contributing_files[element['exptype']].append(full_path)
+            else:
+                self.contributing_files[element['exptype']] = [full_path]
+
+
     def show_image_in_axis(self, axis, image, disp_min, disp_max, aspect, colorbar_orient, num_ticks=5, colorbar_pad=0.5,
-        colorbar_labelpad={'vertical': 15, 'horizontal': 7}, add_colorbar=True, override_unit=None):
+        colorbar_labelpad={'vertical': 15, 'horizontal': 7}, add_colorbar=True, override_unit=None, extent_shift=[0, 0]):
         """
         """
         shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(image, disp_min, disp_max, num_ticks=num_ticks,
@@ -1674,13 +1873,16 @@ class Level3PreviewImage():
             norm = colors.Normalize(vmin=shiftmin, vmax=shiftmax)
 
         # Image object
+        height, width = image.shape
         cax = axis.imshow(shiftdata,
                           norm=norm,
                           cmap=self.cmap,
-                          aspect=aspect)
+                          aspect=aspect,
+                          origin='lower',
+                          extent=[extent_shift[0], extent_shift[0] + width, extent_shift[1], extent_shift[1] + height])
 
         # Invert y axis in all cases
-        axis.invert_yaxis()
+        #axis.invert_yaxis()
 
         # If no colorbar is to be added, then we're done
         if not add_colorbar:
@@ -2089,7 +2291,7 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_idx = self.find_brightest_wfss_sources(nbrightest=8)
+        bright_idx = self.find_brightest_wfss_sources()
         self.wfss_source_ids = []
 
 
@@ -2690,15 +2892,10 @@ class Level3PreviewImage():
 
         return ax, imi2d
 
-    def find_brightest_wfss_sources(self, nbrightest=10):
+    def find_brightest_wfss_sources(self):
         """Determine the `nsources` brightest sources in the WFSS file. Do this using the
         mean value. Work on only the model.spec[0].spec_table. Note that if there are dithers,
         the source may not be present in all extensions.
-
-        Parameters
-        ----------
-        nbrightest : int
-            Number of brightest sources to keep
 
         Returns
         -------
@@ -2709,25 +2906,9 @@ class Level3PreviewImage():
 
         num_sources = self.model.spec[0].spec_table.shape[0]
 
-
-        print('\n\n\nWhile looking for brightest sources')
-
-
         medians = []
         sources = []
         for source in range(num_sources):
-
-
-            # Not sure how to compare flux vs surf_bright to determine which sources are brightest
-            # Can probably just look at surf_bright for everyone and find the brightest there.
-            #source_type = self.model.spec[0].spec_table.SOURCE_TYPE[source]
-            #if source_type == 'EXTENDED':
-            #    flux_col = 'SURF_BRIGHT'
-            #elif source_type == 'POINT':
-            #    flux_col = 'FLUX'
-            ##flux_units = self.model.spec[0].spec_table.columns[flux_col].unit
-
-
 
             # Ignore sources where the source_id is empty, which indicates a larger problem.
             if self.model.spec[0].spec_table['SOURCE_TYPE'][source] != '':
@@ -2736,18 +2917,7 @@ class Level3PreviewImage():
                 print(source, self.model.spec[0].spec_table["SOURCE_ID"][source], medians[-1])
 
         idxs = np.argsort(medians)[::-1]
-        brightest = np.array(sources)[idxs][0:nbrightest]
-
-        #print(f'               BRIGHTEST INDEXES:         {brightest}')
-
-        #print(f'first, check medians: {np.array(medians)[brightest]}')
-        #print(f'next, src brightness:')
-        #print(f"{[np.nansum(self.model.spec[0].spec_table['SURF_BRIGHT'][source, :] for source in brightest)]}")
-
-        #print('check source ids')
-        #print([self.model.spec[0].spec_table.SOURCE_ID[idx] for idx in brightest])
-        #stop
-
+        brightest = np.array(sources)[idxs][0:self.wfss_nbrightest_sources]
 
         return brightest
 

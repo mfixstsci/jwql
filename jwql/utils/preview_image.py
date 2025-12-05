@@ -882,6 +882,7 @@ class Level3PreviewImage():
         self.wfss_source_ids = []
         self.min_range_for_logscale = min_range_for_logscale
         self.wfss_nbrightest_sources = wfss_nbrightest_sources
+        self.figures_created = True
 
         # Define colormap that shows NaNs as black
         self.cmap = plt.cm.viridis.copy()
@@ -954,9 +955,10 @@ class Level3PreviewImage():
         elif ('psfstack' in self.filename or 'psfalign' in self.filename or 'psfsub' in self.filename):
             self.psfstack_file()
         else:
-            print('NOT PROCESSED')
+            self.figures_created = False
 
         self.save_figures()
+
 
     def ami_preview(self):
         """Given a AmiOIModel datamodel instance, create a preview image. This function was

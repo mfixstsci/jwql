@@ -867,7 +867,7 @@ class Level3PreviewImage():
     """
     def __init__(self, filename, data_type=None, maxsize=8, preview_output_directory=None,
                  create_thumbnail=False, thumbnail_output_directory=None, min_range_for_logscale=1.,
-                 wfss_nbrightest_sources=8):
+                 wfss_nbrightest_sources=2):
         self.filename = filename
         self.data_type = data_type
         self.maxsize = maxsize
@@ -913,65 +913,48 @@ class Level3PreviewImage():
 
 
         if 'x1dints' in self.filename:
-            print('check x1dints')
             # Time Series data from NIRCAM
             if self.exp_type == 'NRC_TSGRISM':
-                print('nrc_tsgrism x1dints')
                 self.tso_x1dints_plot()
             elif self.exp_type == 'MIR_LRS-SLITLESS':
-                print('miri lrs slitless')
                 # Make sure we support both old and new file formats
                 #try:
                 #    self.miri_lrs_slitless_x1dints_plot_old_format()
                 #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
             elif self.exp_type == 'NIS_SOSS':
-                print('niriss soss')
                 self.niriss_soss_plot()
             elif self.exp_type == 'NRS_BRIGHTOBJ':
-                print('nirspec bright obj')
                 #try:
                 #    self.miri_lrs_slitless_x1dints_plot_old_format()
                 #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
         elif self.exp_type == 'NIS_AMI':
-            print('check ami')
             if 'amilg' in self.filename:
                 self.amilg_preview()
             elif 'ami-oi' in self.filename or 'aminorm-oi' in self.filename:
                 self.ami_preview()
         elif 'whtlt.ecsv' in self.filename or 'phot.ecsv' in filename:
-            print('check whitelight')
             self.tso_whitelight_curve()
         elif self.exp_type in ['NRS_FIXEDSLIT', 'MIR_LRS-FIXEDSLIT'] and ('cal' in self.filename or
                                                                           'crf' in self.filename or
                                                                           's2d' in self.filename):
-            print('check fixed slit')
-            print('fixed slit 2d')
             self.fixed_slit_cal_crf_s2d()
         elif 'x1d' in self.filename and self.exp_type in ['NRS_FIXEDSLIT',
                                                           'NRS_IFU',
                                                           'MIR_LRS-FIXEDSLIT'
                                                           ]:
-            print('check x1d for fixedslit, ifu')
-            print('fixed slit 1d')
             #self.miri_nirspec_fixed_slit_or_ifu_x1d()
             self.miri_lrs_fixed_slit_nirspec_ifu_x1d()
         elif 'x1d' in self.filename and self.exp_type == 'MIR_MRS':
-            print('check x1d for mrs')
-            print('MIRI MRS file')
             self.miri_mrs_x1d()
         elif ('x1d' in self.filename or 'c1d' in self.filename) and self.exp_type in ['NRC_WFSS', 'NIS_WFSS', 'MIRI_WFSS']:
-            print('check x1d for wfss')
             self.wfss_x1d()
         elif 's3d' in self.filename and self.exp_type in ['NRS_IFU', 'MIR_MRS']:
-            print('check s3d for nrs ifu and miri mrs')
-            print('ifu 3d')
             self.nirspec_miri_ifu_s3d()
         elif (('i2d' in self.filename) and ('mask' in self.filename)):
             self.coron_i2d()
         elif (('i2d' in self.filename) or ('segm' in self.filename)):
-            print('check i2d')
             self.i2d_file()
         elif ('psfstack' in self.filename or 'psfalign' in self.filename or 'psfsub' in self.filename):
             self.psfstack_file()
@@ -1031,21 +1014,17 @@ class Level3PreviewImage():
     def amilg_preview(self):
         """Plot data, model, and residual from amilg.fits file
         """
-        # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
-
         # Plot the data, model, residual
         norm = ImageNormalize(self.model.norm_centered_image[0],
                               interval=MinMaxInterval(),
                               stretch=SqrtStretch())
         fig, axs = plt.subplots(1, 3, figsize=(12, 5))
         axs[0].set_title('Normalized Data')
-        im1 = axs[0].imshow(self.model.norm_centered_image[0], norm=norm, cmap=cmap)
+        im1 = axs[0].imshow(self.model.norm_centered_image[0], norm=norm, cmap=self.cmap)
         axs[1].set_title('Normalized Model')
-        im2 = axs[1].imshow(self.model.norm_fit_image[0], norm=norm, cmap=cmap)
+        im2 = axs[1].imshow(self.model.norm_fit_image[0], norm=norm, cmap=self.cmap)
         axs[2].set_title('Normalized Residual (Data-Model)')
-        im3 = axs[2].imshow(self.model.norm_resid_image[0], cmap=cmap)
+        im3 = axs[2].imshow(self.model.norm_resid_image[0], cmap=self.cmap)
 
         for im in [im1, im2, im3]:
             plt.colorbar(im, shrink=.95, location='bottom', pad=.05)
@@ -1835,7 +1814,6 @@ class Level3PreviewImage():
                     ta_only.append(file)
             self.ta_files = ta_only
 
-
     def read_association_file(self):
         """
         """
@@ -1881,9 +1859,6 @@ class Level3PreviewImage():
                           origin='lower',
                           extent=[extent_shift[0], extent_shift[0] + width, extent_shift[1], extent_shift[1] + height])
 
-        # Invert y axis in all cases
-        #axis.invert_yaxis()
-
         # If no colorbar is to be added, then we're done
         if not add_colorbar:
             return cax
@@ -1915,9 +1890,7 @@ class Level3PreviewImage():
             # they are tall but still reasonably close to square, put the colorbar on the right
             # side of the image.
             cax_colorbar = divider.append_axes("right", size=colorbar_size, pad=colorbar_pad)
-
             cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
-
             cbar.ax.yaxis.minorticks_off()
             cbar.ax.set_yticklabels(tlabelstr)
             cbar.ax.set_ylabel(units, labelpad=colorbar_labelpad[colorbar_orient], rotation=270)
@@ -1926,9 +1899,7 @@ class Level3PreviewImage():
             # For apertures that are significantly wider than they are tall, put the colorbar
             # under the image.
             cax_colorbar = divider.append_axes("bottom", size=colorbar_size, pad=colorbar_pad)
-
             cbar = self.fig.colorbar(cax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
-
             cbar.ax.xaxis.minorticks_off()
             cbar.ax.set_xticklabels(tlabelstr)
             cbar.ax.set_xlabel(units, labelpad=colorbar_labelpad[colorbar_orient], rotation=0)
@@ -1955,8 +1926,6 @@ class Level3PreviewImage():
         ax.set_xlabel('Time (MJD)')
         ax.set_ylabel(flux_key)
         ax.set_title(f'{os.path.basename(self.filename)}: {self.metadata["target_name"]}, {self.metadata["number_of_integrations"]} ints')
-        #plt.show()
-        #self.fig.close()
         self.figures.append(self.fig)
 
     def tso_whitelight_curve(self):
@@ -1981,8 +1950,6 @@ class Level3PreviewImage():
             flux_keys = ['net_aperture_sum']
 
         # --------------------------Set up figures--------------------------
-        #self.fig, axes = plt.subplots(2, 1, figsize=(15, 10), height_ratios=[1, 2])
-
         xfigsize = 12
         yfigsize = 8 + (len(flux_keys) - 1) * 4.2
         self.fig, axes = plt.subplots(ncols=1, nrows=len(flux_keys), figsize=(xfigsize, yfigsize))
@@ -2064,30 +2031,6 @@ class Level3PreviewImage():
                                             integration_indices[indices]])
             plt.tight_layout()
 
-
-        #axlc.set_title(f"{os.path.basename(self.filename)}: White Light Curve", fontsize=12)
-        #axlc.legend(loc="lower right")
-        #axlc.set_xlabel("Time since mid-exposure, (hr)", fontsize=15)
-        #axlc.set_ylabel("Normalized flux", fontsize=15)
-
-        # Add secondary x-axis for integration indices
-        #integration_indices = np.arange(n_spec)
-        #tick_positions = np.linspace(time_axis.min(),
-        #                             time_axis.max(),
-        #                             len(integration_indices))
-        #axlc_secondary = axlc.secondary_xaxis('top')
-        #axlc_secondary.set_xlabel("Integration Index", fontsize=12)
-
-
-        #count = min(10, len(tick_positions))
-        #indices = np.linspace(0, len(tick_positions) - 1, count, dtype=int)
-        #axlc_secondary.set_xticks(tick_positions[indices])
-        #axlc_secondary.set_xticklabels([f"{int(idx)}" for idx in
-        #                                integration_indices[indices]])
-
-        #axlc_secondary.set_xticks(tick_positions[::len(tick_positions) // 10])
-        #axlc_secondary.set_xticklabels([f"{int(idx)}" for idx in
-        #                                integration_indices[::len(integration_indices) // 10]])
         self.figures = [self.fig]
 
 
@@ -2119,37 +2062,7 @@ class Level3PreviewImage():
             order = cal_orders[source_idx]
             cal_ex_orders[order] = source_idx + 1  # Add 1 to account for the primary header
 
-
-        print('\n\n\n')
-        print(cal_hdu[0].header['FILENAME'])
-        print(f'Looking for {source_id}')
-        print(cal_ex_orders)
-        print('\n')
-        print(source_idxs)
-        print('\n\n\n')
-
-
         return cal_ex_orders
-
-        """
-        cal_ex_o1 = np.where((cal_source_ids == source_id) & (cal_orders == 1))[0] + 1
-        cal_ex_o2 = np.where((cal_source_ids == source_id) & (cal_orders == 2))[0] + 1
-
-
-        print(f'extensions are: ', cal_ex_o1, cal_ex_o2)
-        if len(cal_ex_o1) == 1:
-            print(cal_hdu[cal_ex_o1[0]].header['SOURCEID'])
-
-        if len(cal_ex_o1) > 0:
-            cal_ex_o1 = cal_ex_o1[0]
-        else:
-            cal_ex_o1 = -999
-        if len(cal_ex_o2) > 0:
-            cal_ex_o2 = cal_ex_o2[0]
-        else:
-            cal_ex_o2 = -999
-        return (cal_ex_o1, cal_ex_o2)
-        """
 
     def get_wfss_cal_data(self, hdulists, source_num):
         """Find and extract the 2D spectrum from the WFSS cal file for a given source ID
@@ -2167,18 +2080,7 @@ class Level3PreviewImage():
         cal_data : numpy.ndarray
             2D extracted spectrum corresponding to source_num
         """
-        # Find the cal file extension where the 2D spectrum is located.
-        # Get the cal data if the source is present
-        #cal_data = None
-        #cal_width = 0
-        #cal_name = ''
-        #cal_ext = -999
-        #cal_order = -999
-        #cal_units = ''
-
-        #cal_info = {'order': {'data': None, 'width': 0, 'name': '', 'ext': -999, 'units': ''}}
         cal_info = {}
-
 
         print(f'Found {len(hdulists)} hdulists')
         print([hdulists[ii][0].header['FILENAME'] for ii in range(len(hdulists))])
@@ -2198,11 +2100,6 @@ class Level3PreviewImage():
             # orders.
             for order, ext in source_exts.items():
                 if ext != -999:
-
-
-                    print('in get_Wfss_cal_data: order and ext are: ', order, ext)
-
-
                     if order not in cal_info:
                         cal_info[order] = {'data': None, 'width': 0, 'name': '', 'ext': -999, 'units': '', 'source_id': -999}
 
@@ -2221,7 +2118,7 @@ class Level3PreviewImage():
                         # If the dispersion direction is along columns, transpose in
                         # order to make plotting easier.
                         if dispersion_direction == 2:
-                            data = np.transpose(data)
+                            data = np.fliplr(np.transpose(data))
 
                         # NIRISS data are dispersed in the -x direction, so flip the
                         # 2D cutout horizontally so that the wavelength direction will
@@ -2301,11 +2198,6 @@ class Level3PreviewImage():
 
 
 
-        #print(self.model.spec[0].spec_table.SOURCE_ID)
-        #print(self.model.spec[0].spec_table.SOURCE_ID[bright_idx])
-
-
-
         # Get the corresponding cal file data
         if '-' in self.model.meta.filename:
             if 'x1d' in self.model.meta.filename:  # Stage 3 x1d file
@@ -2328,12 +2220,8 @@ class Level3PreviewImage():
 
 
 
-            ##### TEST TEST TEST
-            ### manually add blong files, which are not in the cal file list
-            #print('\n\n\n\n\n\n\n############## IS THIS A PIPELINE BUG??  JIRA JP-4188 #####################\n\n\n\n\n\n')
-            #cal_files = sorted(cal_files + [fname.replace('along', 'blong') for fname in cal_files])
-            #print(f'Now cal files are: ', cal_files)
 
+            #Manually add files for both detectors, which may not in the cal file list
             # Deal with this bug by checking for the existence of A mod and B mod versions of all
             # cal files, regardless of which are in the filename metadata (only for NIRCam)
             if 'nircam' in self.model.meta.filename:
@@ -2361,10 +2249,6 @@ class Level3PreviewImage():
 
         cal_hdus = [fits.open(cal_file) for cal_file in cal_files]
 
-        # Define colormap that shows NaNs as black
-        cmap = plt.cm.viridis.copy()
-        cmap.set_bad(color='black')
-
         for idx in bright_idx:
             # Dictionary to hold all the 1D spectra
             spec1d = {}
@@ -2373,7 +2257,6 @@ class Level3PreviewImage():
 
             # Find the cal file extension where the 2D spectrum is located.
             # Get the cal data if the source is present
-            #cal_data, cal_name, cal_ext, cal_order, cal_units = self.get_wfss_cal_data(cal_hdus, source_id)
             cal_info = self.get_wfss_cal_data(cal_hdus, source_id)
 
             # Determine the source type and which flux units to use
@@ -2409,27 +2292,16 @@ class Level3PreviewImage():
                     if flux_col == 'FLUX':
                         fluxes = Fnu_to_Flam(np.array(row['WAVELENGTH']), np.array(row[flux_col]))
 
-
-                        #print('row len: ', len(row['WAVELENGTH']), len(row[flux_col]))
-
-
-
-                    #print('appended lengths: ', self.model.spec[exten].spectral_order, len(fluxes), len(np.array(row['WAVELENGTH'])))
-
                     spec1d['order'].append(self.model.spec[exten].spectral_order)
                     spec1d['flux'].append(fluxes)
                     spec1d['wavelength'].append(np.array(row['WAVELENGTH']))
 
-
-
-
-            print(f'spec1d sizes for order, flux, wavelength: {len(spec1d["order"])}, {len(spec1d["flux"])}, {len(spec1d["wavelength"])},')
             for ordernum, flu, wav in zip(spec1d["order"], spec1d["flux"], spec1d["wavelength"]):
                 status = 'OK'
                 if len(flu) != len(wav):
                     status = "MISMATCH IN LENGTHS!"
                 print(ordernum, len(flu), len(wav), status)
-            print('')
+
 
 
             # Remove any entries where e.g. the 2nd order data are all NaN
@@ -2447,12 +2319,6 @@ class Level3PreviewImage():
             figsize = (12, 8 + (len(orders) - 1) * 8)
             nrows = 2 + (len(orders) - 1) * 2
             self.fig = plt.figure(figsize=figsize)
-            #ax_i2d = plt.subplot2grid((3, 3), (0, 0))
-            #ax_2dspec = plt.subplot2grid((3, 3), (0, 1), colspan=2)
-            #ax_1d_o1 = plt.subplot2grid((3, 3), (1, 0), colspan=3)
-            #ax_1d_o2 = plt.subplot2grid((3, 3), (2, 0), colspan=3)
-
-
             ax_i2d = plt.subplot2grid((nrows, 3), (0, 0))
             ax_2d_a = plt.subplot2grid((nrows, 3), (0, 1), colspan=2)
             ax_1d_a = plt.subplot2grid((nrows, 3), (1, 0), colspan=3)
@@ -2478,28 +2344,20 @@ class Level3PreviewImage():
                 order_b = orders[1]
                 num_b = len(np.where(np.array(spec1d['order']) == order_b)[0])
 
-            #num_o1 = len(np.where(np.array(spec1d['order']) == 1)[0])
-            #num_o2 = len(np.where(np.array(spec1d['order']) == 2)[0])
             for i in range(len(spec1d['order'])):
                 if spec1d['order'][i] == order_a:
                     ax_tmp = ax_1d_a
-                    #alpha = 1. / num_a
-                    #if alpha < 1:
-                    #    alpha *= 2
                 elif spec1d['order'][i] == order_b:
                     ax_tmp = ax_1d_b
-                    #alpha = 1. / num_b
-                    #if alpha < 1:
-                    #    alpha *= 2
                 else:
                     raise ValueError(f'Encountered unsupported spectral order {spec1d["order"][i]}')
 
+                # If overplotting mulitple spectra, lower the alpha so that all will be visible
                 alpha = 1.
                 if num_a > 1:
                     alpha = 0.5
 
                 # Plot the 1D spectrum
-                print(f'idx is {idx}. i in ax_tmp.plot:', i)
                 ax_tmp.plot(spec1d['wavelength'][i], spec1d['flux'][i], alpha=alpha, ds='steps-mid')
 
             first = np.where(np.array(spec1d['order']) == order_a)[0][0]
@@ -2511,31 +2369,21 @@ class Level3PreviewImage():
             ax_1d_a.set_ylabel(f'{flux_units}')
             ax_1d_a.set_ylim(ylower_a, yupper_a)
 
-            # Show the 2D extracted spectrum
-            # Clip brightest and dimmest 1% of pixels to find min and max values
-            # Throw out the outermost 4 rows on each side when determining colormap
-            # scaling, just in case they are reference pixels
-            #cal_vmin = np.nanpercentile(cal_data[4:-4, 4:-4], 1)
-            #cal_vmax = np.nanpercentile(cal_data[4:-4, 4:-4], 99)
 
+            # Customize the area used to determine scaling based on instrument, filter, etc.
             exclude_cols = 4
             exclude_rows = 4
             cal_ydim, cal_xdim = cal_info[order_a]['data'].shape
-
 
             if cal_xdim > cal_ydim:
                 exclude_cols = cal_xdim // 3
             else:
                 exclude_row = cal_ydim // 3
 
-
             if cal_ydim < 10:
                 exclude_rows = 1
             if cal_xdim < 10:
                 exclude_cols = 1
-
-            # In here, we can customize the area used to determine scaling based on instrument, filter, etc.
-
 
             cal_vmin_a = np.nanpercentile(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols], 1)
             cal_vmax_a = np.nanpercentile(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols], 99)
@@ -2546,21 +2394,13 @@ class Level3PreviewImage():
                 cal_vmin_a = np.nanmin(cal_info[order_a]['data'])
                 cal_vmax_a = np.nanmax(cal_info[order_a]['data'])
 
-            #print('cal_vmin_a and cal_vmax_a, the straight min and max of the data are:')
-            #print(np.nanmin(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols]), np.nanmax(cal_info[order_a]['data'][exclude_rows:-exclude_rows, exclude_cols:-exclude_cols]))
-            #print(cal_info[order_a]['data'].shape)
-
-
-
-            # In 1076 o105, the left-most ~150 columns of the 2d extracted boxes was often very noisy. would be best if that didn't drive
-            # the scaling range. But will this vary with e.g. filter?
 
 
 
 
             ###### BLOCK BELOW WORKS. CAN WE REPLACE WITH 2 CALLS TO show_image_in_axis?????
             #######
-
+            ##### SOME REDUNDANT CODE. CAN BE CLEANED UP AND SHORTENED
 
 
 
@@ -2592,44 +2432,6 @@ class Level3PreviewImage():
 
             cbar.ax.yaxis.minorticks_off()
             cbar.ax.set_yticklabels(tlabelstr)
-
-
-
-
-
-
-            """
-            ax_2d_a = self.show_image_in_axis(ax_2d_a, cal_info[order_a]['data'], cal_vmin_a, cal_vmax_a, "auto", "vertical", num_ticks=5)
-            ax_2d_a.set_xlabel('Pixel')
-            ax_2d_a.set_ylabel('Pixel')
-            ax_2d_a.set_title(f"{cal_info[order_a]['name']}, Source {cal_info[order_a]['source_id']}, Ext {cal_info[order_a]['ext']}, Order {order_a}")
-            """
-
-
-
-
-
-            # Use to determine linearly scaled signals
-            #clipped_a = sigma_clip_ignore_nan(cal_info[order_a]['data'])
-
-            # Find sigma-clipped standard deviation of the data
-            #dev_a = np.std(clipped_a)
-
-            # Use SymLogNorm with a linear region around zero
-            #norm_a = SymLogNorm(linthresh=dev_a/1000., vmin=cal_vmin_a, vmax=cal_vmax_a)
-            #im2d_a = ax_2d_a.imshow(cal_info[order_a]['data'], norm=norm_a, cmap=cmap, origin='lower', aspect='auto')
-            #ax_2d_a.set_xlabel('Pixel')
-            #ax_2d_a.set_ylabel('Pixel')
-            #ax_2d_a.set_title(f'{cal_name}, Ext {cal_ext}, Order {cal_order}')
-            #ax_2d_a.set_title(f"{cal_info[order_a]['name']}, Source {cal_info[order_a]['source_id']}, Ext {cal_info[order_a]['ext']}, Order {order_a}")
-
-            # Add colorbar
-            # Create a separate axes for the colorbar, right next to the image
-            #divider = make_axes_locatable(ax_2d_a)
-            #cax_2d = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
-            #self.fig.colorbar(im2d_a, cax=cax_2d, label=cal_info[order_a]['units'])
-
-
 
             if len(orders) == 2:
                 first = np.where(np.array(spec1d['order']) == order_b)[0][0]
@@ -2879,16 +2681,6 @@ class Level3PreviewImage():
 
         cbar.ax.yaxis.minorticks_off()
         cbar.ax.set_yticklabels(tlabelstr)
-        #cbar.ax.set_ylabel(colorbar_units, labelpad=15, rotation=270)
-
-
-        # Add colorbar
-        # Create a separate axes for the colorbar, right next to the image
-        #divider = make_axes_locatable(ax)
-        #cax = divider.append_axes("right", size="5%", pad=0.05)  # thickness=5%, gap=0.05
-        #self.fig.colorbar(imi2d, cax=cax, label=i2d[1].header['BUNIT'])
-
-        #cbar_i2d = self.fig.colorbar(imi2d, ax=ax, orientation="vertical", label=i2d[1].header['BUNIT'], pad=0.01)
 
         return ax, imi2d
 
@@ -2962,10 +2754,6 @@ class Level3PreviewImage():
         one self.model.spec extension, and the flux and wavelength data within
         that extension is 1-dimensional.
         """
-
-        print('In miri_mrs_x1d')
-
-
         self.fig, ax = plt.subplots(ncols=1, nrows=2, figsize=(self.maxsize, self.maxsize * 1.5))
 
         flux_type = 'RF_FLUX'
@@ -3002,7 +2790,6 @@ class Level3PreviewImage():
         ax[0].set_ylabel(f'Flux ({self.flux_units})')
         ax[0].legend()
         ax[0].set_ylim(vmin, vmax)
-        #self.fig.suptitle(f'{self.model.meta.filename}')
         ax[0].set_title(f'{self.model.meta.filename}\n{targname}')
 
         # Locate any other related x1d files that are related. If others are found, plot
@@ -3012,26 +2799,12 @@ class Level3PreviewImage():
 
         if len(x1dfiles) > 1:
             vmin, vmax = np.nan, np.nan
-            #fluxes = []
-            #wavelengths = []
-            #channels = []
             for x1dfile in x1dfiles:
 
                 mod = datamodels.open(x1dfile)
                 flux = mod.spec[0].spec_table[use_flux]
                 waves = mod.spec[0].spec_table.WAVELENGTH
                 channel_band = f'{mod.meta.instrument.channel} {mod.meta.instrument.band}'
-
-                # MRS x1d files have both regular ('flux') and residual-fringe (RF) corrected ('rf_flux') spectra.
-                # The RF-corrected spectra will have NaN values if RF correction was disabled or failed to converge.
-                # Plot the RF corrected spectrum if available, otherwise plot the regular spectrum.
-                if (np.nansum(flux == 0) or np.all(np.isnan(flux))):
-                    print(f'{x1dfile} flux is all NaN, using FLUX')
-                #    flux = mod.spec[0].spec_table.RF_FLUX
-
-                #fluxes.append(flux)
-                #wavelengths.append(waves)
-                #channels.append(channel_band)
 
                 # Determine plot range
                 clipped = sigma_clip_ignore_nan(flux, sigma=9)
@@ -3052,13 +2825,6 @@ class Level3PreviewImage():
                         vfilemax *= 1.1
                     else:
                         vfilemax *= 0.9
-
-
-
-                print('file, vmin, vmax:', x1dfile, vfilemin, vfilemax)
-                print('current vmin, vmax:', vmin, vmax)
-
-
 
                 vmin = np.nanmin([vmin, vfilemin])
                 vmax = np.nanmax([vmax, vfilemax])
@@ -3098,9 +2864,7 @@ class Level3PreviewImage():
         ax.plot(waves, flux, color='blue')
         ax.set_xlabel(f'Wavelength ({self.wavelength_units})')
         ax.set_ylabel(f'Flux ({self.flux_units})')
-        #ax.legend()
         ax.set_ylim(vmin, vmax)
-        #self.fig.suptitle(f'{self.model.meta.filename}')
         ax.set_title(f'{self.model.meta.filename}\n{targname}')
 
         self.figures.append(self.fig)
@@ -3172,22 +2936,6 @@ class Level3PreviewImage():
             centery = x1dheader['EXTR_Y']
             source_type = x1dheader['SRCTYPE']
 
-
-            print('centerx,y from x1d file: ', centerx, centery)
-
-
-            #check what happens when you use the ra,dec to get a pixel x,y. im not sure if extr_x,y are in the s3d coord system, or the unrectified coord system
-            #this seems to agree with the centerx,y values from the x1d file, although those from the x1d file are rounded to integer values.
-            #world_to_detector = s3d_model.meta.wcs.get_transform('world', 'detector')
-            #centerx, centery, _ = world_to_detector(s3d_model.meta.target.ra, s3d_model.meta.target.dec, 3.25)
-
-
-            #print('centerx,y from 3dd file WCS: ', centerx, centery)
-
-            # We will need to convert the circle radius from units of image pixels to
-            # screen points
-            #points_per_pixel = get_screen_points_per_image_pixel(self.fig, ax_s3d)
-
             if source_type == 'POINT':
                 # Find the median number of pixels in the aperture, using the table
                 median_numpix = np.nanmedian(self.model.spec[0].spec_table["NPIXELS"])
@@ -3201,33 +2949,15 @@ class Level3PreviewImage():
                                 fill=False, edgecolor='red', linewidth=2)
                 ax_s3d.add_patch(circle)
 
-                # Convert radius to scatter size (scatter uses area = size in points^2)
-                #radius_points = aperture_radius * points_per_pixel
-                #scatter_size = radius_points ** 2
             else:
                 # For extended sources, the entire aperture is extracted to create the 1D spectrum,
                 # so we use a square marker and set it to the width of the array
-                #marker = 's' or rectangle???
-
-                #half_width = s3d_model.data.shape[0]
-
-                # Convert the half-width from image pixel units to screen units
-                #half_width_points = half_width * points_per_pixel
-                #scatter_size = half_width_points**2
-
-                from matplotlib.patches import Rectangle
-                print('s3d shape:', s3d_model.data.shape)
                 rect = Rectangle((0, 0), s3d_model.data.shape[2] - 1, s3d_model.data.shape[1] - 1,
                                  linewidth=2, edgecolor='red', facecolor='none')
                 ax_s3d.add_patch(rect)
 
-
-            # Overlay a circle indicating the area used to create the 1D spectrum
-            #ax_s3d.scatter(centerx, centery, marker=marker, s=scatter_size, facecolors='None', edgecolors='blue', alpha=0.9)
-
             # Say what the circle or rectangle represents
             ax_s3d.annotate('Summed aperture', (1, 1), fontsize=12, color='red')
-
 
         else:
             # In this case the s3d file is not present, so just show the 1D spectral plot
@@ -3244,13 +2974,6 @@ class Level3PreviewImage():
     def fixed_slit_cal_crf_s2d(self):
         """Create preview image for NIRSpec or MIRI fixed slit cal, crf, and s2d files
         """
-        # Modify fig size based on number of nods
-        #figure_size = {'1': (12, 4),
-        #               '2': (12, 6),
-        #               '3': (12, 8),
-        #               '5': (12, 12)
-        #               }
-
         # MIRI slits are presented vertically in the data, while NIRSpec slits are
         # presented horizontally. If we have a MIRI file, we need to essentially swap
         # x and y figure size, orientation, etc
@@ -3268,15 +2991,20 @@ class Level3PreviewImage():
                 colorbar_orient = "vertical"
 
             arrs = [self.model.exposures[i].data for i in range(num_nods)]
-            titles = [f'Nod {i}' for i in range(num_nods)]
-            titles[0] = f'{self.model.meta.filename}: Nod 0'
+            titles = [f'{self.model.exposures[i].meta.instrument.detector}: Nod {self.model.exposures[i].meta.dither.position_number}' for i in range(num_nods)]
 
             # Clip brightest and dimmest 1% of pixels to find min and max values
             vmin = np.nanpercentile(self.model.exposures[0].data, 1)
             vmax = np.nanpercentile(self.model.exposures[0].data, 99)
 
-            # Use to determine linearly scaled signals
-            #clipped = sigma_clip_ignore_nan(self.model.exposures[0].data)
+            # For NIRSpec data, group the plots by detector
+            if self.model.meta.instrument.name.lower() == 'nirspec':
+                srt = np.argsort(np.array(titles))
+                titles = list(np.array(titles)[srt])
+                arrs = [arrs[i] for i in srt]
+
+            # Add the filename to the title of the top-most plot
+            titles[0] = f'{self.model.meta.filename}\n{titles[0]}'
 
         elif 's2d' in self.model.meta.filename:
             num_nods = 1
@@ -3296,25 +3024,9 @@ class Level3PreviewImage():
             vmin = np.nanpercentile(self.model.data, 1)
             vmax = np.nanpercentile(self.model.data, 99)
 
-            # Use to determine linearly scaled signals
-            #clipped = sigma_clip_ignore_nan(self.model.data)
-
-        # Find sigma-clipped standard deviation of the data
-        #dev = np.std(clipped)
-
-        # Use SymLogNorm with a linear region around zero
-        #norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
-
-        # Create figure with 3 stacked subplots
-
-
-        print('vmin, vmax: ', vmin, vmax)
-
-
+        # Create figure
         self.fig, axes = plt.subplots(nrows=num_nods, ncols=1, figsize=figsize)#, constrained_layout=True)
         plt.tight_layout(pad=4.0)
-        #plt.subplots_adjust(hspace=0.5)
-        #self.fig.set_layout_engine('constrained')
 
         if inst == 'miri':
             self.fig, axes = plt.subplots(nrows=1, ncols=num_nods, figsize=figsize)#, constrained_layout=True)
@@ -3332,102 +3044,14 @@ class Level3PreviewImage():
             self.model.meta.bunit_data = fits.getheader(self.filename, 1)['BUNIT']
 
         for ax, arr, title in zip(axes, arrs, titles):
-
-
-
-
-            # Get tick values and labels
-            #shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(arr, vmin, vmax, num_ticks=5)
-            #tlabelstr = formatted_tick_labels(tlabelflt)
-
-
-
-
-
             colorbar_labelpad={'vertical': 15, 'horizontal': 3}
-            #im = ax.imshow(arr, cmap=self.cmap, norm=norm, aspect=aspect)
-            # Turn off the colorbars for the individual axes
+
+            # Show an image in each axis
             self.show_image_in_axis(ax, arr, vmin, vmax, aspect, colorbar_orient, num_ticks=5, colorbar_pad=0.5, colorbar_labelpad=colorbar_labelpad)
             ax.set_title(title)
             ax.set_xlabel("Pixels")
             ax.set_ylabel("Pixels")
-            #ax.invert_yaxis()
 
-        # Choose symmetric ticks around zero for the colorbar
-        #pos_ticks = np.logspace(np.log10(vmax) - 3, np.log10(vmax*1.01), 4)
-        #neg_ticks = np.logspace(np.log10(-vmin) - 3, np.log10(-vmin), 4)
-        #ticks = np.concatenate([-neg_ticks[::-1], np.array([0]), pos_ticks])
-
-
-
-
-
-
-
-
-
-        # For preview images, add colorbar, and create tick labels for it
-        #ysize, xsize = image.shape
-
-        #xyratio = xsize / ysize
-
-        """
-        # Looks like the units don't always make it into the datamodel (e.g. NIRSpec fixedslit crf)
-        try:
-            units = self.model.meta.bunit_data
-        except AttributeError:
-            units = fits.getheader(self.filename, 1)['BUNIT']
-
-        # Add colorbar below the bottom axis (or to the right of the right-most axis)
-        divider = make_axes_locatable(ax)
-
-        if colorbar_orient == 'vertical':
-            # For apertures that are taller than they are wide, square, or that are wider than
-            # they are tall but still reasonably close to square, put the colorbar on the right
-            # side of the image.
-            cax_colorbar = divider.append_axes("right", size="5%", pad=0.05)
-
-            cbar = self.fig.colorbar(imax, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
-
-            cbar.ax.yaxis.minorticks_off()
-            cbar.ax.set_yticklabels(tlabelstr)
-            cbar.ax.set_ylabel(units, labelpad=15, rotation=270)
-
-        elif colorbar_orient == 'horizontal':
-            # For apertures that are significantly wider than they are tall, put the colorbar
-            # under the image.
-            cax_colorbar = divider.append_axes("bottom", size="5%", pad=0.05)
-
-            cbar = self.fig.colorbar(imax, cax=cax_colorbar, ticks=tickvals, orientation='horizontal')
-
-            cbar.ax.xaxis.minorticks_off()
-            cbar.ax.set_xticklabels(tlabelstr)
-            cbar.ax.set_xlabel(units, labelpad=7, rotation=0)
-        """
-
-
-
-
-
-
-
-
-
-
-        # Shared colorbar
-        #cbar = self.fig.colorbar(im, ax=axes[-1], orientation=colorbar_orient, fraction=0.2, pad=0.05)
-        #cbar.set_ticks(ticks)
-        #cbar.ax.xaxis.minorticks_off()
-        #cbar.set_ticklabels([f"{t:.1e}" for t in ticks])  # scientific notation
-
-        # Looks like the units don't always make it into the datamodel (e.g. NIRSpec fixedslit crf)
-        #try:
-        #    units = self.model.meta.bunit_data
-        #except AttributeError:
-        #    units = fits.getheader(self.filename, 1)['BUNIT']
-        #cbar.set_label(units)
-        #plt.show()
-        #self.fig.close()
         self.figures.append(self.fig)
 
     def nirspec_miri_ifu_s3d(self):
@@ -3453,47 +3077,14 @@ class Level3PreviewImage():
         vmin = np.nanpercentile(slice_mean, 1)
         vmax = np.nanpercentile(slice_mean, 99)
 
-
-        print('initial vmin, vmax: ', vmin, vmax)
-
-
-
-        #if vmin < -vmax:
-        #    vmin = -vmax
-
         for frame in frames_to_view:
             self.fig, ax = plt.subplots(figsize=figsize, constrained_layout=True)
             self.show_image_in_axis(ax, self.model.data[frame, :, :], vmin, vmax, aspect, colorbar_orient, num_ticks=5)
 
-            #slice_full = ax.imshow(self.model.data[frame, :, :],
-            #                       norm=ImageNormalize(vmin=vmin, vmax=vmax, stretch=LogStretch()),
-            #                       origin='lower', cmap=self.cmap, aspect=aspect)
-            #ax.invert_yaxis()
             ax.set_xlabel('Pixel')
             ax.set_ylabel('Pixel')
             ax.set_title(f'{self.model.meta.filename}: slice {frame}')
 
-
-
-
-            #shiftdata, shiftmin, shiftmax, tickvals, tlabelflt = shift_data_get_ticks(self.model.data[frame,:,:], vmin, vmax, num_ticks=5)
-            #tlabelstr = formatted_tick_labels(tlabelflt)
-
-            #divider = make_axes_locatable(ax)
-            #cax_colorbar = divider.append_axes("right", size="5%", pad=0.5)
-            #cbar = self.fig.colorbar(slice_full, cax=cax_colorbar, ticks=tickvals, orientation='vertical')
-            #cbar.ax.yaxis.minorticks_off()
-            #cbar.ax.set_yticklabels(tlabelstr)
-            #cbar.ax.set_ylabel(self.model.meta.bunit_data, labelpad=15, rotation=270)
-
-            #print(vmin, np.nanmin(self.model.data[frame, :, :]))
-
-
-
-
-
-            #plt.colorbar(slice_full, ax=ax, orientation=colorbar_orient,
-            #             fraction=0.05, pad=0.04).set_label(self.model.meta.bunit_data, fontsize=15)
             self.figures.append(self.fig)
 
     def output_name(self):
@@ -3523,23 +3114,10 @@ class Level3PreviewImage():
         vmin = np.nanpercentile(self.model.data[0, :, :], 1)
         vmax = np.nanpercentile(self.model.data[0, :, :], 99)
 
-        # Use to determine linearly scaled signals
-        #clipped = sigma_clip_ignore_nan(self.model.data[0, :, :])
-
-        # Find sigma-clipped standard deviation of the data
-        #dev = np.std(clipped)
-
-        # Define colormap that shows NaNs as black
-        #cmap = plt.cm.viridis.copy()
-        #cmap.set_bad(color='black')
-
         # Get basic figure properties
         aspect, colorbar_orient, figsize = \
             determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
                                         maxsize=self.maxsize)
-
-        # Use SymLogNorm with a linear region around zero
-        #norm = SymLogNorm(linthresh=dev/1000., vmin=vmin, vmax=vmax)
 
         for frame in frames_to_view:
             # Create figure
@@ -3547,29 +3125,9 @@ class Level3PreviewImage():
                                         constrained_layout=True)
 
             self.show_image_in_axis(ax, self.model.data[frame, :, :], vmin, vmax, aspect, colorbar_orient, num_ticks=5)
-
-            #im = ax.imshow(self.model.data[frame, :, :], norm=norm, origin='lower', aspect=aspect,
-            #               cmap=cmap)
             ax.set_title(f'{self.model.meta.filename}, Frame: {frame}')
             ax.set_xlabel("Pixels")
             ax.set_ylabel("Pixels")
-
-            #cbar = self.fig.colorbar(im, ax=ax, orientation=colorbar_orient, shrink=0.8)
-
-            # If there are limited ticks, create them manually
-            #default_tick_labels = [t.get_text() for t in cbar.ax.get_yticklabels()]
-            #if len(default_tick_labels) < 2:
-            #    minval = 1e-4
-            #    if vmin > 0:
-            #        minval = vmin
-            #    new_ticks = np.logspace(np.log10(minval), np.log10(vmax), 5)
-            #    cbar.set_ticks(new_ticks)
-            #    new_ticks_str = [f"{value:.1e}" for value in new_ticks]
-            #    cbar.set_ticklabels(new_ticks_str)
-            #print(cbar.ax.get)
-
-
-            #cbar.set_label(self.model.meta.bunit_data)
             self.figures.append(self.fig)
 
 
@@ -3705,13 +3263,6 @@ def determine_figure_properties(xdim, ydim, threshold=0.15, maxsize=8):
     aspect_value = determine_aspect(xdim, ydim, threshold=threshold)
     cbar_orient = determine_cbar_orient(xdim, ydim)
     figsize_value = determine_default_figsize(xdim, ydim, maxsize=maxsize, aspect=aspect_value)
-
-
-    print('xdim, ydim, threshold:', xdim, ydim, threshold)
-    print('aspect cbar orient, figsize: ', aspect_value, cbar_orient, figsize_value)
-
-
-
     return aspect_value, cbar_orient, figsize_value
 
 
@@ -3822,6 +3373,7 @@ def determine_default_figsize(xdim, ydim, maxsize=8, aspect=None, ratio_limit=5)
 
     return figsize
 
+
 def Fnu_to_Flam(wave_micron, flux_jansky):
     """Convert Jansky flux units to erg/s/cm^2/Angstrom with an input wavelength in microns
 
@@ -3894,8 +3446,6 @@ def hide_axes(fig):
     for ax in fig.get_axes():
         ax.set_axis_off()              # hides everything (ticks, labels, spines)
         ax.set_title("")               # clears title if any
-        #ax.set_xlabel("")              # clears x label
-        #ax.set_ylabel("")              # clears y label
     return fig
 
 
@@ -3908,6 +3458,7 @@ def sigma_clip_ignore_nan(data, sigma=3):
         warnings.filterwarnings("ignore", message="Input data contains invalid values", module="astropy.stats.sigma_clipping")
         clp = sigma_clip(data, sigma=sigma)
     return clp
+
 
 def shift_data_get_ticks(image, minval, maxval, num_ticks=5, min_range_for_logscale=1):
     """Given a multi-dimensional array along with the minimum and maximum values for the colorbar in imshow(),
@@ -3962,12 +3513,5 @@ def shift_data_get_ticks(image, minval, maxval, num_ticks=5, min_range_for_logsc
         shifted_tickvals = np.linspace(shifted_min, shifted_max, num_ticks)
 
     unshifted_tickvals =  shifted_tickvals + minval - 1
-
-
-    print('minval, maxval: ', minval, maxval)
-    print('shifted_min, shifted_max:', shifted_min, shifted_max)
-    print('shifted tickvals:', shifted_tickvals)
-    print('unshifted tickvals:', unshifted_tickvals)
-
 
     return shifted_image, shifted_min, shifted_max, shifted_tickvals, unshifted_tickvals

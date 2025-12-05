@@ -907,11 +907,6 @@ class Level3PreviewImage():
                 self.thumbnail_output_directory = os.path.join(CONFIGS["thumbnail_filesystem"],
                                                                'jw' + self.metadata["program_id"])
 
-
-        print(self.filename)
-        print(self.exp_type)
-
-
         if 'x1dints' in self.filename:
             # Time Series data from NIRCAM
             if self.exp_type == 'NRC_TSGRISM':
@@ -1479,11 +1474,7 @@ class Level3PreviewImage():
             figure.set_size_inches(3, 3, forward=True)
             img_type = 'thumbnail'
 
-            fname = os.path.basename(self.filename).split('.')[0] + '.jpg'
-            if len(self.wfss_source_ids) > 0:
-                fname = fname.replace('.jpg', f'_source{self.wfss_source_ids[0]}.jpg')
-
-            outname = os.path.join(self.thumbnail_output_directory, fname)
+            outname = os.path.join(self.thumbnail_output_directory, self.preview_images[0])
             figure.savefig(outname, bbox_inches='tight', pad_inches=0)
             permissions.set_permissions(outname)
 

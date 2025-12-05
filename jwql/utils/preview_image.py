@@ -468,16 +468,6 @@ class PreviewImage():
         # Set the figure size
         yd, xd = image.shape
 
-        """
-        ratio = yd / xd
-        if xd >= yd:
-            xsize = maxsize
-            ysize = maxsize * ratio
-        else:
-            ysize = maxsize
-            xsize = maxsize / ratio
-        """
-
         # Use the data dimensions to determine the aspect ratio and figure size of the preview image
         aspect, colorbar_orient, figsize = \
             determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
@@ -1214,7 +1204,7 @@ class Level3PreviewImage():
     def niriss_soss_plot(self):
         """Create preview image for NIRISS SOSS x1dints data
 
-        NOTE: This function works for both level 3 and level 2 x1dint files.
+        NOTE: This function works for both level 3 and level 2 x1dints files.
         """
         nints = len(self.model.int_times['int_start_MJD_UTC'])
 
@@ -1943,9 +1933,6 @@ class Level3PreviewImage():
             2D extracted spectrum corresponding to source_num
         """
         cal_info = {}
-
-        print(f'Found {len(hdulists)} hdulists')
-        print([hdulists[ii][0].header['FILENAME'] for ii in range(len(hdulists))])
 
         # For the give source, loop over hdulists, and determine the extension within each
         # that contains the source. Do this for all orders.

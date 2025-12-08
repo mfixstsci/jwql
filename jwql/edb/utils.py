@@ -278,7 +278,10 @@ def _query_program_visit_times_by_inst(program, instrument, verbose=False):
     verbose : bool
         be more verbose in output?
 
-    returns list of (visitid, start, end) tuples.
+    Returns
+    -------
+    visit_times : list
+        (visitid, start, end) tuples.
 
     """
     service = INSTRUMENT_SERVICE_MATCH[JWST_INSTRUMENT_NAMES_MIXEDCASE[instrument.lower()]]

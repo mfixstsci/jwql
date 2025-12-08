@@ -55,6 +55,7 @@ import pysiaf
 
 from jwst import datamodels
 
+from jwql.edb.utils import get_ta_centroids #extract_TAMAIN_events, get_ictm_event_log,
 from jwql.utils import permissions
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.utils import filesystem_path, get_config
@@ -1541,8 +1542,6 @@ class Level3PreviewImage():
         self.get_ta_filenames()
         num_ta = len(self.ta_files)
 
-        print('number of ta images: ', num_ta)
-
         # Arrange the images
         n_files = num_ta + 1
         ncols = 2
@@ -1560,6 +1559,16 @@ class Level3PreviewImage():
         self.show_image_in_axis(ax_i2d, self.model.data, vmin, vmax, aspect, colorbar_orient, num_ticks=5)
         ax_i2d.set_title(self.model.meta.filename)
 
+        # Get the TA centroid coordinates for each TA image. The function operates on one visit
+        # at a time, so get a list of visit IDs associated with the TA images, and set up a
+        # dictionary to hold mulitple centroid values per visit
+        ta_visit_ids = [fits.getheader(ta_file)['VISIT_ID'] for ta_file in self.ta_files]
+        ta_visit_ids = sorted(list(set(ta_visit_ids)))
+        ta_centroids = {}
+
+        # Keep track of how many TA files we have worked with per visit ID
+        visit_id_counter = {}
+
         # Show each of the TA images, along with the ROI, if present
         for i, ta_file in enumerate(self.ta_files):
             index = i + 1
@@ -1572,7 +1581,6 @@ class Level3PreviewImage():
             determine_figure_properties(ta_xd, ta_yd, threshold=self.threshold_for_nonsquare_pix,
                                         maxsize=self.maxsize)
             self.show_image_in_axis(axes[index], ta_data, ta_vmin, ta_vmax, ta_aspect, ta_colorbar_orient, num_ticks=5)
-            axes[index].set_title(os.path.basename(ta_file))
 
             # Use pysiaf to get information about the subarray and/or ROI
             inst_siaf = pysiaf.Siaf(self.model.meta.instrument.name)
@@ -1605,7 +1613,31 @@ class Level3PreviewImage():
             axes[index].add_patch(roi_box)
 
             # Show the reference location as a +
-            axes[index].scatter(ref_pt[0], ref_pt[1], color='red', marker='+', alpha=0.75)
+            axes[index].scatter(ref_pt[0], ref_pt[1], color='red', marker='+', alpha=0.75, label='Ref pt')
+
+            # Get information on the TA centroid from the EDB
+            visit_id = fits.getheader(ta_file)['VISIT_ID']
+
+            # If we don't have TA centroids from this Visit yet, then get them via MAST
+            if visit_id not in ta_centroids:
+                ta_centroids[visit_id] = get_ta_centroids(ta_file)
+
+            # Determine which number TA file this is within the given visit, and use the
+            # matching centroid values
+            if visit_id not in visit_id_counter:
+                visit_id_counter[visit_id] = 0
+
+            centroid_x, centroid_y = ta_centroids[visit_id][visit_id_counter[visit_id]]
+            visit_id_counter[visit_id] += 1
+
+            # Now print the centroid values on the preview image
+            # Centroid values are given relative to...ROI, I think? need to add the lower left corner coords to them
+            x_det_cent = corners[0][0] + centroid_x
+            y_det_cent = corners[1][0] + centroid_y
+            axes[index].scatter([x_det_cent], [y_det_cent], color='orange', marker='+', label='centroid')
+            title_str = f"{os.path.basename(ta_file)}: Centroid: ({x_det_cent:.2f}, {y_det_cent:.2f})"
+            axes[index].set_title(title_str)
+            axes[index].legend()
 
         # Hide unused subplots if odd number of images
         for i in range(n_files, len(axes)):
@@ -1623,6 +1655,14 @@ class Level3PreviewImage():
         plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
         plt.tight_layout()
         self.figures.append(self.fig)
+
+
+
+
+
+
+
+
 
     def get_ta_filenames(self):
         """Get the name of the TA file associated with the level 3 file

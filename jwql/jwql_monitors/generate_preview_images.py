@@ -584,8 +584,8 @@ def generate_preview_images(overwrite, programs=None):
     all_programs = [os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'public', 'jw*'))]
     all_programs.extend([os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', 'jw*'))])
 
-    # Remove any repeats
-    all_programs = list(set(all_programs))
+    # Remove any repeats due to programs being listed in public and proprietary dirs at the same time.
+    all_programs = list(set(program_list))
 
     if programs is None:
         program_list = all_programs
@@ -601,6 +601,7 @@ def generate_preview_images(overwrite, programs=None):
                 logging.info(f'Program {prog} not present in filesystem. Excluding.')
 
     if len(program_list) > 0:
+        # Sort into descending order
         program_list = sorted(program_list, reverse=True)
     else:
         no_prog_message = f'Empty list of programs. No preview images to be made.'
@@ -736,12 +737,9 @@ def preview_img_from_file(fname, file_info):
             # images for all filetypes
             if 'rate.fits' in fame or 'dark.fits' in fname:
                 img.make_image(max_img_size=8, create_thumbnail=True)
-                #new_preview_counter += 1
-                #thumbnail_files.extend(img.thumbnail_images)
                 logging.debug('\tCreated preview image and thumbnail for: {}'.format(fname))
             else:
                 img.make_image(max_img_size=8, create_thumbnail=False)
-                #new_preview_counter += 1
                 logging.debug('\tCreated preview image for: {}'.format(fname))
 
             return img.preview_images, img.thumbnail_images

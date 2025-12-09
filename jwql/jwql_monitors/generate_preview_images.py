@@ -748,13 +748,15 @@ def preview_img_from_file(fname, file_info):
 
         except (ValueError, AttributeError) as error:
             logging.warning(error)
-            return None
+            return (None, None)
 
     else:
-        # Stage 3 fits file
-        img = Level3PreviewImage(fname)
-        if not img.figures_created:
-            return None
+        # Stage 3 fits file - create thumbnails for all level 3 products
+        img = Level3PreviewImage(fname, create_thumbnail=True)
+        if img.figures_created:
+            return img.preview_images, img.thumbnail_images
+        else:
+            return (None, None)
 
 
 def process_program(program, overwrite):
@@ -862,8 +864,8 @@ def process_program(program, overwrite):
 
         # Create the nominal preview image and thumbnail
         try:
-            im = preview_img_from_file(filename, parsed)
-            if im is not None:
+            prev_ims, thumb_ims = preview_img_from_file(filename, parsed)
+            if prev_ims is not None:
                 new_preview_counter += 1
                 thumbnail_files.extend(img.thumbnail_images)
                 preview_image_files.extend(im.preview_images)

@@ -639,6 +639,10 @@ def filesystem_path(filename, check_existence=True, search=None):
     subdir1 = 'jw{}'.format(filename[2:7])
     subdir2 = 'jw{}'.format(filename[2:13])
 
+    # If looking for an association file, search the asn subdirectory.
+    if "asn.json" in filename:
+        subdir2 = "asn"
+
     if search:
         full_subdir = os.path.join(subdir1, subdir2, '{}{}'.format(filename, search))
         filenames_found = glob.glob(os.path.join(FILESYSTEM, 'public', full_subdir))

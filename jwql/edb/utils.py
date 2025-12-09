@@ -21,8 +21,9 @@ Use
 
 Notes
 -----
-    Code for querying MAST for OSS log entries was copied from the
-    misc_jwst repo, authored by Marshall Perrin.
+    Code for querying MAST for ICTM log entries was copied from the
+    misc_jwst repo, authored by Marshall Perrin. We could alternatively
+    add misc_jwst to the list of JWQL dependencies.
 """
 import os
 import re
@@ -140,7 +141,7 @@ def get_ta_centroids(filename):
     ta_idxes = [i for i,row in enumerate(log_entries['EVENT_MSG']) if f'{inst_shorthand}TAMAIN' in row]
     ta_entries = log_entries[ta_idxes[0]: ta_idxes[1] + 1]
 
-    centroid_idxes = [i for i,row in enumerate(ta_entries['EVENT_MSG']) if 'postage-stamp coord (colCen, rowCen)' in row]
+    centroid_idxes = [i for i,row in enumerate(ta_entries['EVENT_MSG']) if 'postage-stamp coord (colCen' in row]
     centroids = []
     for centroid_idx in centroid_idxes:
         centroid_str = ta_entries[centroid_idx]['EVENT_MSG'].split('(')[-1][:-1].split(', ')

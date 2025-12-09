@@ -17,9 +17,13 @@ Use
 
         pytest -s test_edb_utils.py
 """
+import pytest
 
 from jwql.edb import utils
+from jwql.utils.constants import ON_GITHUB_ACTIONS
 
+
+@pytest.mark.skipif(ON_GITHUB_ACTIONS, reason="URL not available.")
 def test_get_oss_log_messages():
     visitid = '01068001001'
     logs = utils.get_oss_log_messages(visitid=visitid)
@@ -53,8 +57,8 @@ def test_query_visit_time():
 
 
 def test___query_program_visit_times_by_inst():
-    info = utils._query_program_visit_times_by_inst(1068, 'NIRCam')
-    assert info[0] == ('V01068004001', 59714.62667017361, 59714.63190871528, 'NIRCam')
-    assert info[-1] == ('V01068003001', 59714.618445023145, 59714.6266346412, 'NIRCam')
+    info = sorted(utils._query_program_visit_times_by_inst(1068, 'NIRCam'))
+    assert info[0] == ('V01068001001', 59714.551588773145, 59714.59440949074, 'NIRCam')
+    assert info[-1] == ('V01068007001', 59714.67325975694, 59714.69409528935, 'NIRCam')
 
 

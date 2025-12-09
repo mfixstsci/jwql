@@ -17,7 +17,6 @@ Use
 
 Overall flow:
 
-
 1. Look in database table for last successful run on the monitor.
 2. Get the datetime of that run.
 3. Query MAST for all NIRCam B4 full frame files (exclude coron?) since that datetime
@@ -28,8 +27,6 @@ Overall flow:
 8. For those files where the prediction is that a wisp is present, set the wisp flag in the anomalies database
 9. Delete pngs
 10. Update the database with the datetime of the current run
-
-
 """
 
 import argparse
@@ -39,6 +36,7 @@ import os
 import shutil
 import warnings
 
+from astropy.time import Time
 from astroquery.mast import Observations
 from django import setup
 from django.utils import timezone
@@ -50,11 +48,12 @@ from torchvision import transforms
 import torchvision.models as models
 
 from jwql.utils import monitor_utils
-from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
+from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS, WISP_PROBABILITY_THRESHOLD
 from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
 from jwql.instrument_monitors.nircam_monitors import prepare_wisp_pngs
+from jwql.utils.utils import filesystem_path
 
 if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
@@ -62,6 +61,8 @@ if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
     from jwql.website.apps.jwql.models import Anomalies, RootFileInfo
     from jwql.website.apps.jwql.monitor_models.wisp_finder import WispFinderB4QueryHistory
 
+
+MAX_QUERY_DURATION = 7.  # days
 
 def add_wisp_flag(basename):
     """Add the wisps flag to the RootFileInfo entry for the given filename
@@ -110,7 +111,11 @@ def copy_files_to_working_dir(filepaths):
         List of new locations for the files
     """
     working_dir = get_config()["working"]
+
+    if not os.path.isdir(working_dir):
+        os.makedirs(working_dir)
     copied_filepaths = []
+
     for filepath in filepaths:
         shutil.copy2(filepath, working_dir)
         copied_filepaths.append(os.path.join(working_dir, os.path.basename(filepath)))
@@ -159,7 +164,7 @@ def define_model_architecture():
 def define_options(parser=None, usage=None, conflict_handler='resolve'):
     """Add command line options
 
-    Parrameters
+    Parameters
     -----------
     parser : argparse.parser
         Parser object
@@ -258,9 +263,9 @@ def predict_wisp(model, image_path, transform):
     # The model outputs a single probability (e.g., for "wisp"). So, use a threshold
     # to determine whether the prediction is wisp or no_wisp.
     probability = torch.sigmoid(output).item()
-    threshold = 0.5
+    threshold = WISP_PROBABILITY_THRESHOLD
     prediction_label = "wisp" if probability >= threshold else "no wisp"
-    return prediction_label
+    return prediction_label, probability, threshold
 
 
 def preprocess_image(image_path, transform):
@@ -303,6 +308,7 @@ def query_mast(starttime, endtime):
     rate_files : list
         List of filenames
     """
+    logging.info("Running sci_obs_id query")
     sci_obs_id_table = Observations.query_criteria(instrument_name=["NIRCAM/IMAGE"],
                                                    provenance_name=["CALJWST"],  # Executed observations
                                                    t_min=[starttime, endtime]
@@ -312,16 +318,18 @@ def query_mast(starttime, endtime):
 
     # Loop over visits identifying uncalibrated files that are associated
     # with them
-    for exposure in (sci_obs_id_table):
+    for i, exposure in enumerate(sci_obs_id_table):
         products = Observations.get_product_list(exposure)
         filtered_products = Observations.filter_products(products,
                                                          productType='SCIENCE',
                                                          productSubGroupDescription='RATE',
                                                          calib_level=[2])
+        logging.info(f"\tExposure {i+1} of {len(sci_obs_id_table)}: {len(products)} products filters to {len(filtered_products)} rate files")
         sci_files_to_download.extend(filtered_products['dataURI'])
 
     # The current ML wisp finder model is only trained for the wisps on the B4 detector,
     # so keep only those files. Also, keep only the filenames themselves.
+    logging.info(f"Sorting {len(sci_files_to_download)} rate files")
     rate_files = sorted([fname.replace('mast:JWST/product/', '') for fname in sci_files_to_download if 'nrcb4' in fname])
     return rate_files
 
@@ -343,12 +351,14 @@ def remove_duplicate_files(file_list):
     """
     file_list = np.array(file_list)
     unique_files = []
-    basenames_only = set([os.path.basename(e) for e in file_list])
+    basenames_only = sorted(list(set([os.path.basename(e) for e in file_list])))
+
     for basename in basenames_only:
         matches = np.array([basename in e for e in file_list])
+
+        # We've already checked for file existence, so no need to do that here
         unique_files.append(file_list[matches][0])
     return unique_files
-
 
 @log_fail
 @log_info
@@ -391,6 +401,8 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         # If ending_date is not provided, set it equal to the current time
         if ending_date is None:
             ending_date = timezone.now()
+            t_end = Time(ending_date, scale='utc')
+            ending_date = t_end.mjd
 
         # If starting date is not provided, then query the database for the last
         # successful run of this monitor. Use the ending date of that run for the
@@ -401,32 +413,83 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
 
         logging.info(f"Using MJD {starting_date} to {ending_date} to search for files")
 
-        # Query MAST between starting_date and ending_date, and get a list of files
-        # to run the wisp prediction on.
-        rate_files = query_mast(starting_date, ending_date)
-        logging.info(f"Found {len(rate_files)} rate files")
+        # If the starting and ending dates span a long time, break up the time into
+        # smaller chunks in order to get reasonable MAST query lists and so as not to
+        # copy really large numbers of files to the working directory
+        if ending_date - starting_date > MAX_QUERY_DURATION:
+            logging.info(f"Time range is greater than the maximum allowed duration of {MAX_QUERY_DURATION} days")
+            starting_dates = np.arange(starting_date, ending_date, MAX_QUERY_DURATION)
+            # Make the ending_dates 0.1 second shy of MAX_QUERY_DURATION so that they are not
+            # exactly the same as the subsequent starting_date
+            ending_dates = starting_dates + MAX_QUERY_DURATION - (0.1 / 3600. / 24.)
+            # Set the final ending_date equal to the originally requested ending_date
+            if ending_dates[-1] > ending_date:
+                ending_dates[-1] = ending_date
+            logging.info(f"Breaking up the query into {len(starting_dates)} smaller queries.")
+        else:
+            starting_dates = np.array([starting_date])
+            ending_dates = np.array([ending_date])
+
+        for subq_starting_date, subq_ending_date in zip(starting_dates, ending_dates):
+            # Query MAST between starting_date and ending_date, and get a list of files
+            # to run the wisp prediction on.
+            rate_files = query_mast(subq_starting_date, subq_ending_date)
+            logging.info(f"MAST query betwen MJD {subq_starting_date} and {subq_ending_date} returned {len(rate_files)} rate files")
+            run_predictor(rate_files, model_filename, subq_starting_date, subq_ending_date)
 
     else:
         rate_files = file_list
         starting_date = 0.0
         ending_date = 0.0
+        logging.info(f"Running predictor on list of {len(rate_files)} files.")
+        run_predictor(rate_files, model_filename, subq_starting_date, subq_ending_date)
 
-    if len(rate_files) > 0:
+    logging.info('Wisp Finder Monitor completed successfully.')
+
+
+def run_predictor(ratefiles, model_file, start_date, end_date):
+    """Given a list of files, a ML model file, and dates, check all of the files for wisps.
+
+    Parameters
+    ----------
+    ratefiles : list
+        List of fits files to check for wisps.
+
+    model_file : str
+        Name of a file containing the ML model to be used
+
+    start_date : float
+        MJD of the starting date of the range encompassing ``ratefiles``.
+        Used for populating the history database table.
+
+    end_date : float
+        MJD of the ending date of the range encompassing ``ratefiles``.
+        Used for populating the history database table.
+    """
+    if len(ratefiles) > 0:
         monitor_run = True
 
         # Find the location in the filesystem for all files
         logging.info("Locating files in the filesystem")
-        filepaths_public = files_in_filesystem(rate_files, 'public')
-        filepaths_proprietary = files_in_filesystem(rate_files, 'proprietary')
-        filepaths = filepaths_public + filepaths_proprietary
-        filepaths = remove_duplicate_files(filepaths)
+        filepaths = []
+        for rate_file in ratefiles:
+            try:
+                filepaths.append(filesystem_path(rate_file, check_existence=True))
+            except Exception as e:
+                logging.warning(f"Failed to find {rate_file} with error {e}")
 
-        logging.info("Copying files from the filesystem to the working directory.")
+        # Remove any duplicates coming from files that are present in both the
+        # public and proprietary filesystems
+        n_filepaths_before = len(filepaths)
+        filepaths = remove_duplicate_files(filepaths)
+        n_filepaths_after = len(filepaths)
+
+        # Copy files to working directory
+        logging.info(f"Copying {n_filepaths_after} files from the filesystem to the working directory (removed {n_filepaths_before - n_filepaths_after} duplicates).")
         working_filepaths = copy_files_to_working_dir(filepaths)
 
         # Load the trained ML model
-        logging.info(f"Loading ML model from {model_filename}")
-        model = load_ml_model(model_filename)
+        model = load_ml_model(model_file)
 
         # Create transform to use when creating image tensor
         transform = create_transform()
@@ -435,51 +498,48 @@ def run(model_filename=None, starting_date=None, ending_date=None, file_list=Non
         for working_filepath in working_filepaths:
             # Create png
             working_dir = os.path.dirname(working_filepath)
+            logging.info(f'Creating png for {os.path.basename(working_filepath)}. Saving to {working_dir}')
             png_filename = prepare_wisp_pngs.run(working_filepath, out_dir=working_dir)
 
             # Predict
-            prediction = predict_wisp(model, png_filename, transform)
-
-            print(png_filename, prediction)  # FOR DEVELOPMENT ONLY. REMOVE BEFORE MERGING
+            prediction, probability, threshold = predict_wisp(model, png_filename, transform)
 
             # If a wisp is predicted, set the wisp flag in the anomalies database
             if prediction == "wisp":
                 # Create the rootname. Strip off the path info, and remove '.fits' and the suffix
                 # (i.e. 'rate'')
                 rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
-                logging.info(f"Found wisp in {rootfile}")
+                logging.info(f"\tFound wisp in {rootfile} (probability {probability} > threshold {threshold})\n\n")
 
                 # Add the wisp flag to the RootFileInfo object for the rootfile
                 add_wisp_flag(rootfile)
             else:
-                pass
+                rootfile = '_'.join(os.path.basename(working_filepath).split('.')[0].split('_')[0:-1])
+                logging.info(f'\tNo wisp in {rootfile} (probability {probability} < threshold {threshold})\n')
 
             # Delete the png and fits files
             os.remove(png_filename)
             os.remove(working_filepath)
     else:
-        # If no rate_files are found
+        # If no ratefiles are found
         logging.info(f"No rate files found. Ending monitor run.")
         monitor_run = False
 
     # Update the database with info about this run of the monitor. We keep the
-    # staring and ending dates of the search. No need to keep the names of the files
+    # starting and ending dates of the search. No need to keep the names of the files
     # that are found to contain a wisp, because that info will be in the  RootFileInfo
     # instances.
-    new_entry = {'start_time_mjd': starting_date,
-                 'end_time_mjd': ending_date,
+    new_entry = {'start_time_mjd': start_date,
+                 'end_time_mjd': end_date,
                  'run_monitor': monitor_run,
                  'entry_date': datetime.datetime.now(datetime.timezone.utc)}
     entry = WispFinderB4QueryHistory(**new_entry)
     entry.save()
 
-    logging.info('Wisp Finder Monitor completed successfully.')
-
 
 if __name__ == '__main__':
     module = os.path.basename(__file__).strip('.py')
     start_time, log_file = monitor_utils.initialize_instrument_monitor(module)
-
     parser = define_options()
     args = parser.parse_args()
 

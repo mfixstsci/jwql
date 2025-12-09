@@ -149,8 +149,8 @@ related to the JWQL monitors.
     * Django doesn't have a built-in array data type, so you need to import it from the
       database-compatibility layers. The ArrayField takes, as a required argument, the type
       of data that makes up the array.
-    * In the Meta sub-class of the monitor class, the `db_table_comment = 'monitors'` statement is
-      required so that django knows that the model should be stored in the monitors table.
+    * In order to store a table in the Monitors database (JWQLDB), you must add that table's name
+      (Meta.db_table) to the MONITOR_TABLE_NAMES constant in jwql.utils.constants.py
     * The `float()` casts are required because the database interface doesn't understand
       numpy data types.
     * The `list()` cast is required because the database interface doesn't understand the

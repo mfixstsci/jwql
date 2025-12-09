@@ -1023,7 +1023,7 @@ def get_expstart(instrument, rootname):
 
     if result['data'] == []:
         expstart = 0
-        print("WARNING: no data")
+        logging.warning(f"get_expstart() finds no data for {file_set_name} from {rootname}")
     else:
         expstart = min([item['expstart'] for item in result['data']])
 
@@ -1108,37 +1108,25 @@ def get_filenames_by_instrument(instrument, proposal, observation_id=None,
     return filenames
 
 
-def mast_query_by_rootname(instrument, rootname):
-    """Query MAST for all columns given an instrument and rootname. Return the dict of the 'data' column
+def mast_query_by_filename(instrument, filename):
+    """Query MAST for all columns given an instrument and filename. Return the dict of the 'data' column
 
     Parameters
     ----------
     instrument : str
         The instrument of interest (e.g. `FGS`).
-    rootname : str
-        The Rootname of Interest
+    filename : str
+        The Rootname of Interest (e.g. 'jw01068-o001_t005_nircam_clear-f356w-sub160_i2d.fits')
 
     Returns
     -------
     result : dict
         Dictionary of rootname data
     """
-
     query_filters = []
-    if '-seg' in rootname:
-        root_split = rootname.split('-')
-        file_set_name = root_split[0]
-        root_split = rootname.split('_')
-        detector = root_split[-1]
-    else:
-        root_split = rootname.split('_')
-        file_set_name = '_'.join(root_split[:-1])
-        detector = root_split[-1]
-
     service = INSTRUMENT_SERVICE_MATCH[instrument]
 
-    query_filters.append({'paramName': 'fileSetName', 'values': [file_set_name]})
-    query_filters.append({'paramName': 'detector', 'values': [detector.upper()]})
+    query_filters.append({'paramName': 'filename', 'values': [filename]})
     params = {'columns': '*',
               'filters': query_filters}
     try:
@@ -1150,7 +1138,69 @@ def mast_query_by_rootname(instrument, rootname):
 
     retval = {}
     if result['data'] == []:
-        print("WARNING: no data for {}".format(rootname))
+        logging.warning("mast_query_by_filename() returned no data for {}".format(filename))
+    else:
+        retval = result['data'][0]
+    return retval
+
+
+def mast_query_by_rootname(instrument, rootname):
+    """Query MAST for all columns given an instrument and rootname. Return the dict of the 'data' column
+
+    Parameters
+    ----------
+    instrument : str
+        The instrument of interest (e.g. `FGS`).
+    rootname : str
+        The Rootname of Interest (e.g. 'jw01068001001_02101_00001_nrcb2')
+
+    Returns
+    -------
+    result : dict
+        Dictionary of rootname data
+    """
+    service = INSTRUMENT_SERVICE_MATCH[instrument]
+
+    query_filters = []
+
+    # This query still returns nothing for the "b" and "v" stage 3 source-based filenames. I'm not sure why.
+    # e.g. jw04735-o005_v000000001_nirspec_f100lp-g140h_cal.fits, jw04735-o005_b000000030_nirspec_f100lp-g140h_cal.fits
+    info = filename_parser(rootname)
+    if 'stage_3' not in info['filename_type']:
+
+        if '-seg' in rootname:
+            root_split = rootname.split('-')
+            file_set_name = root_split[0]
+            root_split = rootname.split('_')
+            detector = root_split[-1]
+        else:
+            root_split = rootname.split('_')
+            file_set_name = '_'.join(root_split[:-1])
+            detector = root_split[-1]
+
+        query_filters.append({'paramName': 'fileSetName', 'values': [file_set_name]})
+        query_filters.append({'paramName': 'detector', 'values': [detector.upper()]})
+
+    else:
+        # For stage 3 files the general rule of thumb is that we want to strip off
+        # everything from the rootname that comes after the name of the instrument
+        index = [rootname.find(e) for e in JWST_INSTRUMENT_NAMES if rootname.find(e) != -1][0]
+        name_end = index + len(instrument)
+        subroot = rootname[0:name_end]
+        query_filters.append({'paramName': 'fileSetName', 'values': [subroot]})
+
+    params = {'columns': '*',
+              'filters': query_filters}
+    try:
+        response = Mast.service_request_async(service, params)
+        result = response[0].json()
+    except Exception as e:
+        logging.error("Mast.service_request_async- {} - {}".format(file_set_name, e))
+        result = {'data': []}
+
+    retval = {}
+    if result['data'] == []:
+        logging.warning("mast_query_by_rootname() returns no data for {}".format(rootname))
     else:
         retval = result['data'][0]
     return retval
@@ -1371,7 +1421,7 @@ def get_header_info(filename, filetype):
 
 def get_image_info(file_root):
     """Build and return a dictionary containing information for a given
-    ``file_root``.
+    ``file_root``. Supports level 2 or level 3 file_root values.
 
     Parameters
     ----------
@@ -1402,10 +1452,23 @@ def get_image_info(file_root):
     observation_dir = file_root[:13]
     filenames = glob.glob(
         os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
-                     observation_dir, '{}*.fits'.format(file_root)))
+                     observation_dir, f'{file_root}*.fits'))
     filenames.extend(glob.glob(
         os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
-                     observation_dir, '{}*.fits'.format(file_root))))
+                     observation_dir, f'{file_root}*.fits')))
+
+    # If the search above does not find any filenames, then we are looking
+    # for a level 3 file. In that case, we need to check different directories
+
+    # L3/ then either s/ or t/ (or others?) and then e.g. o001
+    if len(filenames) == 0:
+        ostr = file_root.split('-')[1].split('_')[0]
+        filenames.extend(glob.glob(
+            os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                    'L3', f'*/{ostr}/', f'{file_root}*.fits')))
+        filenames.extend(glob.glob(
+            os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                    'L3', f'*/{ostr}/', f'{file_root}*.fits')))
 
     logging.debug(f"Files before filtering: {filenames}")
     # Certain suffixes are always ignored
@@ -1661,7 +1724,7 @@ def get_detectors_by_rootname(rootname):
     """
     Return a list of exposures with the same rootname as the provided rootname, but
     including all available detectors.
-    
+
     Parameters
     ----------
     rootname : str
@@ -1728,10 +1791,6 @@ def get_proposal_info(filepaths):
         proposal(s) and files corresponding to the given ``filepaths``.
     """
 
-    # Initialize some containers
-    thumbnail_paths = []
-    num_files = []
-
     # Gather thumbnails and counts for proposals
     proposals, thumbnail_paths, num_files, observations = [], [], [], []
     for filepath in filepaths:
@@ -1750,7 +1809,7 @@ def get_proposal_info(filepaths):
                         obs = file_info['observation']
                         obsnums.append(obs)
                     except KeyError:
-                        pass
+                        logging.info(f'\n\nFile {fname} has no observation info from the filename_parser')
                 else:
                     logging.warning((f'While running get_proposal_info() for a program {proposal}, {fname} '
                                      'was not recognized by the filename_parser().'))
@@ -1812,7 +1871,7 @@ def get_rootnames_from_query(parameters):
 
     # Parse DATE_RANGE string into correct format
     date_range = parameters[QueryConfigKeys.DATE_RANGE]
-    start_date_range, stop_date_range = date_range.split(" - ")
+    start_date_range, stop_date_range = date_range.split(" to ")
     # Parse the strings into datetime objects
     start_datetime = datetime.strptime(start_date_range, DATE_FORMAT)
     stop_datetime = datetime.strptime(stop_date_range, DATE_FORMAT)
@@ -2211,8 +2270,6 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     else:
         obs_loop_list = [str(obs_num).zfill(3)]
 
-    print(obs_loop_list)
-
     for obsnum in obs_loop_list:
         data_dict['file_data'][obsnum] = {}
         data_dict['file_data'][obsnum]['files'] = {}
@@ -2290,7 +2347,7 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
             logging.warning("Unable to populate exp_start info for {}".format(rootname))
             logging.warning(e)
         except KeyError:
-            print("KeyError with get_expstart for {}".format(rootname))
+            logging.warning("KeyError with get_expstart for {}".format(rootname))
 
     # Extract information for sorting with dropdown menus
     # (Don't include the proposal as a sorting parameter if the proposal has already been specified)

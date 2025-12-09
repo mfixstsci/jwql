@@ -33,6 +33,7 @@ import multiprocessing
 import os
 import re
 
+import matplotlib.pyplot as plt
 import numpy as np
 
 from jwql.utils import permissions
@@ -870,6 +871,9 @@ def process_program(program, overwrite):
 
         except (ValueError, AttributeError) as error:
             logging.warning(error)
+        finally:
+            # Make sure all figures are closed.
+            plt.close('all')
 
     logging.info(f"Created {new_preview_counter} new preview images.")
     logging.info(f"Skipped {existing_preview_counter} previously-existing preview images.")

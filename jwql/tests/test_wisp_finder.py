@@ -21,12 +21,13 @@ import datetime
 import os
 import pytest
 
+from django import setup
 import numpy as np
 import torch
 import torchvision
 
 from jwql.instrument_monitors.nircam_monitors import wisp_finder, prepare_wisp_pngs
-from jwql.utils.constants import ON_GITHUB_ACTIONS
+from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
 

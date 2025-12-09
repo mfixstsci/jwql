@@ -55,14 +55,14 @@ import pysiaf
 
 from jwst import datamodels
 
-from jwql.edb.utils import get_ta_centroids #extract_TAMAIN_events, get_ictm_event_log,
+from jwql.edb.utils import get_ta_centroids
 from jwql.utils import permissions
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.utils import filesystem_path, get_config
 
 # Use the 'Agg' backend to avoid invoking $DISPLAY
 import matplotlib as mpl
-#matplotlib.use('Agg') - uncomment before merging!!!!!!!!!!!!!
+matplotlib.use('Agg')
 from matplotlib.patches import Circle, Rectangle  # noqa
 import matplotlib.pyplot as plt  # noqa
 import matplotlib.colors as colors  # noqa

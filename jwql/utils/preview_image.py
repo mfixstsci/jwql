@@ -61,7 +61,7 @@ from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.utils import filesystem_path, get_config
 
 # Use the 'Agg' backend to avoid invoking $DISPLAY
-import matplotlib as mpl
+import matplotlib
 matplotlib.use('Agg')
 from matplotlib.patches import Circle, Rectangle  # noqa
 import matplotlib.pyplot as plt  # noqa

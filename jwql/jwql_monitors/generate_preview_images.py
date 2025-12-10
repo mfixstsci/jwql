@@ -44,8 +44,8 @@ from jwql.utils.constants import (IGNORED_SUFFIXES,
                                   )
 from jwql.utils.logging_functions import log_info, log_fail
 from jwql.utils.protect_module import lock_module
-from jwql.utils.preview_image import PreviewImage
-from jwql.utils.utils import get_config, filename_parser
+from jwql.utils.preview_image import Level3PreviewImage, PreviewImage
+from jwql.utils.utils import get_config, filename_parser, remove_duplicate_files
 from jwql.utils.monitor_utils import update_monitor_table, initialize_instrument_monitor
 
 # Size of NIRCam inter- and intra-module chip gaps
@@ -585,6 +585,9 @@ def generate_preview_images(overwrite, programs=None):
     all_programs = [os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'public', 'jw*'))]
     all_programs.extend([os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', 'jw*'))])
 
+    # Remove any repeats due to programs being listed in public and proprietary dirs at the same time.
+    all_programs = list(set(program_list))
+
     if programs is None:
         program_list = all_programs
     else:
@@ -599,9 +602,8 @@ def generate_preview_images(overwrite, programs=None):
                 logging.info(f'Program {prog} not present in filesystem. Excluding.')
 
     if len(program_list) > 0:
-        # Remove any repeats due to programs being listed in public and proprietary dirs at the same time.
         # Sort into descending order
-        program_list = sorted(list(set(program_list)), reverse=True)
+        program_list = sorted(program_list, reverse=True)
     else:
         no_prog_message = f'Empty list of programs. No preview images to be made.'
         logging.info(no_prog_message)
@@ -709,6 +711,53 @@ def group_filenames(filenames):
     return grouped
 
 
+def preview_img_from_file(fname, file_info):
+    """Wrapper around functions for creating preview images from various file types
+
+    Parameter
+    ---------
+    fname : str
+        Filename
+
+    file_info : dict
+        Results from calling filename_parser on fname
+    """
+    # All stage 2 files and i2d.fits files
+    if 'stage_3' not in file_info['filename_type']:
+        try:
+            # Stage 1/2 file
+            img = PreviewImage(fname, "SCI")
+            img.clip_percent = 0.01
+            img.set_scaling()
+            img.cmap = 'viridis'
+            img.output_format = 'jpg'
+            img.preview_output_directory = preview_output_directory
+            img.thumbnail_output_directory = thumbnail_output_directory
+
+            # Create a thumbnail for rate or dark files only. Create preview
+            # images for all filetypes
+            if 'rate.fits' in fame or 'dark.fits' in fname:
+                img.make_image(max_img_size=8, create_thumbnail=True)
+                logging.debug('\tCreated preview image and thumbnail for: {}'.format(fname))
+            else:
+                img.make_image(max_img_size=8, create_thumbnail=False)
+                logging.debug('\tCreated preview image for: {}'.format(fname))
+
+            return img.preview_images, img.thumbnail_images
+
+        except (ValueError, AttributeError) as error:
+            logging.warning(error)
+            return (None, None)
+
+    else:
+        # Stage 3 fits file - create thumbnails for all level 3 products
+        img = Level3PreviewImage(fname, create_thumbnail=True)
+        if img.figures_created:
+            return img.preview_images, img.thumbnail_images
+        else:
+            return (None, None)
+
+
 def process_program(program, overwrite):
     """Generate preview images and thumbnails for the given program.
 
@@ -736,7 +785,19 @@ def process_program(program, overwrite):
     # Gather files to process
     filenames = glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'jw*/*.fits'))
     filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'jw*/*.fits')))
-    filenames = list(set(filenames))
+
+    # Add level 3 files
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'L3/*/*/*.fits')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*.fits')))
+
+    # Add level 3 ecsv files for TSO observations
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'L3/*/*/*whtlt.ecsv')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*whtlt.ecsv')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'public', program, 'L3/*/*/*phot.ecsv')))
+    filenames.extend(glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', program, 'L3/*/*/*phot.ecsv')))
+
+    # Remove any repeated filenames
+    filenames = remove_duplicate_files(filenames)
 
     # remove specific "ignored" suffix files (currently "original" and "stream")
     filenames = [filename for filename in filenames if os.path.splitext(filename.split('_')[-1])[0] not in IGNORED_SUFFIXES]
@@ -746,7 +807,7 @@ def process_program(program, overwrite):
     for filename in filenames:
         parsed = filename_parser(filename)
         if parsed['recognized_filename']:
-            if 'guider_mode' not in parsed and 'detector' in parsed:
+            if 'guider_mode' not in parsed:
                 filtered_filenames.append(filename)
         else:
             logging.warning((f'While running generate_preview_images.process_program() on {filename}, the '
@@ -767,7 +828,7 @@ def process_program(program, overwrite):
         # Determine the save location
         parsed = filename_parser(filename)
         if parsed['recognized_filename']:
-            identifier = 'jw{}'.format(parsed['program_id'])
+            identifier = f'jw{parsed["program_id"]}'
         else:
             # In this case, the filename_parser failed to recognize the filename
             identifier = os.path.basename(filename).split('.fits')[0]
@@ -781,6 +842,7 @@ def process_program(program, overwrite):
             # If overwrite is False, we create preview images only for files that
             # don't have them yet.
             file_exists = check_existence([filename], preview_output_directory)
+
             if file_exists:
                 logging.debug("\tJPG already exists for {}, skipping.".format(filename))
                 existing_preview_counter += 1
@@ -801,27 +863,11 @@ def process_program(program, overwrite):
 
         # Create the nominal preview image and thumbnail
         try:
-            im = PreviewImage(filename, "SCI")
-            im.clip_percent = 0.01
-            im.set_scaling()
-            im.cmap = 'viridis'
-            im.output_format = 'jpg'
-            im.preview_output_directory = preview_output_directory
-            im.thumbnail_output_directory = thumbnail_output_directory
-
-            # Create a thumbnail for rate or dark files only. Create preview
-            # images for all filetypes
-            if 'rate.fits' in filename or 'dark.fits' in filename:
-                im.make_image(max_img_size=8, create_thumbnail=True)
+            prev_ims, thumb_ims = preview_img_from_file(filename, parsed)
+            if prev_ims is not None:
                 new_preview_counter += 1
-                thumbnail_files.extend(im.thumbnail_images)
-                logging.debug('\tCreated preview image and thumbnail for: {}'.format(filename))
-            else:
-                im.make_image(max_img_size=8, create_thumbnail=False)
-                new_preview_counter += 1
-                logging.debug('\tCreated preview image for: {}'.format(filename))
-
-            preview_image_files.extend(im.preview_images)
+                thumbnail_files.extend(img.thumbnail_images)
+                preview_image_files.extend(im.preview_images)
 
         except (ValueError, AttributeError) as error:
             logging.warning(error)

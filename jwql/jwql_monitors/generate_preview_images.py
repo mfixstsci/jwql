@@ -586,7 +586,7 @@ def generate_preview_images(overwrite, programs=None):
     all_programs.extend([os.path.basename(item) for item in glob.glob(os.path.join(SETTINGS['filesystem'], 'proprietary', 'jw*'))])
 
     # Remove any repeats due to programs being listed in public and proprietary dirs at the same time.
-    all_programs = list(set(program_list))
+    all_programs = list(set(all_programs))
 
     if programs is None:
         program_list = all_programs
@@ -711,7 +711,7 @@ def group_filenames(filenames):
     return grouped
 
 
-def preview_img_from_file(fname, file_info):
+def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_output_directory):
     """Wrapper around functions for creating preview images from various file types
 
     Parameter
@@ -721,6 +721,12 @@ def preview_img_from_file(fname, file_info):
 
     file_info : dict
         Results from calling filename_parser on fname
+
+    preview_output_directory : str
+        Path in which to save the preview images
+
+    thumbnail_output_directory : str
+        Path in which to save the thumbnail images
     """
     # All stage 2 files and i2d.fits files
     if 'stage_3' not in file_info['filename_type']:
@@ -751,7 +757,11 @@ def preview_img_from_file(fname, file_info):
 
     else:
         # Stage 3 fits file - create thumbnails for all level 3 products
-        img = Level3PreviewImage(fname, create_thumbnail=True)
+        img = Level3PreviewImage(fname, create_thumbnail=True,
+                                 preview_output_directory=preview_output_directory,
+                                 thumbnail_output_directory=thumbnail_output_directory,
+                                 wfss_nbrightest_sources=2
+                                 )
         if img.figures_created:
             return img.preview_images, img.thumbnail_images
         else:
@@ -863,11 +873,11 @@ def process_program(program, overwrite):
 
         # Create the nominal preview image and thumbnail
         try:
-            prev_ims, thumb_ims = preview_img_from_file(filename, parsed)
+            prev_ims, thumb_ims = preview_img_from_file(filename, parsed, preview_output_directory, thumbnail_output_directory)
             if prev_ims is not None:
                 new_preview_counter += 1
-                thumbnail_files.extend(img.thumbnail_images)
-                preview_image_files.extend(im.preview_images)
+                thumbnail_files.extend(thumb_ims)
+                preview_image_files.extend(prev_ims)
 
         except (ValueError, AttributeError) as error:
             logging.warning(error)

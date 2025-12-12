@@ -742,7 +742,7 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
 
             # Create a thumbnail for rate or dark files only. Create preview
             # images for all filetypes
-            if 'rate.fits' in fame or 'dark.fits' in fname:
+            if 'rate.fits' in fname or 'dark.fits' in fname:
                 img.make_image(max_img_size=8, create_thumbnail=True)
                 logging.debug('\tCreated preview image and thumbnail for: {}'.format(fname))
             else:

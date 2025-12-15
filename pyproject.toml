@@ -19,13 +19,13 @@ classifiers = [
     "Programming Language :: Python",
 ]
 dependencies = [
-    "asdf>=3.1.0,<4",
+    "asdf>=5.0.0,<6",
     "astropy>=6.0,<7",
     "astroquery>=0.4.7,<0.5.0",
     "beautifulsoup4>=4.12.3,<5",
     "bokeh>=3.4.0,<4",
     "celery>=5.3.6,<6",
-    "crds>=11.17.19,<12",
+    "crds>=13.0.0,<14",
     "django>=5.0.3,<6",
     "gunicorn>=22.0.0,<23.0.0",
     "inflection>=0.5.1,<0.6",

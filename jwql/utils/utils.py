@@ -510,16 +510,55 @@ def filename_parser(filename):
         r"_(?P<instrument>nirspec)"\
         r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"
 
-    # Nirspec fixedslit
-    # e.g. jw01309-o022_s000000021_nirspec_f290lp-g395h-s200a1-allslits_cal.fits crf.fits s2d.fits x1d.fits
-    stage_3_nirspec_fixed_slit = \
+    # Nirspec fixed slit - single slit
+    # e.g. jw05232-o002_t001-s000000012_nirspec_f290lp-g395m-s200a2_crf.fits
+    stage_3_nirspec_fixed_slit_single_slit = \
         r"jw" \
         r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
         r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
-        r"_(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
         r"_(?P<instrument>nirspec)"\
         r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
-        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{4,8})"
+        r"-(?P<slitname>[a-zA-Z0-9]{6,7})"
+
+    # Nirspec fixed slit - single slit with subarray
+    # e.g. jw05232-o002_t001-s000000012_nirspec_f290lp-g395m-s200a2-allslits_crf.fits
+    stage_3_nirspec_fixed_slit_single_slit_with_subarray = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
+        r"-(?P<slitname>[a-zA-Z0-9]{6,7})"\
+        r"-(?P<subarray>[\w]+)"
+
+    # Nirspec fixed slit - special case with two slits together
+    # e.g. jw02288-o002_t001-s000000001_nirspec_f100lp-g140h-s200a1-s200a2_crf.fits
+    stage_3_nirspec_fixed_slit_two_slits = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
+        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{6,7})"
+
+    # Nirspec fixed slit - special case with two slits together, with subarray
+    # e.g. jw02288-o002_t001-s000000001_nirspec_f100lp-g140h-s200a1-s200a2-allslits_crf.fits
+    stage_3_nirspec_fixed_slit_two_slits_with_subarray = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
+        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{6,7})"\
+        r"-(?P<subarray>[\w]+)"
 
     # NIRCam imaging and coronagraphy level 3 subarray data
     # e.g. jw01189-c1009_t006_nircam_f300m-maskrnd-sub320a335r_i2d.fits, jw01068-o002_t005_nircam_clear-f356w-sub320_i2d.fits
@@ -609,7 +648,10 @@ def filename_parser(filename):
         stage_3_source_id_epoch,
         stage_3_nirspec_ifu_mos,
         stage_3_nirspec_source_based,
-        stage_3_nirspec_fixed_slit,
+        stage_3_nirspec_fixed_slit_single_slit,
+        stage_3_nirspec_fixed_slit_single_slit_with_subarray,
+        stage_3_nirspec_fixed_slit_two_slits,
+        stage_3_nirspec_fixed_slit_two_slits_with_subarray,
         time_series,
         time_series_2c,
         guider,
@@ -630,7 +672,10 @@ def filename_parser(filename):
         'stage_3_source_id_epoch',
         'stage_3_nirspec_ifu_mos',
         'stage_3_nirspec_source_based',
-        'stage_3_nirspec_fixed_slit',
+        'stage_3_nirspec_fixed_slit_single_slit',
+        'stage_3_nirspec_fixed_slit_single_slit_with_subarray',
+        'stage_3_nirspec_fixed_slit_two_slits',
+        'stage_3_nirspec_fixed_slit_two_slits_with_subarray',
         'time_series',
         'time_series_2c',
         'guider',
@@ -713,7 +758,7 @@ def filename_parser(filename):
     # Raise error if unable to parse the filename
     except AttributeError:
         filename_dict = {'recognized_filename': False}
-        logging.exception((f'\nFile; {filename} was not recognized by filename_parser(). Update parser or '
+        logging.exception((f'\nFile: {filename} was not recognized by filename_parser(). Update parser or '
                            'constants.py if it should be recognized.\n'))
 
     return filename_dict

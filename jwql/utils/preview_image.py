@@ -454,17 +454,19 @@ class PreviewImage():
 
         # Set the figure size
         yd, xd = image.shape
-
-        # Use the data dimensions to determine the aspect ratio and figure size of the preview image
-        aspect, colorbar_orient, figsize = \
-            determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
-                                        maxsize=self.maxsize)
+        ratio = yd / xd
+        if xd >= yd:
+            xsize = maxsize
+            ysize = maxsize * ratio
+        else:
+            ysize = maxsize
+            xsize = maxsize / ratio
 
         # Create figure and axis object
         if thumbnail:
             self.fig, ax = plt.subplots(figsize=(3, 3))
         else:
-            self.fig, ax = plt.subplots(figsize=figsize)
+            self.fig, ax = plt.subplots(figsize=(xsize, ysize))
 
         # Get color scale and tick values depending on the scaling
         if scale == 'log':
@@ -481,14 +483,13 @@ class PreviewImage():
             cax = ax.imshow(shiftdata,
                             norm=colors.LogNorm(vmin=shiftmin,
                                                 vmax=shiftmax),
-                            cmap=self.cmap,
-                            aspect=aspect)
+                            cmap=self.cmap)
 
         elif scale == 'linear':
             # Generate tick labels
             tickvals = np.linspace(min_value, max_value, 5)
             tlabelflt = tickvals
-            cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap, aspect=aspect)
+            cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap)
 
         # Invert y axis in all cases
         plt.gca().invert_yaxis()

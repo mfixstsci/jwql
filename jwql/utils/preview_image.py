@@ -931,11 +931,12 @@ class Level3PreviewImage():
                 self.ami_preview()
         elif 'whtlt.ecsv' in self.filename or 'phot.ecsv' in filename:
             self.tso_whitelight_curve()
-        elif self.exp_type in ['NRS_FIXEDSLIT', 'MIR_LRS-FIXEDSLIT'] and ('cal' in self.filename or
+        elif self.exp_type in ['NRS_MSASPEC', 'NRS_FIXEDSLIT', 'MIR_LRS-FIXEDSLIT'] and ('cal' in self.filename or
                                                                           'crf' in self.filename or
                                                                           's2d' in self.filename):
             self.fixed_slit_cal_crf_s2d()
-        elif 'x1d' in self.filename and self.exp_type in ['NRS_FIXEDSLIT',
+        elif 'x1d' in self.filename and self.exp_type in ['NRS_MSASPEC',
+                                                          'NRS_FIXEDSLIT',
                                                           'NRS_IFU',
                                                           'MIR_LRS-FIXEDSLIT'
                                                           ]:
@@ -2283,6 +2284,10 @@ class Level3PreviewImage():
         Save matplotlib figures as preview images and possibly thumbnail images,
         and set the appropriate permissions
         """
+        if len(self.figures) == 0:
+            logging.error(f'No figure produced for file: {self.filename}')
+            return
+
         for i, figure in enumerate(self.figures):
 
             # Preview image filename is the name of the input file with jpg at the end

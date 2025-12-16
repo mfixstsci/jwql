@@ -31,18 +31,19 @@ jobs:
       PYTHONUNBUFFERED: 1
     defaults:
       run:
-        shell: micromamba-shell {0}
+        shell: bash -leo pipefail {0}
     steps:
       - uses: actions/checkout@v4
       
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@7f29b8b80078b1b601dfa018b0f7425c587c63bb # v2.0.6
         with:
           environment-name: jwql-${{ runner.os }}-py${{ matrix.python-version }}
           environment-file: environment.yml
           create-args: >-
             python=${{ matrix.python-version }}
-          init-shell: none
-          generate-run-shell: true
+          init-shell: bash
+          generate-run-shell: false
+          post-cleanup: none
           
       - run: pip install -e .[test] pytest-xdist
 

@@ -24,7 +24,7 @@ jobs:
         os: 
           [ "ubuntu-latest", "macos-latest" ]
         python-version:
-          [ "3.11", "3.12" ]
+          [ "3.12", "3.13", "3.14" ]
       fail-fast: false
     name: freeze versions (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     steps:

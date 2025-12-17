@@ -49,7 +49,7 @@ try:
     from torchvision import transforms
     import torchvision.models as models
 except ImportError:
-    raise ImportError("wisp prediction requires `torch` and `torchvision` installed")
+    raise ImportError("wisp prediction requires `jwql[wisp]` dependencies")
 
 from jwql.utils import monitor_utils
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS, WISP_PROBABILITY_THRESHOLD

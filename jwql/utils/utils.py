@@ -510,9 +510,9 @@ def filename_parser(filename):
         r"_(?P<instrument>nirspec)"\
         r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"
 
-    # Nirspec fixed slit - single slit
-    # e.g. jw05232-o002_t001-s000000012_nirspec_f290lp-g395m-s200a2_crf.fits
-    stage_3_nirspec_fixed_slit_single_slit = \
+    # Nirspec fixed slit - special case with two slits together, with subarray
+    # e.g. jw02288-o002_t001-s000000001_nirspec_f100lp-g140h-s200a1-s200a2-allslits_crf.fits
+    stage_3_nirspec_fixed_slit_two_slits_with_subarray = \
         r"jw" \
         r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
         r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
@@ -520,20 +520,8 @@ def filename_parser(filename):
         r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
         r"_(?P<instrument>nirspec)"\
         r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
-        r"-(?P<slitname>[a-zA-Z0-9]{6,7})"
-
-    # Nirspec fixed slit - single slit with subarray
-    # e.g. jw05232-o002_t001-s000000012_nirspec_f290lp-g395m-s200a2-allslits_crf.fits
-    stage_3_nirspec_fixed_slit_single_slit_with_subarray = \
-        r"jw" \
-        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
-        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
-        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
-        r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
-        r"_(?P<instrument>nirspec)"\
-        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
-        r"-(?P<slitname>[a-zA-Z0-9]{6,7})"\
-        r"-(?P<subarray>[\w]+)"
+        r"-(?P<slitname>s\d{3,4}[ab][12]-s\d{3,4}[ab][12])"\
+        r"-(?P<subarray>(?:sub\w+|allslits))"
 
     # Nirspec fixed slit - special case with two slits together
     # e.g. jw02288-o002_t001-s000000001_nirspec_f100lp-g140h-s200a1-s200a2_crf.fits
@@ -545,11 +533,11 @@ def filename_parser(filename):
         r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
         r"_(?P<instrument>nirspec)"\
         r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
-        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{6,7})"
+        r"-(?P<slitname>s\d{3,4}[ab][12]-s\d{3,4}[ab][12])"
 
-    # Nirspec fixed slit - special case with two slits together, with subarray
-    # e.g. jw02288-o002_t001-s000000001_nirspec_f100lp-g140h-s200a1-s200a2-allslits_crf.fits
-    stage_3_nirspec_fixed_slit_two_slits_with_subarray = \
+    # Nirspec fixed slit - single slit
+    # e.g. jw05232-o002_t001-s000000012_nirspec_f290lp-g395m-s200a2_crf.fits
+    stage_3_nirspec_fixed_slit_single_slit = \
         r"jw" \
         r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
         r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
@@ -557,8 +545,20 @@ def filename_parser(filename):
         r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
         r"_(?P<instrument>nirspec)"\
         r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
-        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{6,7})"\
-        r"-(?P<subarray>[\w]+)"
+        r"-(?P<slitname>s\d{3,4}[ab][12])"
+
+    # Nirspec fixed slit - single slit with subarray
+    # e.g. jw05232-o002_t001-s000000012_nirspec_f290lp-g395m-s200a2-allslits_crf.fits
+    stage_3_nirspec_fixed_slit_single_slit_with_subarray = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"-(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
+        r"-(?P<slitname>s\d{3,4}[ab][12])"\
+        r"-(?P<subarray>(?:sub\w+|allslits))"
 
     # NIRCam imaging and coronagraphy level 3 subarray data
     # e.g. jw01189-c1009_t006_nircam_f300m-maskrnd-sub320a335r_i2d.fits, jw01068-o002_t005_nircam_clear-f356w-sub320_i2d.fits

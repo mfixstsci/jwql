@@ -42,8 +42,6 @@ from jwql.utils.constants import INSTRUMENT_SERVICE_MATCH, JWST_INSTRUMENT_NAMES
 from jwql.utils.utils import get_config
 
 
-MAST_TOKEN = get_config()['mast_token']
-
 
 def get_oss_log_messages(visitid=None, start_time=None, end_time=None):
     """ Retrieve OSS event log messages during a given visit or time interval
@@ -78,6 +76,7 @@ def get_oss_log_messages(visitid=None, start_time=None, end_time=None):
         end_time = astropy.time.Time(end_time)
 
     #----- Retrieve relevant messages from the ICTM event log stream -----
+    MAST_TOKEN = get_config()['mast_token']
     service = EngdbMast(token=MAST_TOKEN)
 
     # There are multiple mnemonics we care about,

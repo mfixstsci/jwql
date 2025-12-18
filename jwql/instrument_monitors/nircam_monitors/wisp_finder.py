@@ -42,10 +42,14 @@ from django import setup
 from django.utils import timezone
 import numpy as np
 from PIL import Image
-import torch
-import torch.nn as nn
-from torchvision import transforms
-import torchvision.models as models
+
+try:
+    import torch
+    import torch.nn as nn
+    from torchvision import transforms
+    import torchvision.models as models
+except ImportError:
+    raise ImportError("wisp prediction requires `jwql[wisp]` dependencies")
 
 from jwql.utils import monitor_utils
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS, WISP_PROBABILITY_THRESHOLD

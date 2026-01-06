@@ -454,17 +454,19 @@ class PreviewImage():
 
         # Set the figure size
         yd, xd = image.shape
-
-        # Use the data dimensions to determine the aspect ratio and figure size of the preview image
-        aspect, colorbar_orient, figsize = \
-            determine_figure_properties(xd, yd, threshold=self.threshold_for_nonsquare_pix,
-                                        maxsize=self.maxsize)
+        ratio = yd / xd
+        if xd >= yd:
+            xsize = maxsize
+            ysize = maxsize * ratio
+        else:
+            ysize = maxsize
+            xsize = maxsize / ratio
 
         # Create figure and axis object
         if thumbnail:
             self.fig, ax = plt.subplots(figsize=(3, 3))
         else:
-            self.fig, ax = plt.subplots(figsize=figsize)
+            self.fig, ax = plt.subplots(figsize=(xsize, ysize))
 
         # Get color scale and tick values depending on the scaling
         if scale == 'log':
@@ -481,14 +483,13 @@ class PreviewImage():
             cax = ax.imshow(shiftdata,
                             norm=colors.LogNorm(vmin=shiftmin,
                                                 vmax=shiftmax),
-                            cmap=self.cmap,
-                            aspect=aspect)
+                            cmap=self.cmap)
 
         elif scale == 'linear':
             # Generate tick labels
             tickvals = np.linspace(min_value, max_value, 5)
             tlabelflt = tickvals
-            cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap, aspect=aspect)
+            cax = ax.imshow(image, clim=(min_value, max_value), cmap=self.cmap)
 
         # Invert y axis in all cases
         plt.gca().invert_yaxis()
@@ -946,11 +947,12 @@ class Level3PreviewImage():
                 self.ami_preview()
         elif 'whtlt.ecsv' in self.filename or 'phot.ecsv' in filename:
             self.tso_whitelight_curve()
-        elif self.exp_type in ['NRS_FIXEDSLIT', 'MIR_LRS-FIXEDSLIT'] and ('cal' in self.filename or
+        elif self.exp_type in ['NRS_MSASPEC', 'NRS_FIXEDSLIT', 'MIR_LRS-FIXEDSLIT'] and ('cal' in self.filename or
                                                                           'crf' in self.filename or
                                                                           's2d' in self.filename):
             self.fixed_slit_cal_crf_s2d()
-        elif 'x1d' in self.filename and self.exp_type in ['NRS_FIXEDSLIT',
+        elif 'x1d' in self.filename and self.exp_type in ['NRS_MSASPEC',
+                                                          'NRS_FIXEDSLIT',
                                                           'NRS_IFU',
                                                           'MIR_LRS-FIXEDSLIT'
                                                           ]:
@@ -1309,6 +1311,11 @@ class Level3PreviewImage():
             vmin = np.nanpercentile(self.model.exposures[0].data, 1)
             vmax = np.nanpercentile(self.model.exposures[0].data, 99)
 
+            # If the data array is all NaNs, which we've seen in some msaspec files,
+            # then set the vmin and vmax based on all data extensions
+            if not np.isfinite(vmin):
+                vmin, vmax = self.get_plot_range_mult_exposures()
+
             # For NIRSpec data, group the plots by detector
             if self.model.meta.instrument.name.lower() == 'nirspec':
                 srt = np.argsort(np.array(titles))
@@ -1335,6 +1342,10 @@ class Level3PreviewImage():
             # Clip brightest and dimmest 1% of pixels to find min and max values
             vmin = np.nanpercentile(self.model.data, 1)
             vmax = np.nanpercentile(self.model.data, 99)
+
+            if not np.isfinite(vmin):
+                vmin = 0
+                vmax = 1
 
         # Create figure
         self.fig, axes = plt.subplots(nrows=num_nods, ncols=1, figsize=figsize)#, constrained_layout=True)
@@ -1445,6 +1456,31 @@ class Level3PreviewImage():
 
         self.max_yval = np.nanmax(self.signal[min_idx: max_idx])
         self.min_yval = np.nanmin(self.signal[min_idx: max_idx])
+
+    def get_plot_range_mult_exposures(self):
+        """For data with multiple exposures, get the vmin and vmax to use for
+        plot scaling while looking across all exposures
+
+        Returns
+        -------
+        minval : float
+            Minimum value
+
+        maxval : float
+            Maximum value
+        """
+        all_data = np.array([])
+        for exp in self.model.exposures:
+            all_data = np.concatenate((all_data, np.ravel(exp.data)))
+        minval = np.nanpercentile(all_data, 1)
+        maxval = np.nanpercentile(all_data, 99)
+
+        # If all data are NaN then revert to simple default values
+        if not np.isfinite(minval):
+            minval = 0
+            maxval = 1
+
+        return minval, maxval
 
     def get_ta_filenames(self):
         """Get the name of the TA file associated with the level 3 file
@@ -2298,6 +2334,10 @@ class Level3PreviewImage():
         Save matplotlib figures as preview images and possibly thumbnail images,
         and set the appropriate permissions
         """
+        if len(self.figures) == 0:
+            logging.error(f'No figure produced for file: {self.filename}')
+            return
+
         for i, figure in enumerate(self.figures):
 
             # Preview image filename is the name of the input file with jpg at the end
@@ -2364,6 +2404,10 @@ class Level3PreviewImage():
                           aspect=aspect,
                           origin='lower',
                           extent=[extent_shift[0], extent_shift[0] + width, extent_shift[1], extent_shift[1] + height])
+
+        # If the data are all NaN, then add some text specifying that
+        if np.all(np.isnan(image)):
+            axis.text(extent_shift[0] + width / 2, extent_shift[1] + height / 2, 'All NaN data', color='white', fontsize=12)
 
         # If no colorbar is to be added, then we're done
         if not add_colorbar:
@@ -3031,6 +3075,14 @@ def determine_default_figsize(xdim, ydim, maxsize=8, aspect=None, ratio_limit=5)
     figsize : tup
         (xsize, ysize)
     """
+    if xdim == 0:
+        logging.warning(f'xdim number of figure columns is 0 for {self.filename}. Setting to 1.')
+        xdim = 1
+
+    if ydim == 0:
+        logging.warning(f'ydim number of figure rows is 0 for {self.filename}. Setting to 1.')
+        ydim = 1
+
     if xdim >= ydim:
         figsize = (maxsize, maxsize * ydim / xdim)
     else:

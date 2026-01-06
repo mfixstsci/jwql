@@ -36,9 +36,11 @@ import astropy
 from astropy import time
 from astropy.io import fits
 from astroquery.mast import Mast, Observations
-from jwst.lib.engdb_tools import ENGDB_Service
+from jwst.lib.engdb_mast import EngdbMast
 
 from jwql.utils.constants import INSTRUMENT_SERVICE_MATCH, JWST_INSTRUMENT_NAMES_MIXEDCASE, JWST_INSTRUMENT_NAMES_SHORTHAND
+from jwql.utils.utils import get_config
+
 
 
 def get_oss_log_messages(visitid=None, start_time=None, end_time=None):
@@ -74,7 +76,8 @@ def get_oss_log_messages(visitid=None, start_time=None, end_time=None):
         end_time = astropy.time.Time(end_time)
 
     #----- Retrieve relevant messages from the ICTM event log stream -----
-    service = ENGDB_Service()  # By default, will use the public MAST service.
+    MAST_TOKEN = get_config()['mast_token']
+    service = EngdbMast(token=MAST_TOKEN)
 
     # There are multiple mnemonics we care about,
     # in particular the EVENT_MSG has the text, and the MSG_ID and MSG_SRC give metadata on the source

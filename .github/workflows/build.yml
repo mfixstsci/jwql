@@ -8,7 +8,7 @@ on:
 
 defaults:
   run:
-    shell: micromamba-shell {0}
+    shell: bash -leo pipefail {0}
 
 jobs:
   build:
@@ -24,22 +24,22 @@ jobs:
         os: 
           [ "ubuntu-latest", "macos-latest" ]
         python-version:
-          [ "3.11", "3.12" ]
+          [ "3.12", "3.13", "3.14" ]
       fail-fast: false
     name: freeze versions (Python ${{ matrix.python-version }}, ${{ matrix.os }})
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: mamba-org/setup-micromamba@v1
+      - uses: mamba-org/setup-micromamba@7f29b8b80078b1b601dfa018b0f7425c587c63bb # v2.0.6
         with:
           environment-name: jwql-${{ runner.os }}-py${{ matrix.python-version }}
           environment-file: environment.yml
           create-args: >-
             python=${{ matrix.python-version }}
-            conda
-          init-shell: none
-          generate-run-shell: true
+          init-shell: bash
+          generate-run-shell: false
+          post-cleanup: none
       - run: pip install .
       - run: pip list
       - id: version
@@ -47,7 +47,7 @@ jobs:
         run: echo version=$(python -c "import jwql; print(jwql.__version__)") >> $GITHUB_OUTPUT
       - id: filename
         run: echo "filename=jwql_${{ steps.version.outputs.version }}_conda_${{ runner.os }}_${{ runner.arch }}_py${{ matrix.python-version }}.yml" >> $GITHUB_OUTPUT
-      - run: conda env export --no-build | grep -v "name:" | grep -v "prefix:" > ${{ steps.filename.outputs.filename }}
+      - run: micromamba env export --no-build | grep -v "name:" | grep -v "prefix:" > ${{ steps.filename.outputs.filename }}
       - run: cat ${{ steps.filename.outputs.filename }}
       - uses: actions/upload-artifact@v4
         with:

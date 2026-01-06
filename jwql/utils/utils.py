@@ -747,8 +747,11 @@ def filesystem_path(filename, check_existence=True, search=None):
     subdir1 = 'jw{}'.format(filename[2:7])
     subdir2 = 'jw{}'.format(filename[2:13])
 
+    # If looking for an association file, search the asn subdirectory.
+    if "asn.json" in filename:
+        subdir2 = "asn"
     # Level 3 files are in a different location
-    if filename[7] == '-':
+    elif filename[7] == '-':
         parts = filename.split('_')
         id1 = parts[0].split('-')[1]
         id2 = parts[1]
@@ -919,6 +922,30 @@ def read_png(filename):
         view = None
     # Return the 2D version
     return img
+
+
+def remove_duplicate_files(file_list):
+    """Given a list of filenames, search for and remove duplicates, based only on the basename. Copies of the
+    same filename in different directories will be removed.
+
+    Parameters
+    ----------
+    file_list : list
+        List of full paths to input files
+
+    Returns
+    -------
+    unique_files : list
+        List of files with unique basenames
+    """
+    file_list = np.array(file_list)
+    unique_files = []
+    basenames_only = sorted(list(set([os.path.basename(e) for e in file_list])))
+
+    for basename in basenames_only:
+        matches = np.array([basename in e for e in file_list])
+        unique_files.append(file_list[matches][0])
+    return unique_files
 
 
 def save_png(fig, filename=''):

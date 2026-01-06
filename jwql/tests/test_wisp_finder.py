@@ -23,10 +23,16 @@ import pytest
 
 from django import setup
 import numpy as np
-import torch
-import torchvision
 
-from jwql.instrument_monitors.nircam_monitors import wisp_finder, prepare_wisp_pngs
+try:
+    import torch
+    import torchvision
+    from jwql.instrument_monitors.nircam_monitors import wisp_finder, prepare_wisp_pngs
+
+    WISP_DEPS_INSTALLED = True
+except ImportError:
+    WISP_DEPS_INSTALLED = False
+
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
 from jwql.utils.utils import get_config
 from jwql.website.apps.jwql.archive_database_update import files_in_filesystem
@@ -38,6 +44,7 @@ if not ON_GITHUB_ACTIONS and not ON_READTHEDOCS:
 
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to database.')
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_add_wisp_flag():
     """Test that the wisp flag is successfully set on a given rootfileinfo
     """
@@ -54,6 +61,7 @@ def test_add_wisp_flag():
         root_file_info.anomalies.save(update_fields=['wisps'])
 
 
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_create_transform():
     """Test that the pytorch transform is successfully created
     """
@@ -62,6 +70,7 @@ def test_create_transform():
 
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to central store.')
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_load_ml_model():
     """Test that a file containing a saved ML model can be successfully loaded
     """
@@ -71,6 +80,7 @@ def test_load_ml_model():
 
 
 @pytest.mark.skipif(ON_GITHUB_ACTIONS, reason='Requires access to central store')
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_predict_wisp():
     modelname = get_config()['wisp_finder_ML_model']
     model = wisp_finder.load_ml_model(modelname)
@@ -88,6 +98,7 @@ def test_predict_wisp():
     os.remove(os.path.join(working_dir, copied_file[0]))
 
 
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_query_mast():
     """Test that a MAST query returns the expected data
     """
@@ -95,6 +106,7 @@ def test_query_mast():
     assert results == ['jw01068004001_02101_00001_nrcb4_rate.fits']
 
 
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_remove_duplicate_files():
     """Test that duplicate instances of a given file are removed
     """
@@ -113,6 +125,7 @@ def test_remove_duplicate_files():
                             ]
 
 
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_rescale_array():
     """Test that an input array is correctly rescaled
     """
@@ -122,6 +135,7 @@ def test_rescale_array():
     assert rescaled[3, 3] == 255
 
 
+@pytest.mark.skipif(not WISP_DEPS_INSTALLED, reason='Requires `jwql[wisp]` dependencies.')
 def test_resize_image():
     """Test image resizing
     """

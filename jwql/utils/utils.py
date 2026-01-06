@@ -52,7 +52,7 @@ from jwql.utils import permissions
 from jwql.utils.constants import FILE_AC_CAR_ID_LEN, FILE_AC_O_ID_LEN, FILE_ACT_LEN, \
     FILE_DATETIME_LEN, FILE_EPOCH_LEN, FILE_GUIDESTAR_ATTMPT_LEN_MIN, \
     FILE_GUIDESTAR_ATTMPT_LEN_MAX, FILE_OBS_LEN, FILE_PARALLEL_SEQ_ID_LEN, \
-    FILE_PROG_ID_LEN, FILE_SEG_LEN, FILE_SOURCE_ID_LEN, FILE_SUFFIX_TYPES, \
+    FILE_PROG_ID_LEN, FILE_SEG_LEN, FILE_SOURCE_ID_LEN, FILE_SOURCE_ID_LONG_LEN, FILE_SUFFIX_TYPES, \
     FILE_TARG_ID_LEN, FILE_VISIT_GRP_LEN, FILE_VISIT_LEN, FILETYPE_WO_STANDARD_SUFFIX, \
     JWST_INSTRUMENT_NAMES_SHORTHAND, ON_GITHUB_ACTIONS, STSCI_VO_URL
 __location__ = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
@@ -427,15 +427,36 @@ def filename_parser(filename):
         r"(?P<visit>\d{" + f"{FILE_VISIT_LEN}" + "})"\
         r"(_.._msa.fits)"
 
+    # Stage 3 MIRI IFU file
+    # e.g. jw07772-c1015_t005_miri_ch1-long_x1d.fits
+    stage_3_miri_ifu = \
+        r"jw(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>([oi]\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>t\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>miri)"\
+        r"_ch(?P<channel>[1-4])"\
+        r"-(?P<subchannel>(long|medium|short|all)" + ")"
+
+    # Stage 3, single optical element, subarray
+    # e.g. jw06604-o005_t002_miri_f1800w-brightsky_i2d.fits
+    stage_3_optelement_subarray = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
+        r"[_-](?P<optical_elements>[a-zA-Z0-9\-]{5,})"\
+        r"-(?P<subarray>[a-zA-Z0-9\-]+)"
+
     # Stage 3 filenames with target ID
-    # e.g. "jw80600-o009_t001_miri_f1130w_i2d.fits"
+    # e.g. "jw01076-o002_t001_nircam_f444w-grismr_x1d.fits or c1d.fits"
     stage_3_target_id = \
         r"jw" \
         r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
         r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
         r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
-        r"_(?P<optical_elements>((?!_)[\w-])+)"
+        r"[-_](?P<optical_elements>((?!_)[\w-])+)"
 
     # Stage 3 filenames with source ID
     # e.g. "jw80600-o009_s00001_miri_f1130w_i2d.fits"
@@ -457,6 +478,59 @@ def filename_parser(filename):
         r"-epoch(?P<epoch>\d{" + f"{FILE_EPOCH_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
         r"_(?P<optical_elements>((?!_)[\w-])+)"
+
+    # Stage 3 WFSS filenames
+    # e.g. jw01076-o124_s000001220_nircam_f322w2-grismr_x1d.fits cal.fits c1d.fits
+    #This should not be used anymore...
+    stage_3_wfss_source_id = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nircam|niriss|miri)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,7})"\
+
+    # NIRSpec IFU and MOS level 3 products
+    # e.g. jw09230-o004_t001_nirspec_g395h_f290lp_s3d.fits x1d.fits
+    stage_3_nirspec_ifu_mos = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
+        r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>(nirspec))"\
+        r"_(?P<optical_elements>([a-zA-Z0-9]{4,6}_[a-zA-Z0-9]{4,6})+)"
+
+    # Stage 3 NIRSpec source-based files
+    # e.g. jw04735-o005_s000013418_nirspec_f100lp-g140h_x1d.fits
+    stage_3_nirspec_source_based = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<source_id>[sbv]\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"
+
+    # Nirspec fixedslit
+    # e.g. jw01309-o022_s000000021_nirspec_f290lp-g395h-s200a1-allslits_cal.fits crf.fits s2d.fits x1d.fits
+    stage_3_nirspec_fixed_slit = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<source_id>s\d{" + f"{FILE_SOURCE_ID_LONG_LEN}" + "})"\
+        r"_(?P<instrument>nirspec)"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,6})"\
+        r"-(?P<slitname>[a-zA-Z0-9]{6,7}-[a-zA-Z0-9]{4,8})"
+
+    # NIRCam imaging and coronagraphy level 3 subarray data
+    # e.g. jw01189-c1009_t006_nircam_f300m-maskrnd-sub320a335r_i2d.fits, jw01068-o002_t005_nircam_clear-f356w-sub320_i2d.fits
+    stage_3_subarray_based = \
+        r"jw" \
+        r"(?P<program_id>\d{" + f"{FILE_PROG_ID_LEN}" + "})"\
+        r"-(?P<ac_id>o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|[car]\d{" + f"{FILE_AC_CAR_ID_LEN}" + "})"\
+        r"_(?P<target_id>t\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
+        r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
+        r"_(?P<optical_elements>[a-zA-Z0-9]{4,6}-[a-zA-Z0-9]{4,})"\
+        r"-(?P<subarray>[\w]+)"
 
     # Stage 3 filenames with source ID and epoch
     # e.g. "jw80600-o009_s00001-epoch1_miri_f1130w_i2d.fits"
@@ -525,10 +599,17 @@ def filename_parser(filename):
         stage_1_and_2,
         stage_2c,
         stage_2_msa,
+        stage_3_subarray_based,
+        stage_3_wfss_source_id,
+        stage_3_miri_ifu,
+        stage_3_optelement_subarray,
         stage_3_target_id,
         stage_3_source_id,
         stage_3_target_id_epoch,
         stage_3_source_id_epoch,
+        stage_3_nirspec_ifu_mos,
+        stage_3_nirspec_source_based,
+        stage_3_nirspec_fixed_slit,
         time_series,
         time_series_2c,
         guider,
@@ -539,10 +620,17 @@ def filename_parser(filename):
         'stage_1_and_2',
         'stage_2c',
         'stage_2_msa',
+        'stage_3_subarray_based',
+        'stage_3_wfss_source_id',
+        'stage_3_miri_ifu',
+        'stage_3_optelement_subarray',
         'stage_3_target_id',
         'stage_3_source_id',
         'stage_3_target_id_epoch',
         'stage_3_source_id_epoch',
+        'stage_3_nirspec_ifu_mos',
+        'stage_3_nirspec_source_based',
+        'stage_3_nirspec_fixed_slit',
         'time_series',
         'time_series_2c',
         'guider',
@@ -602,6 +690,26 @@ def filename_parser(filename):
             group_root = re.sub(rf"_{filename_dict['detector']}$", '', root_name)
             filename_dict['group_root'] = group_root
 
+        # For level 3 files that use an observation-based association ID, set
+        # the observation number. This will be needed to allow the file to show
+        # up on the appropriate observation page.
+        if 'stage_3' in filename_dict['filename_type']:
+            if filename[7:9] == '-o':
+                filename_dict['observation'] = filename[9:12]
+            else:
+                # import here to avoid circular import
+                # Should we instead create a mast_queries.py file and move functions there to avoid circular imports?
+                from jwql.website.apps.jwql.data_containers import mast_query_filenames_by_instrument
+                l3_info = mast_query_filenames_by_instrument(filename_dict['instrument'],
+                                                             filename_dict['program_id'],
+                                                             other_columns=['observtn'])
+
+                obs = [e['observtn'] for e in l3_info['data'] if root_name in e['filename']]
+                # We don't support having multiple observations associated with a single level 3 file
+                if len(obs) > 0:
+                    obs = obs[0]
+                filename_dict['observation'] = str(obs).zfill(3)
+
     # Raise error if unable to parse the filename
     except AttributeError:
         filename_dict = {'recognized_filename': False}
@@ -638,6 +746,16 @@ def filesystem_path(filename, check_existence=True, search=None):
     # Subdirectory name is based on the proposal ID
     subdir1 = 'jw{}'.format(filename[2:7])
     subdir2 = 'jw{}'.format(filename[2:13])
+
+    # If looking for an association file, search the asn subdirectory.
+    if "asn.json" in filename:
+        subdir2 = "asn"
+    # Level 3 files are in a different location
+    elif filename[7] == '-':
+        parts = filename.split('_')
+        id1 = parts[0].split('-')[1]
+        id2 = parts[1]
+        subdir2 = f'L3/{id2[0]}/{id1}'
 
     if search:
         full_subdir = os.path.join(subdir1, subdir2, '{}{}'.format(filename, search))
@@ -688,7 +806,7 @@ def get_base_url():
 
 
 def get_rootnames_for_instrument_proposal(instrument, proposal):
-    """Return a list of rootnames for the given instrument and proposal
+    """Return a list of stage 2 and stage 3 rootnames for the given instrument and proposal
 
     Parameters
     ----------
@@ -705,7 +823,7 @@ def get_rootnames_for_instrument_proposal(instrument, proposal):
         List of rootnames for the given instrument and proposal number
     """
     tap_service = vo.dal.TAPService(STSCI_VO_URL)
-    tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and maxLevel=2 and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
+    tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
     prop_table = tap_results.to_table()
     rootnames = prop_table['observationID'].data
     return rootnames.compressed()
@@ -804,6 +922,30 @@ def read_png(filename):
         view = None
     # Return the 2D version
     return img
+
+
+def remove_duplicate_files(file_list):
+    """Given a list of filenames, search for and remove duplicates, based only on the basename. Copies of the
+    same filename in different directories will be removed.
+
+    Parameters
+    ----------
+    file_list : list
+        List of full paths to input files
+
+    Returns
+    -------
+    unique_files : list
+        List of files with unique basenames
+    """
+    file_list = np.array(file_list)
+    unique_files = []
+    basenames_only = sorted(list(set([os.path.basename(e) for e in file_list])))
+
+    for basename in basenames_only:
+        matches = np.array([basename in e for e in file_list])
+        unique_files.append(file_list[matches][0])
+    return unique_files
 
 
 def save_png(fig, filename=''):

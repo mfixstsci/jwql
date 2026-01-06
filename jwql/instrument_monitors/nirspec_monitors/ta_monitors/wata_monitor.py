@@ -501,47 +501,47 @@ class WATA:
                 if "140" in filter_used[i]:
                     if readout[i].lower() == "nrsrapid":
                         nrsrapid_f140x.append(val)
-                        nrsrapid_f110w.append(np.NaN)
-                        nrsrapid_clear.append(np.NaN)
-                        nrsrapidd6_f140x.append(np.NaN)
-                        nrsrapidd6_f110w.append(np.NaN)
-                        nrsrapidd6_clear.append(np.NaN)
+                        nrsrapid_f110w.append(np.nan)
+                        nrsrapid_clear.append(np.nan)
+                        nrsrapidd6_f140x.append(np.nan)
+                        nrsrapidd6_f110w.append(np.nan)
+                        nrsrapidd6_clear.append(np.nan)
                     elif readout[i].lower() == "nrsrapidd6":
-                        nrsrapid_f140x.append(np.NaN)
-                        nrsrapid_f110w.append(np.NaN)
-                        nrsrapid_clear.append(np.NaN)
+                        nrsrapid_f140x.append(np.nan)
+                        nrsrapid_f110w.append(np.nan)
+                        nrsrapid_clear.append(np.nan)
                         nrsrapidd6_f140x.append(val)
-                        nrsrapidd6_f110w.append(np.NaN)
-                        nrsrapidd6_clear.append(np.NaN)
+                        nrsrapidd6_f110w.append(np.nan)
+                        nrsrapidd6_clear.append(np.nan)
                 elif "110" in filter_used[i]:
                     if readout[i].lower() == "nrsrapid":
-                        nrsrapid_f140x.append(np.NaN)
+                        nrsrapid_f140x.append(np.nan)
                         nrsrapid_f110w.append(val)
-                        nrsrapid_clear.append(np.NaN)
-                        nrsrapidd6_f140x.append(np.NaN)
-                        nrsrapidd6_f110w.append(np.NaN)
-                        nrsrapidd6_clear.append(np.NaN)
+                        nrsrapid_clear.append(np.nan)
+                        nrsrapidd6_f140x.append(np.nan)
+                        nrsrapidd6_f110w.append(np.nan)
+                        nrsrapidd6_clear.append(np.nan)
                     elif readout[i].lower() == "nrsrapidd6":
-                        nrsrapid_f140x.append(np.NaN)
-                        nrsrapid_f110w.append(np.NaN)
-                        nrsrapid_clear.append(np.NaN)
-                        nrsrapidd6_f140x.append(np.NaN)
+                        nrsrapid_f140x.append(np.nan)
+                        nrsrapid_f110w.append(np.nan)
+                        nrsrapid_clear.append(np.nan)
+                        nrsrapidd6_f140x.append(np.nan)
                         nrsrapidd6_f110w.append(val)
-                        nrsrapidd6_clear.append(np.NaN)
+                        nrsrapidd6_clear.append(np.nan)
                 else:
                     if readout[i].lower() == "nrsrapid":
-                        nrsrapid_f140x.append(np.NaN)
-                        nrsrapid_f110w.append(np.NaN)
+                        nrsrapid_f140x.append(np.nan)
+                        nrsrapid_f110w.append(np.nan)
                         nrsrapid_clear.append(val)
-                        nrsrapidd6_f140x.append(np.NaN)
-                        nrsrapidd6_f110w.append(np.NaN)
-                        nrsrapidd6_clear.append(np.NaN)
+                        nrsrapidd6_f140x.append(np.nan)
+                        nrsrapidd6_f110w.append(np.nan)
+                        nrsrapidd6_clear.append(np.nan)
                     elif readout[i].lower() == "nrsrapidd6":
-                        nrsrapid_f140x.append(np.NaN)
-                        nrsrapid_f110w.append(np.NaN)
-                        nrsrapid_clear.append(np.NaN)
-                        nrsrapidd6_f140x.append(np.NaN)
-                        nrsrapidd6_f110w.append(np.NaN)
+                        nrsrapid_f140x.append(np.nan)
+                        nrsrapid_f110w.append(np.nan)
+                        nrsrapid_clear.append(np.nan)
+                        nrsrapidd6_f140x.append(np.nan)
+                        nrsrapidd6_f110w.append(np.nan)
                         nrsrapidd6_clear.append(val)
 
             # add to the bokeh data structure
@@ -673,9 +673,9 @@ class WATA:
         for idx, val in enumerate(self.source.data[arr_name]):
             if bool_status[idx] == 0.0:
                 new_list_failed.append(val)
-                new_list_else.append(np.NaN)
+                new_list_else.append(np.nan)
             else:
-                new_list_failed.append(np.NaN)
+                new_list_failed.append(np.nan)
                 new_list_else.append(val)
         return new_list_failed, new_list_else
 

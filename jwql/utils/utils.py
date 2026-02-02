@@ -445,8 +445,8 @@ def filename_parser(filename):
         r"-(?P<ac_id>(o\d{" + f"{FILE_AC_O_ID_LEN}" + r"}|(c|a|r)\d{" + f"{FILE_AC_CAR_ID_LEN}" + "}))"\
         r"_(?P<target_id>(t)\d{" + f"{FILE_TARG_ID_LEN}" + "})"\
         r"_(?P<instrument>(nircam|niriss|nirspec|miri|fgs))"\
-        r"[_-](?P<optical_elements>[a-zA-Z0-9\-]{5,})"\
-        r"-(?P<subarray>[a-zA-Z0-9\-]+)"
+        r"[_-](?P<optical_elements>[a-zA-Z0-9\-]+?)"\
+        r"-(?P<subarray>(sub|full|bright|mask|miri|all|wfss)[a-zA-Z0-9]*)"
 
     # Stage 3 filenames with target ID
     # e.g. "jw01076-o002_t001_nircam_f444w-grismr_x1d.fits or c1d.fits"

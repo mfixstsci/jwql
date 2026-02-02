@@ -43,6 +43,7 @@ Dependencies
 import logging
 import os
 import argparse
+import numbers
 import re
 
 import numpy as np
@@ -368,6 +369,7 @@ def update_database_table(update, instrument, prop, obs, thumbnail, obsfiles, ty
                                                                                       instrument=instrument,
                                                                                       obsnum=obs_instance,
                                                                                       proposal=prop)
+
             if update or rfi_created:
                 # Updating defaults only on update or creation to prevent querying MAST on every file name.
                 # Use mast_query_by_filename() rather than mast_query_by_rootname() because with level 3 files
@@ -376,6 +378,14 @@ def update_database_table(update, instrument, prop, obs, thumbnail, obsfiles, ty
                 # and we would need to keep track of all of these files. By querying by filename, we remove the
                 # confusion over having multiple files associated with a single rootname.
                 defaults_dict = mast_query_by_filename(instrument, filename)
+
+                # Some level 3 files seem to have read_patt_num set to None in the results returned
+                # from MAST. But read_patt_num cannot be null in RootFileInfo. So check for this condition
+                # and set read_patt_num to the default if it is None
+                if 'patt_num' in defaults_dict:
+                    if not isinstance(defaults_dict['patt_num'], numbers.Number):
+                        logging.debug(f'In {filename}, patt_num is {defaults_dict["patt_num"]}')
+                        defaults_dict['patt_num'] = 1
 
                 defaults = dict(filter=defaults_dict.get('filter', DEFAULT_MODEL_CHARFIELD),
                                 detector=defaults_dict.get('detector', DEFAULT_MODEL_CHARFIELD),
@@ -516,6 +526,14 @@ def fill_empty_rootfileinfo(rootfileinfo_set):
     saved_rootfileinfos = 0
     for rootfileinfo_mod in rootfileinfo_set:
         defaults_dict = mast_query_by_rootname(rootfileinfo_mod.instrument, rootfileinfo_mod.root_name)
+
+        # Some level 3 files seem to have read_patt_num set to None in the results returned
+        # from MAST. But read_patt_num cannot be null in RootFileInfo. So check for this condition
+        # and set read_patt_num to the default if it is None
+        if 'patt_num' in defaults_dict:
+            if not isinstance(defaults_dict['patt_num'], numbers.Number):
+                logging.debug(f'In {ootfileinfo_mod.root_name}, patt_num is {defaults_dict["patt_num"]}')
+                defaults_dict['patt_num'] = 1
 
         defaults = dict(filter=defaults_dict.get('filter', DEFAULT_MODEL_CHARFIELD),
                         detector=defaults_dict.get('detector', DEFAULT_MODEL_CHARFIELD),

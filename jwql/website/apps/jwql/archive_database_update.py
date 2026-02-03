@@ -532,7 +532,7 @@ def fill_empty_rootfileinfo(rootfileinfo_set):
         # and set read_patt_num to the default if it is None
         if 'patt_num' in defaults_dict:
             if not isinstance(defaults_dict['patt_num'], numbers.Number):
-                logging.debug(f'In {ootfileinfo_mod.root_name}, patt_num is {defaults_dict["patt_num"]}')
+                logging.debug(f'In {rootfileinfo_mod.root_name}, patt_num is {defaults_dict["patt_num"]}')
                 defaults_dict['patt_num'] = 1
 
         defaults = dict(filter=defaults_dict.get('filter', DEFAULT_MODEL_CHARFIELD),

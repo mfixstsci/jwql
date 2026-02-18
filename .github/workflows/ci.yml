@@ -52,7 +52,7 @@ jobs:
       - run: micromamba env export
 
       - if: runner.os == 'Linux'
-        uses: supercharge/redis-github-action@1.4.4
+        uses: supercharge/redis-github-action@1.8.1
         with:
           redis-version: 5.0
 

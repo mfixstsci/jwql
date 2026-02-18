@@ -1772,7 +1772,10 @@ def get_proposals_by_category(instrument):
     prop_table = tap_results.to_table()
 
     # Convert to a dictionary
-    proposals_by_category = {int(d['prpID']): d['prpProject'] for d in prop_table}
+    try:
+        proposals_by_category = {int(d['prpID']): d['prpProject'] for d in prop_table}
+    except KeyError as k:
+        proposals_by_category = {int(d['prpid']): d['prpproject'] for d in prop_table}
     return proposals_by_category
 
 

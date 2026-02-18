@@ -1847,7 +1847,12 @@ def get_rootnames_for_proposal(proposal):
     tap_results = tap_service.search(f"""select observationID from dbo.CaomObservation where
                                      collection='JWST' and maxLevel=2 and prpID='{int(proposal)}'""")
     prop_table = tap_results.to_table()
-    rootnames = prop_table['observationID'].data
+    if 'observationID' in prop_table.columns:
+        rootnames = prop_table['observationID'].data
+    elif 'observationid' in prop_table.columns:
+        rootnames = prop_table['observationid'].data
+    else:
+        rootnames = []
     return rootnames.compressed()
 
 

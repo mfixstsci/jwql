@@ -1589,7 +1589,12 @@ def get_instrument_proposals(instrument):
     tap_results = tap_service.search(f"""select distinct prpID from CaomObservation where collection='JWST'
                                      and maxLevel>0 and insName like '{instrument.lower()}%'""")
     prop_table = tap_results.to_table()
-    proposals = prop_table['prpID'].data
+    if 'prpID' in prop_table.columns:
+        proposals = prop_table['prpID'].data
+    elif 'prpid' in prop_table.columns:
+        proposals = prop_table['prpid'].data
+    else:
+        proposals = []
     inst_proposals = sorted(proposals.compressed(), reverse=True)
     return inst_proposals
 

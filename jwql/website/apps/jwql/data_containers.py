@@ -1133,7 +1133,7 @@ def mast_query_by_filename(instrument, filename):
         response = Mast.service_request_async(service, params)
         result = response[0].json()
     except Exception as e:
-        logging.error("Mast.service_request_async- {} - {}".format(file_set_name, e))
+        logging.error("Mast.service_request_async- {} - {}".format(filename, e))
         result = {'data': []}
 
     retval = {}
@@ -1845,7 +1845,7 @@ def get_rootnames_for_proposal(proposal):
     """
     tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"""select observationID from dbo.CaomObservation where
-                                     collection='JWST' and maxLevel=2 and prpID='{int(proposal)}'""")
+                                     collection='JWST' and prpID='{int(proposal)}'""", maxrec=0)
     prop_table = tap_results.to_table()
     rootnames = prop_table['observationID'].data
     return rootnames.compressed()
@@ -2009,7 +2009,7 @@ def get_thumbnail_by_rootname(rootname):
     thumbnail_basename = 'none'
 
     if len(thumbnails) > 0:
-        preferred = [thumb for thumb in thumbnails if 'rate' in thumb]
+        preferred = [thumb for thumb in thumbnails]
         if len(preferred) == 0:
             preferred = [thumb for thumb in thumbnails if 'dark' in thumb]
         if len(preferred) > 0:
@@ -2285,18 +2285,18 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
         # e.g. jw02279-o001_s000... are spec2 products for WFSS with one file per source
         # Any filename with a dash after the proposal number is either this spec2 product
         # or a level 3 product
-        if f'jw{proposal}-' in rootname:
-            continue
+        # if f'jw{proposal}-' in rootname:
+        #     continue
 
         # Parse filename
         filename_dict = filename_parser(rootname)
-        if filename_dict['recognized_filename']:
-            # Weed out file types that are not supported by generate_preview_images
-            if 'stage_3' in filename_dict['filename_type']:
-                continue
-        else:
-            # Skip over files not recognized by the filename_parser
-            continue
+        # if filename_dict['recognized_filename']:
+        #     # Weed out file types that are not supported by generate_preview_images
+        #     if 'stage_3' in filename_dict['filename_type']:
+        #         continue
+        # else:
+        #     # Skip over files not recognized by the filename_parser
+        #     continue
 
         # Get list of available filenames and exposure start times. All files with a given
         # rootname will have the same exposure start time, so just keep the first.

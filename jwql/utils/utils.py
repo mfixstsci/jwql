@@ -870,7 +870,12 @@ def get_rootnames_for_instrument_proposal(instrument, proposal):
     tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"select observationID from dbo.CaomObservation where collection='JWST' and insName like '{instrument.lower()}%' and prpID='{int(proposal)}'")
     prop_table = tap_results.to_table()
-    rootnames = prop_table['observationID'].data
+    if 'observationID' in prop_table.columns:
+        rootnames = prop_table['observationID'].data
+    elif 'observationid' in prop_table.columns:
+        rootnames = prop_table['observationid'].data
+    else:
+        rootnames = []
     return rootnames.compressed()
 
 

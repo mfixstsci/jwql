@@ -1589,7 +1589,12 @@ def get_instrument_proposals(instrument):
     tap_results = tap_service.search(f"""select distinct prpID from CaomObservation where collection='JWST'
                                      and maxLevel>0 and insName like '{instrument.lower()}%'""")
     prop_table = tap_results.to_table()
-    proposals = prop_table['prpID'].data
+    if 'prpID' in prop_table.columns:
+        proposals = prop_table['prpID'].data
+    elif 'prpid' in prop_table.columns:
+        proposals = prop_table['prpid'].data
+    else:
+        proposals = []
     inst_proposals = sorted(proposals.compressed(), reverse=True)
     return inst_proposals
 
@@ -1767,7 +1772,10 @@ def get_proposals_by_category(instrument):
     prop_table = tap_results.to_table()
 
     # Convert to a dictionary
-    proposals_by_category = {int(d['prpID']): d['prpProject'] for d in prop_table}
+    try:
+        proposals_by_category = {int(d['prpID']): d['prpProject'] for d in prop_table}
+    except KeyError as k:
+        proposals_by_category = {int(d['prpid']): d['prpproject'] for d in prop_table}
     return proposals_by_category
 
 
@@ -1847,7 +1855,12 @@ def get_rootnames_for_proposal(proposal):
     tap_results = tap_service.search(f"""select observationID from dbo.CaomObservation where
                                      collection='JWST' and prpID='{int(proposal)}'""", maxrec=0)
     prop_table = tap_results.to_table()
-    rootnames = prop_table['observationID'].data
+    if 'observationID' in prop_table.columns:
+        rootnames = prop_table['observationID'].data
+    elif 'observationid' in prop_table.columns:
+        rootnames = prop_table['observationid'].data
+    else:
+        rootnames = []
     return rootnames.compressed()
 
 

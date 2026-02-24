@@ -1877,7 +1877,7 @@ class Level3PreviewImage():
         """
         self.fig, ax = plt.subplots(ncols=1, nrows=2, figsize=(self.maxsize, self.maxsize * 1.5))
 
-        flux_type = 'RF_FLUX'
+        use_flux = 'RF_FLUX'
         flux = self.model.spec[0].spec_table.RF_FLUX
 
         # MRS x1d files have both regular ('flux') and residual-fringe (RF) corrected ('rf_flux') spectra.

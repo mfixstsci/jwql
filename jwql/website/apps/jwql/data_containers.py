@@ -1853,7 +1853,7 @@ def get_rootnames_for_proposal(proposal):
     """
     tap_service = vo.dal.TAPService(STSCI_VO_URL)
     tap_results = tap_service.search(f"""select observationID from dbo.CaomObservation where
-                                     collection='JWST' and prpID='{int(proposal)}'""", maxrec=0)
+                                     collection='JWST' and prpID='{int(proposal)}'""", maxrec=100000)
     prop_table = tap_results.to_table()
     if 'observationID' in prop_table.columns:
         rootnames = prop_table['observationID'].data

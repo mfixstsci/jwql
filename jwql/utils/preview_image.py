@@ -704,10 +704,9 @@ class PreviewImage():
         Take wavelength and flux
         """
 
-        if self.hdr["TEMPLATE"] == "NIRSpec Fixed Slit Spectroscopy":
-            print("DO NIRSPEC STUFF")
-        elif self.hdr["TEMPLATE"] == "MIRI Medium Resolution Spectroscopy":
-            print("DO MIRI/MRS STUFF")
+        print(self.file)
+        print(self.hdr)
+        print(self.data)
 
     def nonsci_from_file(self):
         """Read in a map of non-science/reference pixels from a fits file

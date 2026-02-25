@@ -768,7 +768,7 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
 
             # Rate or Dark images make thumbnails for program
             # Here we just need to make the x1d spectrum figures.
-            img.make_spectrum()
+            img.make_spectrum_image()
             logging.debug('\tCreated preview image for: {}'.format(fname))
 
             return (None, None)

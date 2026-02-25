@@ -1283,14 +1283,27 @@ def get_filesystem_filenames(proposal=None, rootname=None,
             os.path.join(FILESYSTEM_DIR, 'proprietary',
                          'jw{}'.format(proposal_string), '*/*')))
     elif rootname is not None:
-        proposal_dir = rootname[0:7]
-        observation_dir = rootname.split('_')[0]
-        filenames = glob.glob(
-            os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
-                         observation_dir, '{}*'.format(rootname)))
-        filenames.extend(glob.glob(
-            os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
-                         observation_dir, '{}*'.format(rootname))))
+        # Check for level 3 rootname
+        level_3_pattern = r'jw\d{5}-[a-zA-Z]\d{3}'
+        if re.search(level_3_pattern, rootname):
+            # Get level 3 rootname data
+            proposal_dir, ac_id = rootname.split('_')[0].split("-")
+            filenames = glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'public', proposal_dir, "L3",
+                             "t", ac_id,'{}*'.format(rootname)))
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir, "L3",
+                             "t", ac_id, '{}*'.format(rootname))))
+        else:
+            # Get level 1 and level 2 rootname data
+            proposal_dir = rootname[0:7]
+            observation_dir = rootname.split('_')[0]
+            filenames = glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                            observation_dir, '{}*'.format(rootname)))
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                            observation_dir, '{}*'.format(rootname))))
     else:
         logging.warning("Must provide either proposal or rootname; "
                         "no files returned.")

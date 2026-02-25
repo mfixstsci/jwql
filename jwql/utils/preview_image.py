@@ -141,7 +141,10 @@ class PreviewImage():
         self.thumbnail_images = []
 
         # Read in file
-        self.data, self.dq = self.get_data(self.file, extension)
+        if extension == "EXTRACT1D":
+            self.data, self.hdr = self.get_spectra_data(self.file, extension)
+        else:
+            self.data, self.dq = self.get_data(self.file, extension)
 
     def determine_map_file(self, header):
         """Determine which file contains the map of non-science pixels given a
@@ -244,6 +247,32 @@ class PreviewImage():
         minval = sorted_pix[numclip]
         maxval = sorted_pix[-numclip - 1]
         return (minval, maxval)
+
+    def get_spectra_data(self, filename, ext="EXTRACT1D"):
+        """
+        Read in one dimensional spectral data from level 2 pipeline products.
+
+        Parameters
+        ----------
+        filename : str
+            Name of fits file containing data
+        ext : str
+            Extension name to be read in
+
+        Returns
+        -------
+        data : astropy.io.fits.fitsrec.FITS_rec
+            Record array containing extracted one dimensional data arrays.
+        """
+
+        if os.path.isfile(filename):
+            with fits.open(filename, extname=ext) as hdulist:
+                hdr = hdulist[0].header
+                data = hdulist[ext].data
+        else:
+            raise FileNotFoundError('WARNING: {} does not exist!'.format(filename))
+
+        return hdr, data
 
     def get_data(self, filename, ext):
         """
@@ -669,6 +698,16 @@ class PreviewImage():
                 self.save_image(outfile, thumbnail=True)
                 plt.close(self.fig)
                 self.thumbnail_images.append(self.thumbnail_filename)
+
+    def make_spectrum_image(self):
+        """
+        Take wavelength and flux
+        """
+
+        if self.hdr["TEMPLATE"] == "NIRSpec Fixed Slit Spectroscopy":
+            print("DO NIRSPEC STUFF")
+        elif self.hdr["TEMPLATE"] == "MIRI Medium Resolution Spectroscopy":
+            print("DO MIRI/MRS STUFF")
 
     def nonsci_from_file(self):
         """Read in a map of non-science/reference pixels from a fits file

@@ -141,8 +141,8 @@ class PreviewImage():
         self.thumbnail_images = []
 
         # Read in file
-        if extension == "EXTRACT1D":
-            self.data, self.hdr = self.get_spectra_data(self.file, extension)
+        if "x1d.fits" in filename:
+            self.model = self.get_spectra_data(self.file)
         else:
             self.data, self.dq = self.get_data(self.file, extension)
 
@@ -248,7 +248,7 @@ class PreviewImage():
         maxval = sorted_pix[-numclip - 1]
         return (minval, maxval)
 
-    def get_spectra_data(self, filename, ext="EXTRACT1D"):
+    def get_spectra_data(self, filename):
         """
         Read in one dimensional spectral data from level 2 pipeline products.
 
@@ -256,23 +256,19 @@ class PreviewImage():
         ----------
         filename : str
             Name of fits file containing data
-        ext : str
-            Extension name to be read in
 
         Returns
         -------
-        data : astropy.io.fits.fitsrec.FITS_rec
-            Record array containing extracted one dimensional data arrays.
+        data : jwst.datamodel
+            JWST Datamodel representation of fits file.
         """
 
         if os.path.isfile(filename):
-            with fits.open(filename, extname=ext) as hdulist:
-                hdr = hdulist[0].header
-                data = hdulist[ext].data
+            model = datamodels.open(filename)
         else:
             raise FileNotFoundError('WARNING: {} does not exist!'.format(filename))
 
-        return hdr, data
+        return model
 
     def get_data(self, filename, ext):
         """
@@ -701,12 +697,56 @@ class PreviewImage():
 
     def make_spectrum_image(self):
         """
-        Take wavelength and flux
+        Make level 2 x1d quicklook spectrum images
         """
 
-        print(self.file)
-        print(self.hdr)
-        print(self.data)
+        indir, infile = os.path.split(self.file)
+
+        if self.preview_output_directory is None:
+            outdir = indir
+        else:
+            outdir = self.preview_output_directory
+
+        outfile = os.path.join(outdir, infile.replace("fits", self.output_format))
+
+        self.make_spectrum_figure()
+        self.save_image(outfile)
+        plt.close(self.fig)
+
+        self.preview_images.append(outfile)
+        self.thumbnail_images.append(None)
+
+    def make_spectrum_figure(self, maxsize=8):
+        # Get the x1d data
+        self.fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(maxsize, maxsize))
+
+        flux = self.model.spec[0].spec_table.FLUX
+        waves = self.model.spec[0].spec_table.WAVELENGTH
+        targname = self.model.meta.target.proposer_name
+
+        # Determine plot range
+        clipped = sigma_clip_ignore_nan(flux, sigma=9)
+        vmax = np.nanmax(clipped) * 1.1
+        vmin = np.nanmin(clipped)
+        if vmin >= 0:
+            vmin = vmin * 0.9
+        else:
+            vmin = vmin * 1.1
+
+        try:
+            wavelength_units = self.model.spec[0].spec_table.columns["wavelength"].unit
+            flux_units = self.model.spec[0].spec_table.columns["flux"].unit
+        except AttributeError:
+            wavelength_units = None
+            flux_units = None
+
+        ax.plot(waves, flux, color='blue')
+        ax.set_xlabel(f'Wavelength ({wavelength_units})')
+        ax.set_ylabel(f'Flux ({flux_units})')
+        ax.set_ylim(vmin, vmax)
+        ax.set_title(f'{self.model.meta.filename}\n{targname}')
+        ax.grid(ls="--")
+
 
     def nonsci_from_file(self):
         """Read in a map of non-science/reference pixels from a fits file
@@ -741,7 +781,12 @@ class PreviewImage():
             True if saving a thumbnail image, false for the full
             preview image.
         """
-        plt.savefig(fname, bbox_inches='tight', pad_inches=0)
+
+        if f"x1d.{self.output_format}" in fname:
+            plt.savefig(fname)
+        else:
+            plt.savefig(fname, bbox_inches='tight', pad_inches=0)
+
         permissions.set_permissions(fname)
 
         # If the image is a thumbnail, rename to '.thumb'
@@ -1229,7 +1274,7 @@ class Level3PreviewImage():
         self.get_limits()
 
         # Create figure and axis object
-        if thumbnail:
+        if self.thumbnail:
             self.fig, ax = plt.subplots(figsize=(3, 3))
         else:
             self.fig, ax = plt.subplots(figsize=(self.maxsize, self.maxsize))
@@ -1241,10 +1286,10 @@ class Level3PreviewImage():
         ax.set_ylim(self.min_yval, self.max_yval)
         ax.set_title(os.path.filename(self.filename))
         plt.rcParams.update({'axes.titlesize': 'small'})
-        plt.rcParams.update({'font.size': maxsize * 5. / 4})
-        plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
-        plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
-        plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'font.size': self.maxsize * 5. / 4})
+        plt.rcParams.update({'axes.labelsize': self.maxsize * 5. / 4})
+        plt.rcParams.update({'ytick.labelsize': self.maxsize * 5. / 4})
+        plt.rcParams.update({'xtick.labelsize': self.maxsize * 5. / 4})
 
     def find_brightest_wfss_sources(self):
         """Determine the `nsources` brightest sources in the WFSS file. Do this using the

@@ -761,17 +761,16 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
 
     elif 'stage_3' not in file_info['filename_type'] and "x1d.fits" in fname:
         try:
-            # Stage 2 x1d/x1dints(?)
-            img = PreviewImage(fname, "EXTRACT1D")
+            # Stage 2 x1ds, we build spectra from datamodels extension is None
+            img = PreviewImage(fname, None)
             img.preview_output_directory = preview_output_directory
-            img.thumbnail_output_directory = thumbnail_output_directory
 
             # Rate or Dark images make thumbnails for program
             # Here we just need to make the x1d spectrum figures.
             img.make_spectrum_image()
             logging.debug('\tCreated preview image for: {}'.format(fname))
 
-            return (None, None)
+            return img.preview_images, img.thumbnail_images
 
         except (ValueError, AttributeError) as error:
             logging.warning(error)

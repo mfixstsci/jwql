@@ -708,7 +708,7 @@ class PreviewImage():
             outdir = self.preview_output_directory
 
         suffix = '_integ0.{}'.format(self.output_format)
-        outfile = os.path.join(outdir, infile.replace("fits", suffix))
+        outfile = os.path.join(outdir, infile.replace(".fits", suffix))
 
         self.make_spectrum_figure()
         self.save_image(outfile)

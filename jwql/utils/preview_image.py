@@ -707,7 +707,8 @@ class PreviewImage():
         else:
             outdir = self.preview_output_directory
 
-        outfile = os.path.join(outdir, infile.replace("fits", self.output_format))
+        suffix = '_integ0.{}'.format(self.output_format)
+        outfile = os.path.join(outdir, infile.replace("fits", suffix))
 
         self.make_spectrum_figure()
         self.save_image(outfile)
@@ -717,6 +718,9 @@ class PreviewImage():
         self.thumbnail_images.append(None)
 
     def make_spectrum_figure(self, maxsize=8):
+        """
+        Make figure that contains level 2 x1d data.
+        """
         # Get the x1d data
         self.fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(maxsize, maxsize))
 

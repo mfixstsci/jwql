@@ -751,7 +751,6 @@ class PreviewImage():
         ax.set_title(f'{self.model.meta.filename}\n{targname}')
         ax.grid(ls="--")
 
-
     def nonsci_from_file(self):
         """Read in a map of non-science/reference pixels from a fits file
 

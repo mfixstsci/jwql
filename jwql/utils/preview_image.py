@@ -141,7 +141,7 @@ class PreviewImage():
         self.thumbnail_images = []
 
         # Read in file
-        if "x1d.fits" in filename:
+        if "x1d.fits" or "x1dints.fits" in filename:
             self.model = self.get_spectra_data(self.file)
         else:
             self.data, self.dq = self.get_data(self.file, extension)
@@ -706,27 +706,56 @@ class PreviewImage():
             outdir = indir
         else:
             outdir = self.preview_output_directory
+        
+        exp_type = self.model.meta.exposure.type
 
-        suffix = '_integ0.{}'.format(self.output_format)
-        outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+        if "x1dints.fits" in infile:
+            if exp_type == "NIS_SOSS":
+                outname = self.make_nis_soss_spectrum()
+                self.save_image(outname)
+            elif exp_type == "NRS_BRIGHTOBJ" or exp_type == "NRC_TSGRISM" or exp_type == "MIR_LRS-SLITLESS":
+                targname = self.model.meta.target.proposer_name
+                nint =  self.model.spec[0].spec_table.shape[0]
+                if nint <= 10:
+                    integration_range = range(nint)
+                elif 11 <= nint <= 100:
+                    integration_range = range(0, nint, 10)
+                else:
+                    integration_range = range(0, nint, 100)
 
-        self.make_spectrum_figure()
-        self.save_image(outfile)
+                for i in integration_range:
+                    wavelength = self.model.spec[0].spec_table[i]["wavelength"]
+                    flux = self.model.spec[0].spec_table[i]["flux"]
+                    suffix = '_integ{}.{}'.format(i, self.output_format)
+                    outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+
+                    # Set NaN values to zero, so that those pixels
+                    # do not appear as big white splotches in the jpgs
+                    # after matplotlib downsamples/averages
+                    self.make_spectrum_figure(wavelength, flux, targname, integration_num=i)
+                    self.save_image(outfile)
+        else:
+            flux = self.model.spec[0].spec_table.FLUX
+            wavelength = self.model.spec[0].spec_table.WAVELENGTH
+            targname = self.model.meta.target.proposer_name
+
+            suffix = '_integ0.{}'.format(self.output_format)
+            outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+
+            self.make_spectrum_figure(wavelength, flux, targname)
+            self.save_image(outfile)
+        
         plt.close(self.fig)
 
         self.preview_images.append(outfile)
         self.thumbnail_images.append(None)
 
-    def make_spectrum_figure(self, maxsize=8):
+    def make_spectrum_figure(self, wavelength, flux, targname, integration_num=None, maxsize=8):
         """
         Make figure that contains level 2 x1d data.
         """
         # Get the x1d data
         self.fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(maxsize, maxsize))
-
-        flux = self.model.spec[0].spec_table.FLUX
-        waves = self.model.spec[0].spec_table.WAVELENGTH
-        targname = self.model.meta.target.proposer_name
 
         # Determine plot range
         clipped = sigma_clip_ignore_nan(flux, sigma=9)
@@ -744,11 +773,14 @@ class PreviewImage():
             wavelength_units = None
             flux_units = None
 
-        ax.plot(waves, flux, color='blue')
+        ax.plot(wavelength, flux, color='blue')
         ax.set_xlabel(f'Wavelength ({wavelength_units})')
         ax.set_ylabel(f'Flux ({flux_units})')
         ax.set_ylim(vmin, vmax)
-        ax.set_title(f'{self.model.meta.filename}\n{targname}')
+        if integration_num:
+            ax.set_title(f'{self.model.meta.filename} Int: {integration_num}\n{targname}')
+        else:
+            ax.set_title(f'{self.model.meta.filename}\n{targname}')
         ax.grid(ls="--")
 
     def nonsci_from_file(self):

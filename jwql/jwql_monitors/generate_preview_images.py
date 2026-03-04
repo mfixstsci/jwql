@@ -733,7 +733,7 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
         Path in which to save the thumbnail images
     """
     # All stage 2 files and i2d.fits files
-    if 'stage_3' not in file_info['filename_type'] and "x1d.fits" not in fname:
+    if 'stage_3' not in file_info['filename_type'] and "_x1d" not in fname:
         try:
             # Stage 1/2 file
             img = PreviewImage(fname, "SCI")
@@ -759,7 +759,7 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
             logging.warning(error)
             return (None, None)
 
-    elif 'stage_3' not in file_info['filename_type'] and "x1d.fits" in fname:
+    elif 'stage_3' not in file_info['filename_type'] and "_x1d" in fname:
         try:
             # Stage 2 x1ds, we build spectra from datamodels extension is None
             img = PreviewImage(fname, None)

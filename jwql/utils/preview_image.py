@@ -141,7 +141,7 @@ class PreviewImage():
         self.thumbnail_images = []
 
         # Read in file
-        if "x1d.fits" or "x1dints.fits" in filename:
+        if "_x1d" in filename:
             self.model = self.get_spectra_data(self.file)
         else:
             self.data, self.dq = self.get_data(self.file, extension)

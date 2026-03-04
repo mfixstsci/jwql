@@ -695,6 +695,29 @@ class PreviewImage():
                 plt.close(self.fig)
                 self.thumbnail_images.append(self.thumbnail_filename)
 
+    def get_integration_range(self, nint):
+        """
+        Determine integration range for integration files
+
+        Parameters
+        ----------
+        nint : int
+            Number of file integrations
+
+        Returns
+        -------
+        intgration_range : range
+            Range object of integration steps
+        """
+        if nint <= 10:
+            integration_range = range(nint)
+        elif 11 <= nint <= 100:
+            integration_range = range(0, nint, 10)
+        else:
+            integration_range = range(0, nint, 100)
+
+        return integration_range
+
     def make_spectrum_image(self):
         """
         Make level 2 x1d quicklook spectrum images
@@ -711,17 +734,11 @@ class PreviewImage():
 
         if "x1dints.fits" in infile:
             if exp_type == "NIS_SOSS":
-                outname = self.make_nis_soss_spectrum()
-                self.save_image(outname)
+                self.make_nis_soss_spectrum(outdir, infile)
             elif exp_type == "NRS_BRIGHTOBJ" or exp_type == "NRC_TSGRISM" or exp_type == "MIR_LRS-SLITLESS":
                 targname = self.model.meta.target.proposer_name
                 nint =  self.model.spec[0].spec_table.shape[0]
-                if nint <= 10:
-                    integration_range = range(nint)
-                elif 11 <= nint <= 100:
-                    integration_range = range(0, nint, 10)
-                else:
-                    integration_range = range(0, nint, 100)
+                integration_range = self.get_integration_range(nint)
 
                 for i in integration_range:
                     wavelength = self.model.spec[0].spec_table[i]["wavelength"]
@@ -734,6 +751,7 @@ class PreviewImage():
                     # after matplotlib downsamples/averages
                     self.make_spectrum_figure(wavelength, flux, targname, integration_num=i)
                     self.save_image(outfile)
+                    plt.close(self.fig)
         else:
             flux = self.model.spec[0].spec_table.FLUX
             wavelength = self.model.spec[0].spec_table.WAVELENGTH
@@ -750,6 +768,57 @@ class PreviewImage():
         self.preview_images.append(outfile)
         self.thumbnail_images.append(None)
 
+    def make_nis_soss_spectrum(self, outdir, infile, maxsize=8):
+        """
+        Make figure that contains level 2 x1dint NIRISS SOSS data
+        """
+
+        targname = self.model.meta.target.proposer_name
+        nint_per_order = np.array([order.spec_table.shape[0] for order in self.model.spec])
+
+        if nint_per_order.all():
+            nint = int(np.unique(nint_per_order)[0])
+            integration_range = self.get_integration_range(nint)
+        else:
+            raise ValueError("INTEGRATION NUMBERS ARE DIFFERENT PER ORDER")
+        
+        for i in integration_range:
+            self.fig, ax = plt.subplots(ncols=1, nrows=len(nint_per_order), figsize=(maxsize, maxsize))
+            self.fig.suptitle(f'{self.model.meta.filename} Int: {i}\n{targname}')
+            for order, axis in zip(self.model.spec, ax):
+                wavelength = order.spec_table["wavelength"][i]
+                flux = order.spec_table["flux"][i]
+                # Determine plot range
+                clipped = sigma_clip_ignore_nan(flux, sigma=9)
+                vmax = np.nanmax(clipped) * 1.1
+                vmin = np.nanmin(clipped)
+                if vmin >= 0:
+                    vmin = vmin * 0.9
+                else:
+                    vmin = vmin * 1.1
+
+                try:
+                    wavelength_units = order.spec_table.columns["wavelength"].unit
+                    flux_units = order.spec_table.columns["flux"].unit
+                except AttributeError:
+                    wavelength_units = None
+                    flux_units = None
+
+                axis.plot(wavelength, flux, color='blue')
+                axis.set_xlabel(f'Wavelength ({wavelength_units})')
+                axis.set_ylabel(f'Flux ({flux_units})')
+                axis.set_ylim(vmin, vmax)
+
+                axis.set_title(f'SOSS Order: {order.spectral_order}')
+                axis.grid(ls="--")
+
+
+            suffix = '_integ{}.{}'.format(i, self.output_format)
+            outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+
+            self.save_image(outfile)
+            plt.close(self.fig)
+        
     def make_spectrum_figure(self, wavelength, flux, targname, integration_num=None, maxsize=8):
         """
         Make figure that contains level 2 x1d data.

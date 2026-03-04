@@ -734,18 +734,20 @@ class PreviewImage():
 
         if "x1dints.fits" in infile:
             if exp_type == "NIS_SOSS":
-                self.make_nis_soss_spectrum(outdir, infile)
+                outfile = self.make_nis_soss_spectrum(outdir, infile)
             elif exp_type == "NRS_BRIGHTOBJ" or exp_type == "NRC_TSGRISM" or exp_type == "MIR_LRS-SLITLESS":
                 targname = self.model.meta.target.proposer_name
                 nint =  self.model.spec[0].spec_table.shape[0]
                 integration_range = self.get_integration_range(nint)
+                
+                outfile = []
 
                 for i in integration_range:
                     wavelength = self.model.spec[0].spec_table[i]["wavelength"]
                     flux = self.model.spec[0].spec_table[i]["flux"]
                     suffix = '_integ{}.{}'.format(i, self.output_format)
-                    outfile = os.path.join(outdir, infile.replace(".fits", suffix))
-
+                    int_outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+                    outfile.append(int_outfile)
                     # Set NaN values to zero, so that those pixels
                     # do not appear as big white splotches in the jpgs
                     # after matplotlib downsamples/averages
@@ -765,8 +767,8 @@ class PreviewImage():
         
         plt.close(self.fig)
 
-        self.preview_images.append(outfile)
-        self.thumbnail_images.append(None)
+        self.preview_images.extend(outfile)
+        self.thumbnail_images.extend(None)
 
     def make_nis_soss_spectrum(self, outdir, infile, maxsize=8):
         """
@@ -782,6 +784,8 @@ class PreviewImage():
         else:
             raise ValueError("INTEGRATION NUMBERS ARE DIFFERENT PER ORDER")
         
+
+        outfile = []
         for i in integration_range:
             self.fig, ax = plt.subplots(ncols=1, nrows=len(nint_per_order), figsize=(maxsize, maxsize))
             self.fig.suptitle(f'{self.model.meta.filename} Int: {i}\n{targname}')
@@ -814,10 +818,13 @@ class PreviewImage():
 
 
             suffix = '_integ{}.{}'.format(i, self.output_format)
-            outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+            int_outfile = os.path.join(outdir, infile.replace(".fits", suffix))
 
-            self.save_image(outfile)
+            outfile.append(int_outfile)
+            self.save_image(int_outfile)
             plt.close(self.fig)
+
+        return outfile
         
     def make_spectrum_figure(self, wavelength, flux, targname, integration_num=None, maxsize=8):
         """

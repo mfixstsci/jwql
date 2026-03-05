@@ -739,15 +739,13 @@ class PreviewImage():
                 targname = self.model.meta.target.proposer_name
                 nint =  self.model.spec[0].spec_table.shape[0]
                 integration_range = self.get_integration_range(nint)
-                
-                outfile = []
 
                 for i in integration_range:
                     wavelength = self.model.spec[0].spec_table[i]["wavelength"]
                     flux = self.model.spec[0].spec_table[i]["flux"]
                     suffix = '_integ{}.{}'.format(i, self.output_format)
-                    int_outfile = os.path.join(outdir, infile.replace(".fits", suffix))
-                    outfile.append(int_outfile)
+                    outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+                    outfile.append(outfile)
                     # Set NaN values to zero, so that those pixels
                     # do not appear as big white splotches in the jpgs
                     # after matplotlib downsamples/averages
@@ -894,7 +892,7 @@ class PreviewImage():
             preview image.
         """
 
-        if f"x1d.{self.output_format}" in fname:
+        if "_x1d" in fname:
             plt.savefig(fname)
         else:
             plt.savefig(fname, bbox_inches='tight', pad_inches=0)

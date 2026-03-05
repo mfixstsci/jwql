@@ -38,9 +38,9 @@ from glob import glob
 import json
 import logging
 import math
+import numbers
 import os
 import re
-import socket
 import warnings
 
 from astropy import constants as const
@@ -763,7 +763,7 @@ class PreviewImage():
 
             self.make_spectrum_figure(wavelength, flux, targname)
             self.save_image(outfile)
-        
+
             plt.close(self.fig)
 
             self.preview_images.append(outfile)
@@ -802,7 +802,7 @@ class PreviewImage():
                     wavelength_units = order.spec_table.columns["wavelength"].unit
                     flux_units = order.spec_table.columns["flux"].unit
                 except AttributeError:
-                    wavelength_units = None
+                    wavelength_units = "um"
                     flux_units = None
 
                 axis.plot(wavelength, flux, color='blue')
@@ -851,7 +851,7 @@ class PreviewImage():
         ax.set_xlabel(f'Wavelength ({wavelength_units})')
         ax.set_ylabel(f'Flux ({flux_units})')
         ax.set_ylim(vmin, vmax)
-        if integration_num:
+        if isinstance(integration_num, numbers.Number):
             ax.set_title(f'{self.model.meta.filename} Int: {integration_num}\n{targname}')
         else:
             ax.set_title(f'{self.model.meta.filename}\n{targname}')

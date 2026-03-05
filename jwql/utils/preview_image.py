@@ -745,7 +745,6 @@ class PreviewImage():
                     flux = self.model.spec[0].spec_table[i]["flux"]
                     suffix = '_integ{}.{}'.format(i, self.output_format)
                     outfile = os.path.join(outdir, infile.replace(".fits", suffix))
-                    outfile.append(outfile)
                     # Set NaN values to zero, so that those pixels
                     # do not appear as big white splotches in the jpgs
                     # after matplotlib downsamples/averages

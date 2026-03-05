@@ -823,6 +823,7 @@ class PreviewImage():
             self.preview_images.append(outfile)
             self.thumbnail_images.append(None)
 
+            plt.tight_layout()
             self.save_image(outfile)
             plt.close(self.fig)
         

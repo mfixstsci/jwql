@@ -744,14 +744,14 @@ class PreviewImage():
                     wavelength = self.model.spec[0].spec_table[i]["wavelength"]
                     flux = self.model.spec[0].spec_table[i]["flux"]
                     suffix = '_integ{}.{}'.format(i, self.output_format)
+
                     outfile = os.path.join(outdir, infile.replace(".fits", suffix))
-                    # Set NaN values to zero, so that those pixels
-                    # do not appear as big white splotches in the jpgs
-                    # after matplotlib downsamples/averages
                     self.make_spectrum_figure(wavelength, flux, targname, integration_num=i)
                     self.save_image(outfile)
+
                     self.preview_images.append(outfile)
                     self.thumbnail_images.append(None)
+
                     plt.close(self.fig)
         else:
             flux = self.model.spec[0].spec_table.FLUX
@@ -789,10 +789,11 @@ class PreviewImage():
             for order, axis in zip(self.model.spec, ax):
                 wavelength = order.spec_table["wavelength"][i]
                 flux = order.spec_table["flux"][i]
-                # Determine plot range
+
                 clipped = sigma_clip_ignore_nan(flux, sigma=9)
                 vmax = np.nanmax(clipped) * 1.1
                 vmin = np.nanmin(clipped)
+
                 if vmin >= 0:
                     vmin = vmin * 0.9
                 else:

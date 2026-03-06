@@ -187,7 +187,7 @@ def array_coordinates(channelmod, detector_list, lowerleft_list):
     return xdim, ydim, module_lowerlefts
 
 
-def check_existence(file_list, outdir):
+def check_existence(file_list, outdir, file_type):
     """Given a list of fits files, determine if a preview image has
     already been created in ``outdir``.
 
@@ -210,7 +210,10 @@ def check_existence(file_list, outdir):
     # for a preview image name that contains the detector name
     if len(file_list) == 1:
         filename = os.path.split(file_list[0])[1]
-        search_string = filename.split('.fits')[0] + '_*.jpg'
+        if "stage_3" in file_type:
+             search_string = filename.split('.fits')[0] + '*.jpg'
+        else:
+            search_string = filename.split('.fits')[0] + '_*.jpg'
     else:
         # If file_list contains multiple files, then we need to search
         # for the appropriately named jpg of the mosaic, which depends
@@ -877,7 +880,7 @@ def process_program(program, overwrite, level3_only):
         if not overwrite:
             # If overwrite is False, we create preview images only for files that
             # don't have them yet.
-            file_exists = check_existence([filename], preview_output_directory)
+            file_exists = check_existence([filename], preview_output_directory, parsed["filename_type"])
 
             if file_exists:
                 logging.debug("\tJPG already exists for {}, skipping.".format(filename))

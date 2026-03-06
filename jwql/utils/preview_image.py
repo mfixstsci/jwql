@@ -1911,7 +1911,7 @@ class Level3PreviewImage():
 
             # Get the coordinates of the center of the aperture summed over to create the 1D spectrum
             # This info does not make it into the datamodel metadata, so we retrieve it via astropy.io.fits
-            x1dheader = fits.getheader(self.model.meta.filename, 1)
+            x1dheader = fits.getheader(self.filename, 1)
             centerx = x1dheader['EXTR_X']
             centery = x1dheader['EXTR_Y']
             source_type = x1dheader['SRCTYPE']

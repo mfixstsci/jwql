@@ -92,7 +92,11 @@
             <div class="mx-2 my-2">for</div>
             <select name="fits_file_select" id="fits_file_select" onchange="update_view_explore_link();">
                 {% for detector in detectors %}
-                    <option id="{{ detector }}_filename" value="{{ inst }}/{{ group_root }}_{{ detector }}">{{ group_root }}_{{ detector }}</option>
+                    {% if detector == "Unknown" %}
+                        <option id="level3_filename" value="{{ inst }}/{{ group_root }}">{{ group_root }}</option>
+                    {% else %}
+                        <option id="{{ detector }}_filename" value="{{ inst }}/{{ group_root }}_{{ detector }}">{{ group_root }}_{{ detector }}</option>
+                    {% endif %}
                 {% endfor %}
             </select>
         </div>
@@ -108,7 +112,7 @@
                 </div>
             </div>
         </div>
-        {% if inst == 'NIRCam' %}
+        {% if inst == 'NIRCam' and "Unknown" not in detectors%}
         <div class="row">
             <!-- Display NIRCam short detectors in columns, 1st row -->
                 {% for detector1 in ['nrca2', 'nrca4', 'nrcb3', 'nrcb1'] %}
@@ -187,7 +191,7 @@
                     {% endif %}
                 {% endfor %}
         </div>
-        {% else %}
+        {% elif inst != 'NIRCam' and "Unknown" not in detectors %}
         <div class="row">
             <!-- Display non-NIRCam detectors in columns -->
                 {% for detector in detectors %}
@@ -211,6 +215,27 @@
                         </span>
                     </div>
                 {% endfor %}
+        </div>
+        {% else %}  <!-- Level 3 File Support here. In this case detectors will be a single element: "Unknown" -->
+        <div class="row">
+            <div class="col" id="level3_view">
+                <span class="image_preview">
+                    <a id="view_level3" href="{{ base_url }}/{{ inst }}/{{ group_root }}/">
+                        <img class="image_preview_viewer" id="image_viewer_level3"
+                             title="Preview image for {{ group_root }}"
+                             style="width:100%">
+                    </a>
+                </span>
+            </div>
+            <div class="col" id="level3_view_fallback">
+                <span class="image_preview">
+                    <a id="view_level3_fallback" href="{{ base_url }}/{{ inst }}/{{ group_root }}/">
+                        <img class="image_preview_viewer thumbnail" id="fallback_image_viewer_level3"
+                             title="Preview image for {{ group_root }}"
+                             src="/static/img/imagenotfound.png" alt="Preview image not found">
+                    </a>
+                </span>
+            </div>
         </div>
         {% endif %}
 

@@ -1257,9 +1257,8 @@ def view_exposure(request, inst, group_root):
     viewed = all([rf.viewed for rf in root_file_info])
 
     # Get the program ID and the obsnum
-    prop_id = group_root[2:7]
-    #obsnum = group_root[7:10]
-    obsnum = root_file_info[0].obsnum
+    prop_id = root_file_info[0].proposal.zfill(5)
+    obsnum = root_file_info[0].obsnum.obsnum
 
     # Convert expstart from MJD to a date
     expstart_str = Time(root_file_info[0].expstart, format='mjd').to_datetime().strftime('%d %b %Y %H:%M')
@@ -1278,6 +1277,8 @@ def view_exposure(request, inst, group_root):
     logging.info(f"Group Root is {group_root}")
     logging.info(f"Group Root List is {group_root_list}")
     logging.info(f"Group Root in List: {group_root in group_root_list}")
+    logging.info(f"prop_id is : {prop_id}")
+    logging.info(f"obsnum is: {obsnum}")
 
     # Build the context
     context = {'base_url': get_base_url(),

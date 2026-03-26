@@ -299,12 +299,28 @@
         <!-- Determine which filetype should be shown on load -->
         {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
             <script>change_all_filetypes('{{initial_suffix}}', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
+
+        {% set preferred_suffixes = ["rate", "dark", "uncal", "i2d", "c1d", "x1d", "s3d", "s2d", "whtlt", "phot", "psfsub", "psfstack", "ami", "aminorm", "cal"] %}
+        {% set ns = namespace(found=false) %}
+        {% for suffix in preferred_suffixes %}
+            {% if suffix in suffixes and not ns.found %}
+                {% set ns.found = true %}
+                <script>change_all_filetypes(suffix, '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
+            {% endif %}
+        {% endfor %}
+
+        <!--
         {% elif 'rate' in suffixes %}
             <script>change_all_filetypes('rate', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'dark' in suffixes %}
             <script>change_all_filetypes('dark', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif 'uncal' in suffixes %}
             <script>change_all_filetypes('uncal', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
+        -->
+
+
+
+
         {% elif suffixes|length == 1 %}
             <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% else %}

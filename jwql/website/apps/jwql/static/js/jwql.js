@@ -166,10 +166,6 @@ function set_view(view, inst, file_root_list, idx) {
 
     // Level 3 files will have no detector defined. In that case, set
     // detector to an empty string
-    //if (detector_list.includes("Unknown")) {
-    //    detector_list = [""];
-    //}
-
     if (!detector_list.includes("Unknown")) {
 
         // Level 2 files
@@ -223,7 +219,7 @@ function set_view(view, inst, file_root_list, idx) {
         fallback_link.setAttribute('href', new_url);
 
         // Show/hide the viewer as appropriate
-        show_viewer(detector, jpg_filepath);
+        show_viewer("level3", jpg_filepath);
     }
 
     // Reset the slider values

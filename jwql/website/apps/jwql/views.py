@@ -1247,7 +1247,7 @@ def view_exposure(request, inst, group_root):
         for file in image_info['all_files']:
             name = Path(file).name
             obs = name.split("_")[0]
-            if obs not in group_root_list:
+            if '-' not in obs and obs not in group_root_list:
                 group_root_list.append(obs)
 
     # Get our current views RootFileInfo model and send our "viewed/new" information

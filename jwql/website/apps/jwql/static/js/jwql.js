@@ -778,6 +778,11 @@ function parse_filename(root_name) {
     var obs_id = root_name.slice(7, 10);
     var visit_id = root_name.slice(10, 13);
 
+    if (obs_id.includes('-')) {
+        obs_id = "N/A";
+        visit_id = "N/A";
+    }
+
     const parsed_name = {program: program, proposal: proposal,
                          obs_id: obs_id, visit_id: visit_id};
     return parsed_name;

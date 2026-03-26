@@ -300,22 +300,7 @@
         {% set loaded = namespace(found=false) %}
         {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
             <script>change_all_filetypes('{{initial_suffix}}', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
-            {% set found.found = true %}
-
-        {% elif initial_suffix|length == 0 %}
-
-            {% set preferred_suffixes = ["rate", "dark", "uncal", "i2d", "c1d", "x1d", "s3d", "s2d", "whtlt", "phot", "psfsub", "psfstack", "ami", "aminorm", "cal"] %}
-            {% set ns = namespace(found=false) %}
-            {% for suffix in preferred_suffixes %}
-                {% if suffix in suffixes and not ns.found %}
-                    {% set ns.found = true %}
-                    {% set found.found = true %}
-                    <script>change_all_filetypes(suffix, '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
-                    <h3>Found {{ suffix }}</h3>
-                {% endif %}
-            {% endfor %}
-
-        {% elif suffixes|length == 1 and not found.found %}
+        {% elif suffixes|length == 1 %}
             <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
             {% set found.found = true %}
         {% else %}

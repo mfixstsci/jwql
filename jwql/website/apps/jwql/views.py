@@ -1186,10 +1186,6 @@ def view_exposure(request, inst, group_root):
         Outgoing response sent to the webpage
     """
 
-    default_suffix = ''
-    if "suffix" in request.GET:
-        default_suffix = request.GET["suffix"]
-
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
@@ -1199,6 +1195,19 @@ def view_exposure(request, inst, group_root):
     # Get available suffixes in a consistent order.
     suffixes = get_available_suffixes(image_info['suffixes'],
                                       return_untracked=False)
+
+    # Determine which suffix to show upon page load
+    default_suffix = ''
+    if "suffix" in request.GET:
+        default_suffix = request.GET["suffix"]
+    else:
+        preferred_suffixes = ["rate", "dark", "uncal", "i2d", "c1d", "x1d", "s3d",
+                              "s2d", "whtlt", "phot", "psfsub", "psfstack", "ami",
+                              "aminorm", "cal"]
+        for suffix in preferred_suffixes:
+            if suffix in suffixes:
+                default_suffix = suffix
+                break
 
     # Get the anomaly submission form
     form = get_anomaly_form(request, inst, group_root)

@@ -159,8 +159,8 @@ function set_view(view, inst, file_root_list, idx) {
     // Update the APT parameters
     var parsed_name = parse_filename(group_root);
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
-    document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
-    document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
+    // document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
+    // document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
 
     var detector_list = detectors.split(',');
 

@@ -1196,10 +1196,6 @@ def view_exposure(request, inst, group_root):
     template = 'view_exposure.html'
     image_info = get_image_info(group_root)
 
-    # Get the proposal id and obsnum from the group root name
-    prop_id = group_root[2:7]
-    obsnum = group_root[7:10]
-
     # Get available suffixes in a consistent order.
     suffixes = get_available_suffixes(image_info['suffixes'],
                                       return_untracked=False)
@@ -1259,6 +1255,11 @@ def view_exposure(request, inst, group_root):
     if len(root_file_info) == 0:
         return generate_error_view(request, inst, f"No groups starting with {group_root} currently in JWQL database.")
     viewed = all([rf.viewed for rf in root_file_info])
+
+    # Get the program ID and the obsnum
+    prop_id = group_root[2:7]
+    #obsnum = group_root[7:10]
+    obsnum = root_file_info[0].obsnum
 
     # Convert expstart from MJD to a date
     expstart_str = Time(root_file_info[0].expstart, format='mjd').to_datetime().strftime('%d %b %Y %H:%M')

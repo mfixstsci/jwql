@@ -402,7 +402,9 @@ def get_additional_exposure_info(root_file_infos, image_info):
     # suffixes. The order of possible_suffixes_to_use is itentional, because the
     # uncal file will not have info on the pipeline version used, and so we would
     # rather grab information from the rate or cal files.
-    possible_suffixes_to_use = np.array(['rate', 'rateints', 'cal', 'calints', 'uncal'])
+    #possible_suffixes_to_use = np.array(['rate', 'rateints', 'cal', 'calints', 'uncal', 'i2d', 's3d', 's2d', 'x1d', 'crf'])
+    suffixes_to_ignore = set(['trapsfilled', 'msa', 'cat', 'segm', 'phot', 'whtlt'])
+    possible_suffixes_to_use = np.array([item for item in EXPOSURE_PAGE_SUFFIX_ORDER if item not in suffixes_to_ignore])
     existing_suffixes = np.array([suffix in image_info['suffixes'] for suffix in possible_suffixes_to_use])
 
     if isinstance(root_file_infos, QuerySet):

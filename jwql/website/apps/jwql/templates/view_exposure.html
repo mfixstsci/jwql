@@ -302,7 +302,7 @@
             <script>change_all_filetypes('{{initial_suffix}}', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif suffixes|length == 1 %}
             <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
-            {% set found.found = true %}
+            {% set loaded.found = true %}
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

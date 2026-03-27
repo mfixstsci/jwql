@@ -179,7 +179,7 @@
             <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif suffixes|length == 1 %}
             <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-            {% set found.found = true %}
+            {% set loaded.found = true %}
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

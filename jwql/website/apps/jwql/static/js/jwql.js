@@ -47,17 +47,29 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
     // Store the currently displayed suffix
     document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
 
-    document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
+    if (parsed_name.obs_id != 'N/A') {
+        // Level 2 file
+        document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
+        document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
+        document.getElementById("detector").innerHTML = file_root.split('_')[3];
+    } else {
+        // Level 3 file
+        document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '.jpg';
+        document.getElementById("obs_id").innerHTML = obsnum;  - need to define obsnum
+        document.getElementById("detector").innerHTML = 'N/A';
+
     document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
-    document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
-    document.getElementById("detector").innerHTML = file_root.split('_')[3];
 
     // Add a link to download the file from MAST
+    var filetype = ".fits"
+    var ecsv_types = ["whtlt", "phot", "cat"]
+    if (ecsv_types.includes(type)) {
+        var filetype = ".ecsv"
     document.getElementById("fits_filename").setAttribute('href',
         'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
-        fits_filename + '.fits');
+        fits_filename + filetype);
 
     var exposure_array = file_root.split("_");
     exposure_array.pop();
@@ -65,7 +77,11 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
 
     // Show the appropriate image
     var img = document.getElementById("image_viewer");
-    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+    if (parsed_name.obs_id != 'N/A') {
+        var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+    } else {
+        var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '.jpg';
+    }
     img.src = jpg_filepath;
     img.alt = jpg_filepath;
     // if previous image had error, remove error sizing
@@ -179,7 +195,7 @@ function set_view(view, inst, file_root_list, idx) {
             // Show the appropriate image
             var img = document.getElementById("image_viewer_" + detector);
             var jpg_filepath = '/static/preview_images/' + parsed_name.program +
-                           '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
+                           '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';  ---- need to make an update like this with big ifelse block, around line 68.
             img.src = jpg_filepath;
             img.alt = jpg_filepath;
 

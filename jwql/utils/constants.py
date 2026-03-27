@@ -1004,7 +1004,7 @@ SUBARRAYS_PER_INSTRUMENT = {
 SUFFIXES_TO_ADD_ASSOCIATION = ["crf", "crfints"]
 
 # Filename suffixes where data have been averaged over integrations
-SUFFIXES_WITH_AVERAGED_INTS = ["rate", "cal", "crf", "i2d", "bsub"]
+SUFFIXES_WITH_AVERAGED_INTS = ["rate", "cal", "crf", "i2d", "bsub", "x1d"]
 
 # boolean accessed according to a viewed flag
 THUMBNAIL_FILTER_LOOK = ["New", "Viewed"]

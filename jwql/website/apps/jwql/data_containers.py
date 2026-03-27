@@ -1278,21 +1278,37 @@ def get_filesystem_filenames(proposal=None, rootname=None,
     """
     if proposal is not None:
         proposal_string = '{:05d}'.format(int(proposal))
+
+        # Level 2 and 3
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public',
                          'jw{}'.format(proposal_string), '*/*'))
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary',
                          'jw{}'.format(proposal_string), '*/*')))
+
     elif rootname is not None:
         proposal_dir = rootname[0:7]
+
+        # Level 2 files
         observation_dir = rootname.split('_')[0]
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
-                         observation_dir, '{}*'.format(rootname)))
+                         observation_dir, f'{rootname}*'))
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
-                         observation_dir, '{}*'.format(rootname))))
+                         observation_dir, f'{rootname}*')))
+
+        # Level 3 files
+        if len(filenames) == 0:
+            ostr = rootname.split('-')[1].split('_')[0]
+            filenames = glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                             'L3', f'*/{ostr}/', f'{rootname}*'))
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                             'L3', f'*/{ostr}/', f'{rootname}*')))
+
     else:
         logging.warning("Must provide either proposal or rootname; "
                         "no files returned.")
@@ -1451,6 +1467,7 @@ def get_image_info(file_root):
     image_info['available_ints'] = {}
     image_info['total_ints'] = {}
     image_info['detectors'] = set()
+    image_info['level'] = 2
 
     # Find all the matching files
     proposal_dir = file_root[:7]
@@ -1474,6 +1491,7 @@ def get_image_info(file_root):
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
                     'L3', f'*/{ostr}/', f'{file_root}*.fits')))
+        image_info['level'] = 3
 
     logging.debug(f"Files before filtering: {filenames}")
     # Certain suffixes are always ignored
@@ -1511,17 +1529,32 @@ def get_image_info(file_root):
         image_info['suffixes'].append(suffix)
 
         # Determine JPEG file location
+        # Level 2 files will end with "integ?.jpg", but level 3 files typically will not
         jpg_filename = os.path.basename(os.path.splitext(filename)[0] + '_integ0.jpg')
         jpg_filepath = os.path.join(jpg_dir, jpg_filename)
 
-        # Record how many integrations have been saved as preview images per filetype
-        jpgs = glob.glob(os.path.join(prev_img_filesys, proposal_dir, '{}*_{}_integ*.jpg'.format(file_root, suffix)))
-        image_info['available_ints'][suffix] = sorted(set([int(jpg.split('_')[-1].replace('.jpg', '').replace('integ', '')) for jpg in jpgs]))
-        image_info['num_ints'][suffix] = len(image_info['available_ints'][suffix])
-        image_info['all_jpegs'].append(jpg_filepath)
+        if os.path.isfile(jpg_filepath):
+            # Level 2 files
+            jpgs = glob.glob(os.path.join(prev_img_filesys, proposal_dir, f'{file_root}*_{suffix}_integ*.jpg'))
+
+            # Record how many integrations have been saved as preview images per filetype
+            image_info['available_ints'][suffix] = sorted(set([int(jpg.split('_')[-1].replace('.jpg', '').replace('integ', '')) for jpg in jpgs]))
+            image_info['num_ints'][suffix] = len(image_info['available_ints'][suffix])
+            image_info['all_jpegs'].append(jpg_filepath)
+        else:
+            # Level 3 files
+            jpg_filename = os.path.basename(os.path.splitext(filename)[0] + '.jpg')
+            jpg_filepath = os.path.join(jpg_dir, jpg_filename)
+
+            # Will there ever be more than one jpg for a level 3 file/suffix?
+            jpgs = glob.glob(os.path.join(prev_img_filesys, proposal_dir, f'{file_root}*_{suffix}*jpg'))
+
+            image_info['available_ints'][suffix] = ['N/A']
+            image_info['num_ints'][suffix] = len(image_info['available_ints'][suffix])
+            image_info['all_jpegs'].append(jpg_filepath)
 
         # Record how many integrations exist per filetype.
-        if suffix not in SUFFIXES_WITH_AVERAGED_INTS:
+        if ((suffix not in SUFFIXES_WITH_AVERAGED_INTS) and (image_info['available_ints'][suffix] != ['N/A'])):
             header = fits.getheader(filename)
             nint = header['NINTS']
             if 'time_series' in parsed_fn['filename_type']:
@@ -1745,6 +1778,7 @@ def get_detectors_by_rootname(rootname):
     -------
     detector_list : list
         A list of images that are part of the same exposure but with all detectors.
+        e.g. ['jw01068001001_02101_00001_nrca1', 'jw01068001001_02101_00001_nrca2']
     """
     detector_list = []
     search_rootname = rootname[:25]

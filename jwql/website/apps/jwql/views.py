@@ -1461,7 +1461,15 @@ def view_image(request, inst, file_root, initial_suffix=None):
         else:
             file_root_list = sorted(navigation_data)
     else:
-        file_root_list = sorted(get_detectors_by_rootname(file_root))
+        if image_info['level'] == 2:
+            file_root_list = sorted(get_detectors_by_rootname(file_root))
+        elif image_info['level'] == 3:
+            # In most (all?) cases with level 3 rootnames, I think we should end up
+            # with a single element list that's essentially equal to file_root
+            #file_list = get_filenames_by_rootname(file_root)
+            #file_root_list = [filestr.rsplit('_', 1)[0] for filestr in file_list if 'jpg' not in filestr]
+            #file_root_list = sorted(set(file_root_list))
+            file_root_list = [file_root]
 
     # Get our current views RootFileInfo model and send our "viewed/new" information
     root_file_info = RootFileInfo.objects.get(root_name=file_root)

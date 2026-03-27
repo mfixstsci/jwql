@@ -51,10 +51,19 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
         // Level 2 file
         document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
         document.getElementById("detector").innerHTML = file_root.split('_')[3];
+
+        // Get the exposure-level string for the "View Exposure" button
+        var exposure_array = file_root.split("_");
+        exposure_array.pop();
+        var exposure_str = exposure_array.join("_");
+
     } else {
         // Level 3 file
         document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '.jpg';
         document.getElementById("detector").innerHTML = 'N/A';
+
+        // Get the exposure-level string for the "View Exposure" button
+        var exposure_str = file_root
     }
 
     document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
@@ -70,10 +79,6 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
     document.getElementById("fits_filename").setAttribute('href',
         'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
         fits_filename + filetype);
-
-    var exposure_array = file_root.split("_");
-    exposure_array.pop();
-    var exposure_str = exposure_array.join("_");
 
     // Show the appropriate image
     var img = document.getElementById("image_viewer");

@@ -58,7 +58,7 @@ from bokeh.layouts import layout
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from numpy import where
+import numpy as np
 from sqlalchemy import inspect
 
 from jwql.utils import monitor_utils

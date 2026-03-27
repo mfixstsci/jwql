@@ -16,7 +16,7 @@
  * @param {String} file_root - The rootname of the file
  * @param {String} inst - The instrument for the given file
  */
-function handle_change(type, file_root, inst, obsnumber, f_paths, f_rl, n_ints, t_ints, idx) {
+function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx) {
     // Log the input values at the start of the function in case of anything breaking.
     console.log("Type: " + type);
     console.log("File Root: " + file_root);
@@ -59,7 +59,6 @@ function handle_change(type, file_root, inst, obsnumber, f_paths, f_rl, n_ints, 
 
     document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
-    document.getElementById("obs_id").innerHTML = obsnumber;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
 
     // Add a link to download the file from MAST
@@ -67,6 +66,7 @@ function handle_change(type, file_root, inst, obsnumber, f_paths, f_rl, n_ints, 
     var ecsv_types = ["whtlt", "phot", "cat"]
     if (ecsv_types.includes(type)) {
         var filetype = ".ecsv"
+    }
     document.getElementById("fits_filename").setAttribute('href',
         'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
         fits_filename + filetype);
@@ -82,6 +82,9 @@ function handle_change(type, file_root, inst, obsnumber, f_paths, f_rl, n_ints, 
     } else {
         var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '.jpg';
     }
+
+    console.log("jpg_filepath: " + jpg_filepath);
+
     img.src = jpg_filepath;
     img.alt = jpg_filepath;
     // if previous image had error, remove error sizing

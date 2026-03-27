@@ -1489,6 +1489,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
     logging.info(f"File root is {file_root}")
     logging.info(f"File root list is {file_root_list}")
     logging.info(f"File root in file_root_list: {file_root in file_root_list}")
+    logging.info(f"file_paths should be a dict: {file_paths}")
 
     # Build the context
     context = {'base_url': get_base_url(),

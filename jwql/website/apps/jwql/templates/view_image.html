@@ -65,7 +65,7 @@
 	    </a><br>
 	    <form class="my-2">
 	    	{% for suffix in suffixes %}
-	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='handle_change("{{suffix}}", "{{file_root}}", "{{inst}}", {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, "{{num_ints}}", "{{total_ints}}", "{{index}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
+	    		<input type="radio" name="filetype" value="{{ suffix }}" id="{{ suffix }}" onclick='handle_change("{{suffix}}", "{{file_root}}", "{{inst}}", "{{obsnum}}", {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, "{{num_ints}}", "{{total_ints}}", "{{index}}");'> {{ suffix }} &nbsp;&nbsp;&nbsp;&nbsp;
 	    	{% endfor %}
 		</form>
 		<br>
@@ -176,9 +176,9 @@
         <!-- Determine which filetype should be shown on load -->
         {% set loaded = namespace(found=false) %}
         {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
-            <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
+            <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}, "{{obsnum}}"', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif suffixes|length == 1 %}
-            <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
+            <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', "{{obsnum}}", {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
             {% set found.found = true %}
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>

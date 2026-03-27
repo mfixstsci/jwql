@@ -1501,6 +1501,11 @@ def get_image_info(file_root):
     logging.debug(f"Files after filtering: {filenames}")
     image_info['all_files'] = filenames
 
+    try:
+        image_info['obsnum'] = fits.getheader(image_info['all_files'][0])['OBSERVTN']
+    except KeyError:
+        image_info['obsnum'] = 'N/A'
+
     # Determine the jpg directory
     prev_img_filesys = configs['preview_image_filesystem']
     jpg_dir = os.path.join(prev_img_filesys, proposal_dir)

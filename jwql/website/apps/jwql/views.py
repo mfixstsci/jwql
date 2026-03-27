@@ -1499,7 +1499,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
                'file_paths': file_paths,
                'inst': inst,
                'prop_id': prop_id,
-               'obsnum': file_root[7:10],
+               'obsnum': image_info['obsnum'],
                'file_root': file_root,
                'suffixes': suffixes,
                'num_ints': image_info['num_ints'],

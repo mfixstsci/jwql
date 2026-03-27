@@ -16,7 +16,7 @@
  * @param {String} file_root - The rootname of the file
  * @param {String} inst - The instrument for the given file
  */
-function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx) {
+function handle_change(type, file_root, inst, obsnumber, f_paths, f_rl, n_ints, t_ints, idx) {
     // Log the input values at the start of the function in case of anything breaking.
     console.log("Type: " + type);
     console.log("File Root: " + file_root);
@@ -50,17 +50,16 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
     if (parsed_name.obs_id != 'N/A') {
         // Level 2 file
         document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
-        document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
         document.getElementById("detector").innerHTML = file_root.split('_')[3];
     } else {
         // Level 3 file
         document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '.jpg';
-        document.getElementById("obs_id").innerHTML = obsnum;  - need to define obsnum
         document.getElementById("detector").innerHTML = 'N/A';
     }
 
     document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
+    document.getElementById("obs_id").innerHTML = obsnumber;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
 
     // Add a link to download the file from MAST

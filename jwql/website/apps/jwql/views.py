@@ -58,6 +58,7 @@ from bokeh.layouts import layout
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from numpy import where
 from sqlalchemy import inspect
 
 from jwql.utils import monitor_utils
@@ -868,13 +869,44 @@ def view_header(request, inst, filename, filetype):
 
     template = 'view_header.html'
     file_root = '_'.join(filename.split('_'))
+    header_info = get_header_info(filename, filetype)
+
+    # For level 3 files, we need the obsnum, which cannot be
+    # reliably found by parsing the filename.
+    if header_info:
+        obsidx = np.where(np.array(header_info[0]['keywords']) == 'OBSERVTN')[0]
+        if len(obsidx) > 0:
+            obsnum = header_info[0]['values'][obsidx[0]]
+        else:
+            # Observation number not in the header in this case.
+            # Query for RootFileInfo instances for similar files, and try to
+            # extract the keyword from one of those.
+            file_base = '_'.join(filename.split('_')[0:-1])
+            root_file_info = RootFileInfo.objects.filter(root_name__startswith=file_base)
+            if root_file_info:
+                obsnum = root_file_info[0].obsnum.obsnum
+            else:
+                obsnum = 'N/A'
+
+    else:
+        # header_info is an empty dict here because we are looking at a non-fits file.
+        # Add an entry that will make it clear to the user that there is no header available.
+        # Try to get the obsnum from the RootFileInfo instance
+        header_info[0] = {'No header available': ''}
+        file_base = '_'.join(filename.split('_')[0:-1])
+        root_file_info = RootFileInfo.objects.filter(root_name__startswith=file_base)
+        if root_file_info:
+            obsnum = root_file_info[0].obsnum.obsnum
+        else:
+            obsnum = 'N/A'
 
     context = {'inst': inst,
                'filename': filename,
                'file_root': file_root,
                'file_type': filetype,
                'extended_root': f"{file_root}_suffix_{filetype}",
-               'header_info': get_header_info(filename, filetype)}
+               'header_info': header_info,
+               'obsnum': obsnum}
 
     return render(request, template, context)
 

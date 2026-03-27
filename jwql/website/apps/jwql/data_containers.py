@@ -1379,7 +1379,10 @@ def get_header_info(filename, filetype):
     try:
         fits_filepath = filesystem_path(filename, search=f'*_{filetype}.fits')
     except FileNotFoundError as e:
-        raise e
+        #raise e
+        header_info = {}
+        return header_info
+
     hdulist = fits.open(fits_filepath)
 
     # Extract header information from file

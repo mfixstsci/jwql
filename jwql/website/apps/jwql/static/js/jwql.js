@@ -57,6 +57,7 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
         document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '.jpg';
         document.getElementById("obs_id").innerHTML = obsnum;  - need to define obsnum
         document.getElementById("detector").innerHTML = 'N/A';
+    }
 
     document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
     document.getElementById("proposal").innerHTML = parsed_name.proposal;

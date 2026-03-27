@@ -174,12 +174,10 @@
             <script>update_viewed_button(false)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% set loaded = namespace(found=false) %}
         {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
             <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% elif suffixes|length == 1 %}
             <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-            {% set loaded.found = true %}
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

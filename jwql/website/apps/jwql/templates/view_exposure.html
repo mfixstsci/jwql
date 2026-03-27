@@ -297,12 +297,10 @@
             <script>update_viewed_button(false, true)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% set loaded = namespace(found=false) %}
         {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
             <script>change_all_filetypes('{{initial_suffix}}', '{{group_root}}', '{{num_ints}}', '{{available_ints}}', '{{total_ints}}', '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
         {% elif suffixes|length == 1 %}
             <script>change_all_filetypes('{{suffixes.0}}', '{{group_root}}', '{{num_ints}}', "{{available_ints}}", "{{total_ints}}", '{{inst}}', "{{ detectors|join(',') }}", '{{base_url}}');</script>
-            {% set loaded.found = true %}
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}

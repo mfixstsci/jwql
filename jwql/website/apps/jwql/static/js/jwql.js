@@ -196,7 +196,7 @@ function set_view(view, inst, file_root_list, idx) {
             // Show the appropriate image
             var img = document.getElementById("image_viewer_" + detector);
             var jpg_filepath = '/static/preview_images/' + parsed_name.program +
-                           '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';  ---- need to make an update like this with big ifelse block, around line 68.
+                           '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
             img.src = jpg_filepath;
             img.alt = jpg_filepath;
 

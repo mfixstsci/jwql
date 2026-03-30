@@ -869,7 +869,11 @@ def view_header(request, inst, filename, filetype):
 
     template = 'view_header.html'
     file_root = '_'.join(filename.split('_'))
-    header_info = get_header_info(filename, filetype)
+
+    if filetype not in SUFFIXES_OF_ECSV_FILES:
+        header_info = get_header_info(filename, filetype)
+    else:
+        header_info = get_header_info_ecsv(filename, filetype)
 
     # For level 3 files, we need the obsnum, which cannot be
     # reliably found by parsing the filename.
@@ -889,7 +893,7 @@ def view_header(request, inst, filename, filetype):
                 obsnum = 'N/A'
 
     else:
-        # header_info is an empty dict here because we are looking at a non-fits file.
+        # header_info is an empty dict here.
         # Add an entry that will make it clear to the user that there is no header available.
         # Try to get the obsnum from the RootFileInfo instance
         header_info[0] = {'No header available': ''}

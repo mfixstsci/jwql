@@ -1440,6 +1440,46 @@ def get_header_info(filename, filetype):
     return header_info
 
 
+def get_header_info_ecsv(filename, filetype):
+    """Return the header information for a given ecsv ``filename``.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file of interest, without the extension
+        (e.g. ``'jw86600008001_02101_00007_guider2_uncal'``).
+    filetype : str
+        The type of the file of interest, (e.g. ``'uncal'``)
+
+    Returns
+    -------
+    header_info : dict
+        The FITS headers of the extensions in the given ``file``.
+    """
+
+    # Initialize dictionary to store header information
+    header_info = {}
+
+    # Open the file
+    try:
+        fits_filepath = filesystem_path(filename, search=f'*_{filetype}.ecsv')
+    except FileNotFoundError as e:
+        #raise e
+        header_info = {}
+        return header_info
+
+    header_info['PRIMARY'] = parse_meta_section_of_ecsv(fits_filepath)
+
+    # Populate info needed for the webpage
+    data_dict = {}
+    data_dict['Keyword'] = header_info['PRIMARY']['keywords']
+    data_dict['Value'] = header_info['PRIMARY']['values']
+    header_info['PRIMARY']['table'] = pd.DataFrame(data_dict)
+    header_info['PRIMARY']['table_rows'] = header_info['PRIMARY']['table'].values
+    header_info['PRIMARY']['table_columns'] = header_info['PRIMARY']['table'].columns.values
+    return header_info
+
+
 def get_image_info(file_root):
     """Build and return a dictionary containing information for a given
     ``file_root``. Supports level 2 or level 3 file_root values.
@@ -2125,6 +2165,49 @@ def log_into_mast(request):
         return Mast.authenticated()
     else:
         return False
+
+
+def parse_meta_section_of_ecsv(filepath):
+    """Extract the meta section from a level 3 ecsv file (i.e. whtlt or phot)
+
+    Parameters
+    ----------
+    filepath : str
+        Name of the ecsv file to read in
+
+    Returns
+    -------
+    result : dict
+        Dictionary of metadata
+    """
+    result = {}
+    in_meta = False
+    pattern = r'\{(\w+):\s*([^}]+)\}'
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            # Detect start of meta section
+            if line.strip() == '# meta: !!omap':
+                in_meta = True
+                continue
+
+            # Stop when we hit another top-level section or non-comment line
+            if in_meta:
+                if not line.startswith('#'):
+                    break
+                if re.match(r'^# \w+:', line) and 'meta' not in line:
+                    break
+
+            if in_meta:
+                match = re.search(pattern, line)
+                if match:
+                    key = match.group(1)
+                    value = match.group(2).strip()
+                    if value == 'null':
+                        value = None
+                    result[key] = value
+
+    return result
 
 
 def proposal_rootnames_by_instrument(proposal):

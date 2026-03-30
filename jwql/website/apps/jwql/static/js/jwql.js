@@ -66,7 +66,6 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
         var exposure_str = file_root
     }
 
-    document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
 
@@ -76,6 +75,7 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
     if (ecsv_types.includes(type)) {
         var filetype = ".ecsv"
     }
+    document.getElementById("fits_filename").innerHTML = fits_filename + filetype;
     document.getElementById("fits_filename").setAttribute('href',
         'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
         fits_filename + filetype);

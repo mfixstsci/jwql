@@ -1491,6 +1491,18 @@ def get_image_info(file_root):
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
                     'L3', f'*/{ostr}/', f'{file_root}*.fits')))
+
+        # Second search, for whtlt and phot files, which are ecsv rather
+        # than fits. Can't search for *.escv though, because we don't want
+        # the source catalog files, which are *_cat.ecsv
+        ecsv_suffixes = ['whtlt', 'phot']
+        for ecsv_suffix in ecsv_suffixes:
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                        'L3', f'*/{ostr}/', f'{file_root}*{ecsv_suffix}.ecsv')))
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                        'L3', f'*/{ostr}/', f'{file_root}*{ecsv_suffix}.ecsv')))
         image_info['level'] = 3
 
     logging.debug(f"Files before filtering: {filenames}")
@@ -1503,7 +1515,7 @@ def get_image_info(file_root):
 
     try:
         image_info['obsnum'] = fits.getheader(image_info['all_files'][0])['OBSERVTN']
-    except KeyError:
+    except (KeyError, OSError):
         image_info['obsnum'] = 'N/A'
 
     # Determine the jpg directory

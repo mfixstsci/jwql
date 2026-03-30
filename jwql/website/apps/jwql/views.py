@@ -62,7 +62,7 @@ import numpy as np
 from sqlalchemy import inspect
 
 from jwql.utils import monitor_utils
-from jwql.utils.constants import JWQLDB_EXCLUDED, JWST_INSTRUMENT_NAMES_MIXEDCASE, QUERY_CONFIG_TEMPLATE, URL_DICT, QueryConfigKeys
+from jwql.utils.constants import JWQLDB_EXCLUDED, JWST_INSTRUMENT_NAMES_MIXEDCASE, QUERY_CONFIG_TEMPLATE, SUFFIXES_OF_ECSV_FILES, URL_DICT, QueryConfigKeys
 from jwql.utils.interactive_preview_image import InteractivePreviewImg
 from jwql.utils.logging_functions import configure_logging
 from jwql.utils.utils import filename_parser, get_base_url, get_config, get_rootnames_for_instrument_proposal, query_unformat
@@ -1418,13 +1418,22 @@ def view_image(request, inst, file_root, initial_suffix=None):
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
 
+
+
+
+
+
+
     file_paths = {}
     for file_path in image_info['all_files']:
         logging.debug(f"Checking input file {file_path}")
         source_path = Path(file_path).parent
         for suffix in suffixes:
             logging.debug(f"\tChecking suffix {suffix}")
-            file_search = list(source_path.rglob(f"{file_root}*_{suffix}.fits"))
+            file_type = 'fits'
+            if suffix in SUFFIXES_OF_ECSV_FILES:
+                file_type = 'ecsv'
+            file_search = list(source_path.rglob(f"{file_root}*_{suffix}.{file_type}"))
             if len(file_search) > 0:
                 if suffix not in file_paths:
                     logging.debug(f"\tAdding {suffix} to file paths")

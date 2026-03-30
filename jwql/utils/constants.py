@@ -998,6 +998,9 @@ SUBARRAYS_PER_INSTRUMENT = {
     "fgs": ['FULL'] + sorted(schema["properties"]["meta"]["properties"]["subarray"]["properties"]["name"]["anyOf"][0]['enum'])
 }
 
+# File suffixes for ecsv files that JWQL tracks
+SUFFIXES_OF_ECSV_FILES = ['whtlt', 'phot']
+
 # Filename suffixes that need to include the association value in the suffix in
 # order to identify the preview image file. This should only be crf and crfints,
 # since those are essentially level 2 files that are output by the level 3 pipeline.

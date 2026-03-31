@@ -802,7 +802,7 @@ def filesystem_path(filename, check_existence=True, search=None):
         id2 = parts[1]
         # Some source-based filenames use v{source_number}, but these
         # will be in the s subdir
-        if i2d == 'v':
+        if id2[0] == 'v':
             id2 = 's'
         subdir2 = f'L3/{id2[0]}/{id1}'
 

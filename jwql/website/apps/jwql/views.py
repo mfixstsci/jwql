@@ -1369,38 +1369,6 @@ def view_image(request, inst, file_root, initial_suffix=None):
     HttpResponse object
         Outgoing response sent to the webpage
     """
-    url_suffix = None
-    if "_suffix_" in file_root:
-        file_bits = file_root.split("_")
-        file_root = "_".join(file_bits[:-2])
-        url_suffix = file_bits[-1]
-    log_file = configure_logging("django", include_time=False)
-    logging.debug(f"Running through view_image() for {inst} {file_root}")
-
-    request_suffix = None
-    if "suffix" in request.GET:
-        request_suffix = request.GET["suffix"]
-
-    if initial_suffix is not None:
-        logging.debug(f"Setting suffix via initial suffix to {initial_suffix}")
-        default_suffix = initial_suffix
-    elif request_suffix is not None:
-        logging.debug(f"Setting suffix via request object to {request_suffix}")
-        default_suffix = request_suffix
-    elif url_suffix is not None:
-        logging.debug(f"Setting suffix via URL apped to {url_suffix}")
-        default_suffix = url_suffix
-    else:
-        default_suffix = ""
-
-    default_preview = ""
-    preview_cookie = request.COOKIES.get('preview')
-    if preview_cookie:
-        logging.debug(f"Found cookie value {preview_cookie}")
-        default_preview = preview_cookie
-    elif "preview" in request.GET:
-        default_preview = request.GET["preview"]
-
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
@@ -1422,6 +1390,48 @@ def view_image(request, inst, file_root, initial_suffix=None):
                          f'constants.py: {untracked_suffixes} '
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
+
+
+
+
+
+
+    url_suffix = None
+    if "_suffix_" in file_root:
+        file_bits = file_root.split("_")
+        file_root = "_".join(file_bits[:-2])
+        url_suffix = file_bits[-1]
+    log_file = configure_logging("django", include_time=False)
+    logging.debug(f"Running through view_image() for {inst} {file_root}")
+
+    request_suffix = None
+    if "suffix" in request.GET:
+        request_suffix = request.GET["suffix"]
+
+    if initial_suffix is not None:
+        logging.debug(f"Setting suffix via initial suffix to {initial_suffix}")
+        default_suffix = initial_suffix
+    elif request_suffix is not None:
+        logging.debug(f"Setting suffix via request object to {request_suffix}")
+        default_suffix = request_suffix
+    elif url_suffix is not None:
+        logging.debug(f"Setting suffix via URL apped to {url_suffix}")
+        default_suffix = url_suffix
+    elif 'rate' in suffixes:
+        default_suffix = 'rate'
+    else:
+        default_suffix = ""
+
+    default_preview = ""
+    preview_cookie = request.COOKIES.get('preview')
+    if preview_cookie:
+        logging.debug(f"Found cookie value {preview_cookie}")
+        default_preview = preview_cookie
+    elif "preview" in request.GET:
+        default_preview = request.GET["preview"]
+
+
+
 
 
 

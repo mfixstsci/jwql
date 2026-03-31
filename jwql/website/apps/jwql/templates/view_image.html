@@ -176,7 +176,7 @@
         <!-- Determine which filetype should be shown on load -->
         {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
             <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-        {% elif suffixes|length == 1 %}
+        {% elif suffixes|length >= 1 %}
             <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>

@@ -1587,7 +1587,7 @@ def get_image_info(file_root):
 
         # For crf or crfints suffixes, we need to also include the association value
         # in the suffix, so that preview images can be found later.
-        if suffix in SUFFIXES_TO_ADD_ASSOCIATION:
+        if ((image_info['level'] == 2) & (suffix in SUFFIXES_TO_ADD_ASSOCIATION)):
             assn = filename.split('_')[-2]
             suffix = f'{assn}_{suffix}'
 

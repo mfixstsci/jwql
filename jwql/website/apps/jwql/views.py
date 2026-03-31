@@ -81,6 +81,7 @@ from .data_containers import (
     get_explorer_extension_names,
     get_group_anomalies,
     get_header_info,
+    get_header_info_ecsv,
     get_image_info,
     get_instrument_looks,
     get_rootnames_from_query,

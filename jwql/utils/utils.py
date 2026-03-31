@@ -800,16 +800,20 @@ def filesystem_path(filename, check_existence=True, search=None):
         parts = filename.split('_')
         id1 = parts[0].split('-')[1]
         id2 = parts[1]
+        # Some source-based filenames use v{source_number}, but these
+        # will be in the s subdir
+        if i2d == 'v':
+            id2 = 's'
         subdir2 = f'L3/{id2[0]}/{id1}'
 
     if search:
-        full_subdir = os.path.join(subdir1, subdir2, '{}{}'.format(filename, search))
+        full_subdir = os.path.join(subdir1, subdir2, f'{filename}{search}')
         filenames_found = glob.glob(os.path.join(FILESYSTEM, 'public', full_subdir))
         filenames_found.extend(glob.glob(os.path.join(FILESYSTEM, 'proprietary', full_subdir)))
         if len(filenames_found) > 0:
             filename = os.path.basename(filenames_found[0])
         else:
-            raise FileNotFoundError('{} did not yield any files in predicted location {}'.format(search, full_subdir))
+            raise FileNotFoundError(f'{search} did not yield any files in predicted location {full_subdir}')
 
     full_path = os.path.join(subdir1, subdir2, filename)
 

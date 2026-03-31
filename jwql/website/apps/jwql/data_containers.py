@@ -1458,7 +1458,10 @@ def get_header_info_ecsv(filename, filetype):
     """
 
     # Initialize dictionary to store header information
-    header_info = {}
+    header_info = {0: {'EXTNAME': 'PRIMARY',
+                       'XTENSION': 'PRIMARY'
+                       }
+                   }
 
     # Open the file
     try:
@@ -1468,15 +1471,20 @@ def get_header_info_ecsv(filename, filetype):
         header_info = {}
         return header_info
 
-    header_info['PRIMARY'] = parse_meta_section_of_ecsv(fits_filepath)
+    metadata = parse_meta_section_of_ecsv(fits_filepath)
+
+    header_info[0]['keywords'] = [item for item in list(metadata.keys())]
+    header_info[0]['values'] = []
+    for key in header_info[0]['keywords']:
+        header_info[0]['values'].append(metadata[key])
 
     # Populate info needed for the webpage
     data_dict = {}
-    data_dict['Keyword'] = header_info['PRIMARY']['keywords']
-    data_dict['Value'] = header_info['PRIMARY']['values']
-    header_info['PRIMARY']['table'] = pd.DataFrame(data_dict)
-    header_info['PRIMARY']['table_rows'] = header_info['PRIMARY']['table'].values
-    header_info['PRIMARY']['table_columns'] = header_info['PRIMARY']['table'].columns.values
+    data_dict['Keyword'] = header_info[0]['keywords']
+    data_dict['Value'] = header_info[0]['values']
+    header_info[0]['table'] = pd.DataFrame(data_dict)
+    header_info[0]['table_rows'] = header_info[0]['table'].values
+    header_info[0]['table_columns'] = header_info[0]['table'].columns.values
     return header_info
 
 

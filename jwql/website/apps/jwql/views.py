@@ -1391,11 +1391,6 @@ def view_image(request, inst, file_root, initial_suffix=None):
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
 
-
-
-
-
-
     url_suffix = None
     if "_suffix_" in file_root:
         file_bits = file_root.split("_")
@@ -1418,8 +1413,14 @@ def view_image(request, inst, file_root, initial_suffix=None):
         logging.debug(f"Setting suffix via URL apped to {url_suffix}")
         default_suffix = url_suffix
     elif 'rate' in suffixes:
+        # Default to rate files for level 2 rootnames
         default_suffix = 'rate'
+    elif 'x1d' in suffixes:
+        # Default to x1d files for the level 3 rootnames
+        default_suffix = 'x1d'
     else:
+        # In this case, the html template will fall back to the first suffix
+        # in the list.
         default_suffix = ""
 
     default_preview = ""
@@ -1429,15 +1430,6 @@ def view_image(request, inst, file_root, initial_suffix=None):
         default_preview = preview_cookie
     elif "preview" in request.GET:
         default_preview = request.GET["preview"]
-
-
-
-
-
-
-
-
-
 
     file_paths = {}
     for file_path in image_info['all_files']:

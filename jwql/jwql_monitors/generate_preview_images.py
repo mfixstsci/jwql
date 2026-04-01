@@ -910,9 +910,6 @@ def process_program(program, overwrite, level3_only):
             prev_ims, thumb_ims = preview_img_from_file(filename, parsed, preview_output_directory, thumbnail_output_directory)
             thumbs[root] = True
 
-            # For development only
-            print(f'Working on {filename}. Created thumbnail: {parsed["create_thumbnail"]}')
-
             if prev_ims is not None:
                 new_preview_counter += 1
                 thumbnail_files.extend(thumb_ims)

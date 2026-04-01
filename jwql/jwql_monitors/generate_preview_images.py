@@ -834,7 +834,13 @@ def process_program(program, overwrite, level3_only):
     filenames = filtered_filenames
 
     # Sort in order to help keep track of thumbnail production for level 3 files
+    # By sorting in reverse, we'll preferentially make thumbnails for x1d files if present,
+    # which seems like a nice way to distinguish from level 2 thumbanils.
     filenames = sorted(filenames, reverse=True)
+
+    # Move segm.fits files to the end of the list, because we don't really want thumbnails from
+    # these, unless there are no other suffixes available for a given rootname
+    filenames.sort(key=lambda f: f.endswith('_segm.fits'))
 
     # Dictionary to track whether a thumbnail has been created for a level 3 rootname
     # Keys are rootnames, values are booleans describing whether a thumbail image has been made

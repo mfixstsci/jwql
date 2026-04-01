@@ -222,22 +222,22 @@ function set_view(view, inst, file_root_list, idx) {
         // Level 3 files
 
         // Update the filename lists
-        var filename_option = document.getElementById("level3_filename");   // WHAT DO WE CHANGE THIS TO?
+        var filename_option = document.getElementById("level3_filename");
         filename_option.value = inst + '/' + group_root + '_' + type;
         filename_option.textContent = group_root + '_' + type;
 
         // Show the appropriate image
-        var img = document.getElementById("image_viewer_level3");  // WHAT DO WE CHANGE THIS TO?
+        var img = document.getElementById("image_viewer_level3");
         var jpg_filepath = '/static/preview_images/' + parsed_name.program +
                         '/' + group_root + '_' + type + '.jpg';
         img.src = jpg_filepath;
         img.alt = jpg_filepath;
 
-        var main_link = document.getElementById("view_level3"); // WHAT DO WE CHANGE THIS TO?
+        var main_link = document.getElementById("view_level3");
         var new_url = base_url + "/" + inst + "/" + group_root + "?suffix=" + type;
         main_link.setAttribute('href', new_url);
 
-        var fallback_link = document.getElementById("view_level3_fallback");   // WHAT DO WE CHANGE THIS TO?
+        var fallback_link = document.getElementById("view_level3_fallback");
         var new_url = base_url + "/" + inst + "/" + group_root + "?suffix=" + type;
         fallback_link.setAttribute('href', new_url);
 

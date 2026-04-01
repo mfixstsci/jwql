@@ -1279,7 +1279,7 @@ def get_filesystem_filenames(proposal=None, rootname=None,
     if proposal is not None:
         proposal_string = '{:05d}'.format(int(proposal))
 
-        # Level 2 and 3
+        # Level 2 only. This "proposal" block is not currently used anywhere.
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public',
                          'jw{}'.format(proposal_string), '*/*'))

@@ -81,7 +81,7 @@ def initialize_instrument_monitor(module):
     log_file : str
         The path to where the log file is stored
     """
-    start_time = datetime.datetime.now()
+    start_time = datetime.datetime.now(tz=datetime.timezone.utc)
     log_file = configure_logging(module)
 
     return start_time, log_file
@@ -281,7 +281,7 @@ def update_monitor_table(module, start_time, log_file):
     new_entry = {}
     new_entry['monitor_name'] = module
     new_entry['start_time'] = start_time
-    new_entry['end_time'] = datetime.datetime.now()
+    new_entry['end_time'] = datetime.datetime.now(tz=datetime.timezone.utc)
     new_entry['status'] = get_log_status(log_file)
     new_entry['log_file'] = os.path.basename(log_file)
 

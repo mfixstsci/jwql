@@ -58,10 +58,11 @@ from bokeh.layouts import layout
 from django.core.paginator import Paginator
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+import numpy as np
 from sqlalchemy import inspect
 
 from jwql.utils import monitor_utils
-from jwql.utils.constants import JWQLDB_EXCLUDED, JWST_INSTRUMENT_NAMES_MIXEDCASE, QUERY_CONFIG_TEMPLATE, URL_DICT, QueryConfigKeys
+from jwql.utils.constants import JWQLDB_EXCLUDED, JWST_INSTRUMENT_NAMES_MIXEDCASE, QUERY_CONFIG_TEMPLATE, SUFFIXES_OF_ECSV_FILES, URL_DICT, QueryConfigKeys
 from jwql.utils.interactive_preview_image import InteractivePreviewImg
 from jwql.utils.logging_functions import configure_logging
 from jwql.utils.utils import filename_parser, get_base_url, get_config, get_rootnames_for_instrument_proposal, query_unformat
@@ -80,6 +81,7 @@ from .data_containers import (
     get_explorer_extension_names,
     get_group_anomalies,
     get_header_info,
+    get_header_info_ecsv,
     get_image_info,
     get_instrument_looks,
     get_rootnames_from_query,
@@ -869,12 +871,47 @@ def view_header(request, inst, filename, filetype):
     template = 'view_header.html'
     file_root = '_'.join(filename.split('_'))
 
+    if filetype not in SUFFIXES_OF_ECSV_FILES:
+        header_info = get_header_info(filename, filetype)
+    else:
+        header_info = get_header_info_ecsv(filename, filetype)
+
+    # For level 3 files, we need the obsnum, which cannot be
+    # reliably found by parsing the filename.
+    if header_info:
+        obsidx = np.where(np.array(header_info[0]['keywords']) == 'OBSERVTN')[0]
+        if len(obsidx) > 0:
+            obsnum = header_info[0]['values'][obsidx[0]]
+        else:
+            # Observation number not in the header in this case.
+            # Query for RootFileInfo instances for similar files, and try to
+            # extract the keyword from one of those.
+            file_base = '_'.join(filename.split('_')[0:-1])
+            root_file_info = RootFileInfo.objects.filter(root_name__startswith=file_base)
+            if root_file_info:
+                obsnum = root_file_info[0].obsnum.obsnum
+            else:
+                obsnum = 'N/A'
+
+    else:
+        # header_info is an empty dict here.
+        # Add an entry that will make it clear to the user that there is no header available.
+        # Try to get the obsnum from the RootFileInfo instance
+        header_info[0] = {'No header available': ''}
+        file_base = '_'.join(filename.split('_')[0:-1])
+        root_file_info = RootFileInfo.objects.filter(root_name__startswith=file_base)
+        if root_file_info:
+            obsnum = root_file_info[0].obsnum.obsnum
+        else:
+            obsnum = 'N/A'
+
     context = {'inst': inst,
                'filename': filename,
                'file_root': file_root,
                'file_type': filetype,
                'extended_root': f"{file_root}_suffix_{filetype}",
-               'header_info': get_header_info(filename, filetype)}
+               'header_info': header_info,
+               'obsnum': obsnum}
 
     return render(request, template, context)
 
@@ -1186,23 +1223,28 @@ def view_exposure(request, inst, group_root):
         Outgoing response sent to the webpage
     """
 
-    default_suffix = ''
-    if "suffix" in request.GET:
-        default_suffix = request.GET["suffix"]
-
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
     template = 'view_exposure.html'
     image_info = get_image_info(group_root)
 
-    # Get the proposal id and obsnum from the group root name
-    prop_id = group_root[2:7]
-    obsnum = group_root[7:10]
-
     # Get available suffixes in a consistent order.
     suffixes = get_available_suffixes(image_info['suffixes'],
                                       return_untracked=False)
+
+    # Determine which suffix to show upon page load
+    default_suffix = ''
+    if "suffix" in request.GET:
+        default_suffix = request.GET["suffix"]
+    else:
+        preferred_suffixes = ["rate", "dark", "uncal", "i2d", "c1d", "x1d", "s3d",
+                              "s2d", "whtlt", "phot", "psfsub", "psfstack", "ami",
+                              "aminorm", "cal"]
+        for suffix in preferred_suffixes:
+            if suffix in suffixes:
+                default_suffix = suffix
+                break
 
     # Get the anomaly submission form
     form = get_anomaly_form(request, inst, group_root)
@@ -1251,7 +1293,7 @@ def view_exposure(request, inst, group_root):
         for file in image_info['all_files']:
             name = Path(file).name
             obs = name.split("_")[0]
-            if obs not in group_root_list:
+            if '-' not in obs and obs not in group_root_list:
                 group_root_list.append(obs)
 
     # Get our current views RootFileInfo model and send our "viewed/new" information
@@ -1259,6 +1301,10 @@ def view_exposure(request, inst, group_root):
     if len(root_file_info) == 0:
         return generate_error_view(request, inst, f"No groups starting with {group_root} currently in JWQL database.")
     viewed = all([rf.viewed for rf in root_file_info])
+
+    # Get the program ID and the obsnum
+    prop_id = root_file_info[0].proposal.zfill(5)
+    obsnum = root_file_info[0].obsnum.obsnum
 
     # Convert expstart from MJD to a date
     expstart_str = Time(root_file_info[0].expstart, format='mjd').to_datetime().strftime('%d %b %Y %H:%M')
@@ -1277,6 +1323,8 @@ def view_exposure(request, inst, group_root):
     logging.info(f"Group Root is {group_root}")
     logging.info(f"Group Root List is {group_root_list}")
     logging.info(f"Group Root in List: {group_root in group_root_list}")
+    logging.info(f"prop_id is : {prop_id}")
+    logging.info(f"obsnum is: {obsnum}")
 
     # Build the context
     context = {'base_url': get_base_url(),
@@ -1321,38 +1369,6 @@ def view_image(request, inst, file_root, initial_suffix=None):
     HttpResponse object
         Outgoing response sent to the webpage
     """
-    url_suffix = None
-    if "_suffix_" in file_root:
-        file_bits = file_root.split("_")
-        file_root = "_".join(file_bits[:-2])
-        url_suffix = file_bits[-1]
-    log_file = configure_logging("django", include_time=False)
-    logging.debug(f"Running through view_image() for {inst} {file_root}")
-
-    request_suffix = None
-    if "suffix" in request.GET:
-        request_suffix = request.GET["suffix"]
-
-    if initial_suffix is not None:
-        logging.debug(f"Setting suffix via initial suffix to {initial_suffix}")
-        default_suffix = initial_suffix
-    elif request_suffix is not None:
-        logging.debug(f"Setting suffix via request object to {request_suffix}")
-        default_suffix = request_suffix
-    elif url_suffix is not None:
-        logging.debug(f"Setting suffix via URL apped to {url_suffix}")
-        default_suffix = url_suffix
-    else:
-        default_suffix = ""
-
-    default_preview = ""
-    preview_cookie = request.COOKIES.get('preview')
-    if preview_cookie:
-        logging.debug(f"Found cookie value {preview_cookie}")
-        default_preview = preview_cookie
-    elif "preview" in request.GET:
-        default_preview = request.GET["preview"]
-
     # Ensure the instrument is correctly capitalized
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
 
@@ -1375,13 +1391,56 @@ def view_image(request, inst, file_root, initial_suffix=None):
                          'Please add them, so that they will appear in a '
                          'consistent order on the webpage.'))
 
+    url_suffix = None
+    if "_suffix_" in file_root:
+        file_bits = file_root.split("_")
+        file_root = "_".join(file_bits[:-2])
+        url_suffix = file_bits[-1]
+    log_file = configure_logging("django", include_time=False)
+    logging.debug(f"Running through view_image() for {inst} {file_root}")
+
+    request_suffix = None
+    if "suffix" in request.GET:
+        request_suffix = request.GET["suffix"]
+
+    if initial_suffix is not None:
+        logging.debug(f"Setting suffix via initial suffix to {initial_suffix}")
+        default_suffix = initial_suffix
+    elif request_suffix is not None:
+        logging.debug(f"Setting suffix via request object to {request_suffix}")
+        default_suffix = request_suffix
+    elif url_suffix is not None:
+        logging.debug(f"Setting suffix via URL apped to {url_suffix}")
+        default_suffix = url_suffix
+    elif 'rate' in suffixes:
+        # Default to rate files for level 2 rootnames
+        default_suffix = 'rate'
+    elif 'x1d' in suffixes:
+        # Default to x1d files for the level 3 rootnames
+        default_suffix = 'x1d'
+    else:
+        # In this case, the html template will fall back to the first suffix
+        # in the list.
+        default_suffix = ""
+
+    default_preview = ""
+    preview_cookie = request.COOKIES.get('preview')
+    if preview_cookie:
+        logging.debug(f"Found cookie value {preview_cookie}")
+        default_preview = preview_cookie
+    elif "preview" in request.GET:
+        default_preview = request.GET["preview"]
+
     file_paths = {}
     for file_path in image_info['all_files']:
         logging.debug(f"Checking input file {file_path}")
         source_path = Path(file_path).parent
         for suffix in suffixes:
             logging.debug(f"\tChecking suffix {suffix}")
-            file_search = list(source_path.rglob(f"{file_root}*_{suffix}.fits"))
+            file_type = 'fits'
+            if suffix in SUFFIXES_OF_ECSV_FILES:
+                file_type = 'ecsv'
+            file_search = list(source_path.rglob(f"{file_root}*_{suffix}.{file_type}"))
             if len(file_search) > 0:
                 if suffix not in file_paths:
                     logging.debug(f"\tAdding {suffix} to file paths")
@@ -1418,7 +1477,15 @@ def view_image(request, inst, file_root, initial_suffix=None):
         else:
             file_root_list = sorted(navigation_data)
     else:
-        file_root_list = sorted(get_detectors_by_rootname(file_root))
+        if image_info['level'] == 2:
+            file_root_list = sorted(get_detectors_by_rootname(file_root))
+        elif image_info['level'] == 3:
+            # In most (all?) cases with level 3 rootnames, I think we should end up
+            # with a single element list that's essentially equal to file_root
+            #file_list = get_filenames_by_rootname(file_root)
+            #file_root_list = [filestr.rsplit('_', 1)[0] for filestr in file_list if 'jpg' not in filestr]
+            #file_root_list = sorted(set(file_root_list))
+            file_root_list = [file_root]
 
     # Get our current views RootFileInfo model and send our "viewed/new" information
     root_file_info = RootFileInfo.objects.get(root_name=file_root)
@@ -1438,6 +1505,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
     logging.info(f"File root is {file_root}")
     logging.info(f"File root list is {file_root_list}")
     logging.info(f"File root in file_root_list: {file_root in file_root_list}")
+    logging.info(f"file_paths should be a dict: {file_paths}")
 
     # Build the context
     context = {'base_url': get_base_url(),
@@ -1448,7 +1516,7 @@ def view_image(request, inst, file_root, initial_suffix=None):
                'file_paths': file_paths,
                'inst': inst,
                'prop_id': prop_id,
-               'obsnum': file_root[7:10],
+               'obsnum': image_info['obsnum'],
                'file_root': file_root,
                'suffixes': suffixes,
                'num_ints': image_info['num_ints'],

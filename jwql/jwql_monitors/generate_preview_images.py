@@ -210,7 +210,7 @@ def check_existence(file_list, outdir):
     # for a preview image name that contains the detector name
     if len(file_list) == 1:
         filename = os.path.split(file_list[0])[1]
-        search_string = filename.split('.fits')[0] + '_*.jpg'
+        search_string = filename.split('.fits')[0] + '*jpg'
     else:
         # If file_list contains multiple files, then we need to search
         # for the appropriately named jpg of the mosaic, which depends

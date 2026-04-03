@@ -553,7 +553,7 @@ GUIDER_SUFFIX_TYPES = [
 ]
 
 # JWQL should ignore some filetypes in the filesystem.
-IGNORED_SUFFIXES = ["original", "stream", "x1d", "x1dints", "c1d", "pre-image", "ami"]
+IGNORED_SUFFIXES = ["original", "stream", "pre-image"]
 
 # Instrument monitor database tables
 INSTRUMENT_MONITOR_DATABASE_TABLES = {
@@ -998,13 +998,16 @@ SUBARRAYS_PER_INSTRUMENT = {
     "fgs": ['FULL'] + sorted(schema["properties"]["meta"]["properties"]["subarray"]["properties"]["name"]["anyOf"][0]['enum'])
 }
 
+# File suffixes for ecsv files that JWQL tracks
+SUFFIXES_OF_ECSV_FILES = ['whtlt', 'phot']
+
 # Filename suffixes that need to include the association value in the suffix in
 # order to identify the preview image file. This should only be crf and crfints,
 # since those are essentially level 2 files that are output by the level 3 pipeline.
 SUFFIXES_TO_ADD_ASSOCIATION = ["crf", "crfints"]
 
 # Filename suffixes where data have been averaged over integrations
-SUFFIXES_WITH_AVERAGED_INTS = ["rate", "cal", "crf", "i2d", "bsub"]
+SUFFIXES_WITH_AVERAGED_INTS = ["rate", "cal", "crf", "i2d", "bsub", "x1d"]
 
 # boolean accessed according to a viewed flag
 THUMBNAIL_FILTER_LOOK = ["New", "Viewed"]

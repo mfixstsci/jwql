@@ -15,7 +15,7 @@
     	<!-- Specify the attributes of what is currently being shown -->
         <div class="d-flex flex-row">
     		<div class="APT_parameters">Proposal: <a id="proposal" href="{{ url('jwql:archive_thumb_per_obs', args=[inst, prop_id, obsnum]) }}"></a></div>
-    		<div class="APT_parameters">Observation: <a id="obs_id"></a></div>
+    		<div class="APT_parameters">Observation: {{ obsnum }}</div>
     		<div class="APT_parameters">Visit: <a id="visit_id"></a></div>
     		<div class="APT_parameters">Detector: <a id="detector"></a></div>
             <input class="btn btn-primary" id="viewed" value=" " type="button" onclick='toggle_viewed("{{file_root}}", "{{base_url}}");'>
@@ -102,12 +102,14 @@
                              title="Preview image for {{ file_root }}" width=1000rem height=auto>
     		        </span>
 
-                    <div class="int_changer">
-                        <button id="int_before" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}", "{{available_ints}}", "button", "left");' disabled>&#9664;</button>
-                        <input type="range" min="1" max="5" value="1" class="slider" id="slider_range" onchange='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "slider")'>
-                        <button id="int_after" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "button", "right");' disabled>&#9658;</button>
-                        <p>Integration: <span id="slider_val"></span>/<span id="total_ints"></span></p>
-                    </div>
+                    {% if available_ints != 'N/A' %}
+                        <div class="int_changer">
+                            <button id="int_before" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}", "{{available_ints}}", "button", "left");' disabled>&#9664;</button>
+                            <input type="range" min="1" max="5" value="1" class="slider" id="slider_range" onchange='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "slider")'>
+                            <button id="int_after" class="btn btn-primary mx-2" role="button" onclick='change_integration("{{file_root}}", "{{num_ints}}",  "{{available_ints}}", "button", "right");' disabled>&#9658;</button>
+                            <p>Integration: <span id="slider_val"></span>/<span id="total_ints"></span></p>
+                        </div>
+                    {% endif %}
                 </div>
 
                 <!-- Display the Previous/Next buttons -->
@@ -172,19 +174,14 @@
             <script>update_viewed_button(false)</script>
         {% endif %}
         <!-- Determine which filetype should be shown on load -->
-        {% if (initial_suffix|length > 0) and (initial_suffix in file_paths) %}
+        {% if (initial_suffix|length > 0) and (initial_suffix in suffixes) %}
             <script>handle_change('{{ initial_suffix }}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-        {% elif 'rate' in suffixes %}
-            <script>handle_change('rate', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-        {% elif 'dark' in suffixes %}
-            <script>handle_change('dark', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-        {% elif 'uncal' in suffixes %}
-            <script>handle_change('uncal', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
-        {% elif suffixes|length == 1 %}
+        {% elif suffixes|length >= 1 %}
             <script>handle_change('{{suffixes.0}}', '{{file_root}}', '{{inst}}', {{file_paths | tojson | safe}}, {{file_root_list | tojson | safe}}, '{{num_ints}}', '{{total_ints}}', "{{index}}");</script>
         {% else %}
             <a>Unable to show image for: {{suffixes}}</a>
         {% endif %}
+
         <!-- Determine which preview should be shown on load -->
         {% if (initial_preview|length > 0) %}
             <script>set_view("{{ initial_preview }}", '{{inst}}', {{file_root_list | tojson | safe}}, '{{index}}');</script>

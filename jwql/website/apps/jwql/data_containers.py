@@ -249,7 +249,7 @@ def create_archived_proposals_context(inst):
     proposal_nums = [entry.prop_id for entry in prop_objects]
 
     # Put proposals into descending order
-    proposal_nums.sort(reverse=True)
+    proposal_nums.sort(key=int, reverse=True)
 
     # Total number of proposals for the instrument
     num_proposals = len(proposal_nums)

@@ -210,7 +210,7 @@ def check_existence(file_list, outdir):
     # for a preview image name that contains the detector name
     if len(file_list) == 1:
         filename = os.path.split(file_list[0])[1]
-        search_string = filename.split('.fits')[0] + '_*.jpg'
+        search_string = filename.split('.fits')[0] + '*jpg'
     else:
         # If file_list contains multiple files, then we need to search
         # for the appropriately named jpg of the mosaic, which depends
@@ -761,7 +761,7 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
 
     else:
         # Stage 3 fits file - create thumbnails for all level 3 products
-        img = Level3PreviewImage(fname, create_thumbnail=True,
+        img = Level3PreviewImage(fname, create_thumbnail=file_info['create_thumbnail'],
                                  preview_output_directory=preview_output_directory,
                                  thumbnail_output_directory=thumbnail_output_directory,
                                  wfss_nbrightest_sources=2
@@ -833,6 +833,19 @@ def process_program(program, overwrite, level3_only):
                              'filename_parser() failed to recognize the file pattern.'))
     filenames = filtered_filenames
 
+    # Sort in order to help keep track of thumbnail production for level 3 files
+    # By sorting in reverse, we'll preferentially make thumbnails for x1d files if present,
+    # which seems like a nice way to distinguish from level 2 thumbanils.
+    filenames = sorted(filenames, reverse=True)
+
+    # Move segm.fits files to the end of the list, because we don't really want thumbnails from
+    # these, unless there are no other suffixes available for a given rootname
+    filenames.sort(key=lambda f: f.endswith('_segm.fits'))
+
+    # Dictionary to track whether a thumbnail has been created for a level 3 rootname
+    # Keys are rootnames, values are booleans describing whether a thumbail image has been made
+    thumbs = {}
+
     logging.info('Found {} filenames'.format(len(filenames)))
     logging.info('')
 
@@ -850,7 +863,7 @@ def process_program(program, overwrite, level3_only):
             identifier = f'jw{parsed["program_id"]}'
         else:
             # In this case, the filename_parser failed to recognize the filename
-            identifier = os.path.basename(filename).split('.fits')[0]
+            identifier = os.path.basename(filename).split('.')[0]
             logging.warning((f'While running generate_preview_images.process_program() on filtered filename {filename}, the '
                              'filename_parser() failed to recognize the file pattern.'))
         preview_output_directory = os.path.join(SETTINGS['preview_image_filesystem'], identifier)
@@ -880,9 +893,23 @@ def process_program(program, overwrite, level3_only):
             permissions.set_permissions(thumbnail_output_directory)
             logging.info('\tCreated directory {}'.format(thumbnail_output_directory))
 
+        # For level 3 files, add a key to the filename_parser results, describing
+        # whether or not to create a thumbnail image
+        if 'stage_3' in parsed['filename_type']:
+            root = filename[0:filename.rfind('_')]
+            if root in thumbs:
+                if thumbs[root]:
+                    parsed['create_thumbnail'] = False
+                else:
+                    parsed['create_thumbnail'] = True
+            else:
+                parsed['create_thumbnail'] = True
+
         # Create the nominal preview image and thumbnail
         try:
             prev_ims, thumb_ims = preview_img_from_file(filename, parsed, preview_output_directory, thumbnail_output_directory)
+            thumbs[root] = True
+
             if prev_ims is not None:
                 new_preview_counter += 1
                 thumbnail_files.extend(thumb_ims)

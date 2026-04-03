@@ -249,7 +249,7 @@ def create_archived_proposals_context(inst):
     proposal_nums = [entry.prop_id for entry in prop_objects]
 
     # Put proposals into descending order
-    proposal_nums.sort(reverse=True)
+    proposal_nums.sort(key=int, reverse=True)
 
     # Total number of proposals for the instrument
     num_proposals = len(proposal_nums)
@@ -402,7 +402,9 @@ def get_additional_exposure_info(root_file_infos, image_info):
     # suffixes. The order of possible_suffixes_to_use is itentional, because the
     # uncal file will not have info on the pipeline version used, and so we would
     # rather grab information from the rate or cal files.
-    possible_suffixes_to_use = np.array(['rate', 'rateints', 'cal', 'calints', 'uncal'])
+    #possible_suffixes_to_use = np.array(['rate', 'rateints', 'cal', 'calints', 'uncal', 'i2d', 's3d', 's2d', 'x1d', 'crf'])
+    suffixes_to_ignore = set(['trapsfilled', 'msa', 'cat', 'segm', 'phot', 'whtlt'])
+    possible_suffixes_to_use = np.array([item for item in EXPOSURE_PAGE_SUFFIX_ORDER if item not in suffixes_to_ignore])
     existing_suffixes = np.array([suffix in image_info['suffixes'] for suffix in possible_suffixes_to_use])
 
     if isinstance(root_file_infos, QuerySet):
@@ -1276,21 +1278,37 @@ def get_filesystem_filenames(proposal=None, rootname=None,
     """
     if proposal is not None:
         proposal_string = '{:05d}'.format(int(proposal))
+
+        # Level 2 only. This "proposal" block is not currently used anywhere.
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public',
                          'jw{}'.format(proposal_string), '*/*'))
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary',
                          'jw{}'.format(proposal_string), '*/*')))
+
     elif rootname is not None:
         proposal_dir = rootname[0:7]
+
+        # Level 2 files
         observation_dir = rootname.split('_')[0]
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
-                         observation_dir, '{}*'.format(rootname)))
+                         observation_dir, f'{rootname}*'))
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
-                         observation_dir, '{}*'.format(rootname))))
+                         observation_dir, f'{rootname}*')))
+
+        # Level 3 files
+        if len(filenames) == 0:
+            ostr = rootname.split('-')[1].split('_')[0]
+            filenames = glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                             'L3', f'*/{ostr}/', f'{rootname}*'))
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                             'L3', f'*/{ostr}/', f'{rootname}*')))
+
     else:
         logging.warning("Must provide either proposal or rootname; "
                         "no files returned.")
@@ -1377,7 +1395,10 @@ def get_header_info(filename, filetype):
     try:
         fits_filepath = filesystem_path(filename, search=f'*_{filetype}.fits')
     except FileNotFoundError as e:
-        raise e
+        #raise e
+        header_info = {}
+        return header_info
+
     hdulist = fits.open(fits_filepath)
 
     # Extract header information from file
@@ -1419,6 +1440,54 @@ def get_header_info(filename, filetype):
     return header_info
 
 
+def get_header_info_ecsv(filename, filetype):
+    """Return the header information for a given ecsv ``filename``.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the file of interest, without the extension
+        (e.g. ``'jw86600008001_02101_00007_guider2_uncal'``).
+    filetype : str
+        The type of the file of interest, (e.g. ``'uncal'``)
+
+    Returns
+    -------
+    header_info : dict
+        The FITS headers of the extensions in the given ``file``.
+    """
+
+    # Initialize dictionary to store header information
+    header_info = {0: {'EXTNAME': 'PRIMARY',
+                       'XTENSION': 'PRIMARY'
+                       }
+                   }
+
+    # Open the file
+    try:
+        fits_filepath = filesystem_path(filename, search=f'*_{filetype}.ecsv')
+    except FileNotFoundError as e:
+        #raise e
+        header_info = {}
+        return header_info
+
+    metadata = parse_meta_section_of_ecsv(fits_filepath)
+
+    header_info[0]['keywords'] = [item for item in list(metadata.keys())]
+    header_info[0]['values'] = []
+    for key in header_info[0]['keywords']:
+        header_info[0]['values'].append(metadata[key])
+
+    # Populate info needed for the webpage
+    data_dict = {}
+    data_dict['Keyword'] = header_info[0]['keywords']
+    data_dict['Value'] = header_info[0]['values']
+    header_info[0]['table'] = pd.DataFrame(data_dict)
+    header_info[0]['table_rows'] = header_info[0]['table'].values
+    header_info[0]['table_columns'] = header_info[0]['table'].columns.values
+    return header_info
+
+
 def get_image_info(file_root):
     """Build and return a dictionary containing information for a given
     ``file_root``. Supports level 2 or level 3 file_root values.
@@ -1446,6 +1515,7 @@ def get_image_info(file_root):
     image_info['available_ints'] = {}
     image_info['total_ints'] = {}
     image_info['detectors'] = set()
+    image_info['level'] = 2
 
     # Find all the matching files
     proposal_dir = file_root[:7]
@@ -1470,6 +1540,19 @@ def get_image_info(file_root):
             os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
                     'L3', f'*/{ostr}/', f'{file_root}*.fits')))
 
+        # Second search, for whtlt and phot files, which are ecsv rather
+        # than fits. Can't search for *.escv though, because we don't want
+        # the source catalog files, which are *_cat.ecsv
+        ecsv_suffixes = ['whtlt', 'phot']
+        for ecsv_suffix in ecsv_suffixes:
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
+                        'L3', f'*/{ostr}/', f'{file_root}*{ecsv_suffix}.ecsv')))
+            filenames.extend(glob.glob(
+                os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
+                        'L3', f'*/{ostr}/', f'{file_root}*{ecsv_suffix}.ecsv')))
+        image_info['level'] = 3
+
     logging.debug(f"Files before filtering: {filenames}")
     # Certain suffixes are always ignored
     filenames = [filename for filename in filenames
@@ -1477,6 +1560,11 @@ def get_image_info(file_root):
                  not in IGNORED_SUFFIXES]
     logging.debug(f"Files after filtering: {filenames}")
     image_info['all_files'] = filenames
+
+    try:
+        image_info['obsnum'] = fits.getheader(image_info['all_files'][0])['OBSERVTN']
+    except (KeyError, OSError):
+        image_info['obsnum'] = 'N/A'
 
     # Determine the jpg directory
     prev_img_filesys = configs['preview_image_filesystem']
@@ -1499,24 +1587,39 @@ def get_image_info(file_root):
 
         # For crf or crfints suffixes, we need to also include the association value
         # in the suffix, so that preview images can be found later.
-        if suffix in SUFFIXES_TO_ADD_ASSOCIATION:
+        if ((image_info['level'] == 2) & (suffix in SUFFIXES_TO_ADD_ASSOCIATION)):
             assn = filename.split('_')[-2]
             suffix = f'{assn}_{suffix}'
 
         image_info['suffixes'].append(suffix)
 
         # Determine JPEG file location
+        # Level 2 files will end with "integ?.jpg", but level 3 files typically will not
         jpg_filename = os.path.basename(os.path.splitext(filename)[0] + '_integ0.jpg')
         jpg_filepath = os.path.join(jpg_dir, jpg_filename)
 
-        # Record how many integrations have been saved as preview images per filetype
-        jpgs = glob.glob(os.path.join(prev_img_filesys, proposal_dir, '{}*_{}_integ*.jpg'.format(file_root, suffix)))
-        image_info['available_ints'][suffix] = sorted(set([int(jpg.split('_')[-1].replace('.jpg', '').replace('integ', '')) for jpg in jpgs]))
-        image_info['num_ints'][suffix] = len(image_info['available_ints'][suffix])
-        image_info['all_jpegs'].append(jpg_filepath)
+        if os.path.isfile(jpg_filepath):
+            # Level 2 files
+            jpgs = glob.glob(os.path.join(prev_img_filesys, proposal_dir, f'{file_root}*_{suffix}_integ*.jpg'))
+
+            # Record how many integrations have been saved as preview images per filetype
+            image_info['available_ints'][suffix] = sorted(set([int(jpg.split('_')[-1].replace('.jpg', '').replace('integ', '')) for jpg in jpgs]))
+            image_info['num_ints'][suffix] = len(image_info['available_ints'][suffix])
+            image_info['all_jpegs'].append(jpg_filepath)
+        else:
+            # Level 3 files
+            jpg_filename = os.path.basename(os.path.splitext(filename)[0] + '.jpg')
+            jpg_filepath = os.path.join(jpg_dir, jpg_filename)
+
+            # Will there ever be more than one jpg for a level 3 file/suffix?
+            jpgs = glob.glob(os.path.join(prev_img_filesys, proposal_dir, f'{file_root}*_{suffix}*jpg'))
+
+            image_info['available_ints'][suffix] = ['N/A']
+            image_info['num_ints'][suffix] = len(image_info['available_ints'][suffix])
+            image_info['all_jpegs'].append(jpg_filepath)
 
         # Record how many integrations exist per filetype.
-        if suffix not in SUFFIXES_WITH_AVERAGED_INTS:
+        if ((suffix not in SUFFIXES_WITH_AVERAGED_INTS) and (image_info['available_ints'][suffix] != ['N/A'])):
             header = fits.getheader(filename)
             nint = header['NINTS']
             if 'time_series' in parsed_fn['filename_type']:
@@ -1740,6 +1843,7 @@ def get_detectors_by_rootname(rootname):
     -------
     detector_list : list
         A list of images that are part of the same exposure but with all detectors.
+        e.g. ['jw01068001001_02101_00001_nrca1', 'jw01068001001_02101_00001_nrca2']
     """
     detector_list = []
     search_rootname = rootname[:25]
@@ -2069,6 +2173,49 @@ def log_into_mast(request):
         return Mast.authenticated()
     else:
         return False
+
+
+def parse_meta_section_of_ecsv(filepath):
+    """Extract the meta section from a level 3 ecsv file (i.e. whtlt or phot)
+
+    Parameters
+    ----------
+    filepath : str
+        Name of the ecsv file to read in
+
+    Returns
+    -------
+    result : dict
+        Dictionary of metadata
+    """
+    result = {}
+    in_meta = False
+    pattern = r'\{(\w+):\s*([^}]+)\}'
+
+    with open(filepath, 'r') as f:
+        for line in f:
+            # Detect start of meta section
+            if line.strip() == '# meta: !!omap':
+                in_meta = True
+                continue
+
+            # Stop when we hit another top-level section or non-comment line
+            if in_meta:
+                if not line.startswith('#'):
+                    break
+                if re.match(r'^# \w+:', line) and 'meta' not in line:
+                    break
+
+            if in_meta:
+                match = re.search(pattern, line)
+                if match:
+                    key = match.group(1)
+                    value = match.group(2).strip()
+                    if value == 'null':
+                        value = None
+                    result[key] = value
+
+    return result
 
 
 def proposal_rootnames_by_instrument(proposal):

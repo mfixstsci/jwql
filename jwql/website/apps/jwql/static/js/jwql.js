@@ -41,31 +41,55 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
     var newURL = "https://jwqlquickview.stsci.edu?file=" + file_path;
     console.log("Frame loading: " + newURL);
     frame.contentWindow.location.replace(newURL);
-    
+
     document.getElementById(type).checked = true;
 
     // Store the currently displayed suffix
     document.getElementById("view_file_type").setAttribute('data-current-suffix', type);
 
-    document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
-    document.getElementById("fits_filename").innerHTML = fits_filename + '.fits';
+    if (parsed_name.obs_id != 'N/A') {
+        // Level 2 file
+        document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '_integ0.jpg';
+        document.getElementById("detector").innerHTML = file_root.split('_')[3];
+
+        // Get the exposure-level string for the "View Exposure" button
+        var exposure_array = file_root.split("_");
+        exposure_array.pop();
+        var exposure_str = exposure_array.join("_");
+
+    } else {
+        // Level 3 file
+        document.getElementById("jpg_filename").innerHTML = file_root + '_' + type + '.jpg';
+        document.getElementById("detector").innerHTML = 'N/A';
+
+        // Get the exposure-level string for the "View Exposure" button
+        var exposure_str = file_root
+    }
+
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
-    document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
-    document.getElementById("detector").innerHTML = file_root.split('_')[3];
 
     // Add a link to download the file from MAST
+    var filetype = ".fits"
+    var ecsv_types = ["whtlt", "phot", "cat"]
+    if (ecsv_types.includes(type)) {
+        var filetype = ".ecsv"
+    }
+    document.getElementById("fits_filename").innerHTML = fits_filename + filetype;
     document.getElementById("fits_filename").setAttribute('href',
         'https://mast.stsci.edu/api/v0.1/Download/file?uri=mast%3AJWST%2Fproduct%2F' +
-        fits_filename + '.fits');
-
-    var exposure_array = file_root.split("_");
-    exposure_array.pop();
-    var exposure_str = exposure_array.join("_");
+        fits_filename + filetype);
 
     // Show the appropriate image
     var img = document.getElementById("image_viewer");
-    var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+    if (parsed_name.obs_id != 'N/A') {
+        var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '_integ0.jpg';
+    } else {
+        var jpg_filepath = '/static/preview_images/' + parsed_name.program + '/' + file_root + '_' + type + '.jpg';
+    }
+
+    console.log("jpg_filepath: " + jpg_filepath);
+
     img.src = jpg_filepath;
     img.alt = jpg_filepath;
     // if previous image had error, remove error sizing
@@ -77,12 +101,12 @@ function handle_change(type, file_root, inst, f_paths, f_rl, n_ints, t_ints, idx
     // Update the image exploration and header links
     document.getElementById("view_header").href = '/' + inst + '/' + file_root + '_' + type + '/header/';
     document.getElementById("view_exposure").href = '/' + inst + '/exposure/' + exposure_str + "?suffix=" + type;
-    
+
     var preview_type = document.getElementById("view_preview_type").getAttribute("data-current-preview");
     console.log("Preview type: " + preview_type);
     var get_string = "?suffix=" + type + "&preview=" + preview_type;
     console.log("Get String: " + get_string);
-    
+
     var file_root_list = f_rl;
     var index = Number(idx);
     document.getElementById("prev_button").href = '/' + inst + '/' + file_root_list[index - 1] + get_string;
@@ -159,35 +183,66 @@ function set_view(view, inst, file_root_list, idx) {
     // Update the APT parameters
     var parsed_name = parse_filename(group_root);
     document.getElementById("proposal").innerHTML = parsed_name.proposal;
-    document.getElementById("obs_id").innerHTML = parsed_name.obs_id;
     document.getElementById("visit_id").innerHTML = parsed_name.visit_id;
-    
+
     var detector_list = detectors.split(',');
-    for (let i = 0; i < detector_list.length; i++) {
-        var detector = detector_list[i];
+
+    // Level 3 files will have no detector defined. In that case, set
+    // detector to an empty string
+    if (!detector_list.includes("Unknown")) {
+
+        // Level 2 files
+        for (let i = 0; i < detector_list.length; i++) {
+            var detector = detector_list[i];
+
+            // Update the filename lists
+            var filename_option = document.getElementById(detector + "_filename");
+            filename_option.value = inst + '/' + group_root + '_' + detector + '_' + type;
+            filename_option.textContent = group_root + '_' + detector + '_' + type;
+
+            // Show the appropriate image
+            var img = document.getElementById("image_viewer_" + detector);
+            var jpg_filepath = '/static/preview_images/' + parsed_name.program +
+                           '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
+            img.src = jpg_filepath;
+            img.alt = jpg_filepath;
+
+            var main_link = document.getElementById("view_" + detector);
+            var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+            main_link.setAttribute('href', new_url);
+
+            var fallback_link = document.getElementById("view_" + detector + "_fallback");
+            var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+            fallback_link.setAttribute('href', new_url);
+
+            // Show/hide the viewer as appropriate
+            show_viewer(detector, jpg_filepath);
+        }
+    } else {
+        // Level 3 files
 
         // Update the filename lists
-        var filename_option = document.getElementById(detector + "_filename");
-        filename_option.value = inst + '/' + group_root + '_' + detector + '_' + type;
-        filename_option.textContent = group_root + '_' + detector + '_' + type;
+        var filename_option = document.getElementById("level3_filename");
+        filename_option.value = inst + '/' + group_root + '_' + type;
+        filename_option.textContent = group_root + '_' + type;
 
         // Show the appropriate image
-        var img = document.getElementById("image_viewer_" + detector);
+        var img = document.getElementById("image_viewer_level3");
         var jpg_filepath = '/static/preview_images/' + parsed_name.program +
-                           '/' + group_root + '_' + detector + '_' + type + '_integ0.jpg';
+                        '/' + group_root + '_' + type + '.jpg';
         img.src = jpg_filepath;
         img.alt = jpg_filepath;
-        
-        var main_link = document.getElementById("view_" + detector);
-        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+
+        var main_link = document.getElementById("view_level3");
+        var new_url = base_url + "/" + inst + "/" + group_root + "?suffix=" + type;
         main_link.setAttribute('href', new_url);
 
-        var fallback_link = document.getElementById("view_" + detector + "_fallback");
-        var new_url = base_url + "/" + inst + "/" + group_root + "_" + detector + "?suffix=" + type;
+        var fallback_link = document.getElementById("view_level3_fallback");
+        var new_url = base_url + "/" + inst + "/" + group_root + "?suffix=" + type;
         fallback_link.setAttribute('href', new_url);
 
         // Show/hide the viewer as appropriate
-        show_viewer(detector, jpg_filepath);
+        show_viewer("level3", jpg_filepath);
     }
 
     // Reset the slider values
@@ -745,6 +800,11 @@ function parse_filename(root_name) {
     var proposal = root_name.slice(2, 7);
     var obs_id = root_name.slice(7, 10);
     var visit_id = root_name.slice(10, 13);
+
+    if (obs_id.includes('-')) {
+        obs_id = "N/A";
+        visit_id = "N/A";
+    }
 
     const parsed_name = {program: program, proposal: proposal,
                          obs_id: obs_id, visit_id: visit_id};

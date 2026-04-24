@@ -790,6 +790,11 @@ class Dark():
                     else:
                         baseline_mean, baseline_stdev = self.read_baseline_slope_image(baseline_file)
 
+                # Commenting out bad pixel searches for now, since the dark monitor is running
+                # on one exposure at a time. In that case, the low SNR of the baseline image means
+                # that a bad pixel search returns a high number of false positives, which then slows
+                # the database interactions significantly (and doesn't provide useful results).
+                """
                 # Check the hot/dead pixel population for changes
                 logging.info("\tFinding new hot/dead pixels")
                 new_hot_pix, new_dead_pix = self.find_hot_dead_pixels(slope_image, baseline_mean)
@@ -830,6 +835,7 @@ class Dark():
                 # Add new noisy pixels to the database
                 logging.info('\tFound {} new noisy pixels'.format(len(new_noisy_pixels[0])))
                 self.add_bad_pix(new_noisy_pixels, 'noisy', file_list, mean_slope_file, baseline_file, min_time, mid_time, max_time)
+                """
 
             # Create png file of mean slope image. Add bad pixels only for full frame apertures
             self.create_mean_slope_figure(slope_image, len(slope_files), hotxy=new_hot_pix, deadxy=new_dead_pix,

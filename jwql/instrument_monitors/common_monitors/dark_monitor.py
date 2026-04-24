@@ -563,7 +563,7 @@ class Dark():
         record = self.query_table.objects.filter(**filters).order_by("-end_time_mjd").first()
 
         if record is None:
-            query_result = 59607.0  # a.k.a. Jan 28, 2022 == First JWST images (MIRI)
+            query_result = 59761.0  # a.k.a. July 1 2022 == JWST post-commissioning
             logging.info(('\tNo query history for {} with {}. Beginning search date will be set to {}.'
                          .format(self.aperture, self.readpatt, query_result)))
         else:
@@ -710,7 +710,8 @@ class Dark():
                 pipeline_files.append(filename)
 
         # Specify that we want to skip the dark current correction step
-        step_args = {'dark_current': {'skip': True}}
+        step_args = {'dark_current': {'skip': True},
+                     'persistence': {'skip': True}}
 
         # Call the pipeline
         outputs = run_parallel_pipeline(pipeline_files, "dark", [output_suffix], self.instrument, step_args=step_args)
@@ -720,6 +721,13 @@ class Dark():
             if processed_file not in slope_files and os.path.isfile(processed_file):
                 slope_files.append(processed_file)
                 os.remove(filename)
+
+        # If the pipeline fails here and no slope files are produced, slope_files will be an empty list. In that
+        # case, we're done, and can move on to the next aperture.
+        self.num_slope_files = len(slope_files)
+        if self.num_slope_files == 0:
+            logging.info(f'No slope_files produced from file list: {[os.path.basename(e) for e in file_list]}')
+            return
 
         obs_times = []
         logging.info(f'\tSlope images to use in the dark monitor for {self.instrument}, {self.aperture}:')
@@ -1105,6 +1113,8 @@ class Dark():
                                 for dkfile in dark_files:
                                     logging.info(f'\t{dkfile}')
                                 self.process(dark_files)
+                                if self.num_slope_files == 0:
+                                    monitor_run = False
                             else:
                                 logging.info('\tNo files remaining to process. Skipping monitor.')
                                 monitor_run = False

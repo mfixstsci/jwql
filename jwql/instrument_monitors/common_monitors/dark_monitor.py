@@ -563,7 +563,7 @@ class Dark():
         record = self.query_table.objects.filter(**filters).order_by("-end_time_mjd").first()
 
         if record is None:
-            query_result = 59607.0  # a.k.a. Jan 28, 2022 == First JWST images (MIRI)
+            query_result = 59761.0  # a.k.a. July 1 2022 == JWST post-commissioning
             logging.info(('\tNo query history for {} with {}. Beginning search date will be set to {}.'
                          .format(self.aperture, self.readpatt, query_result)))
         else:
@@ -710,7 +710,8 @@ class Dark():
                 pipeline_files.append(filename)
 
         # Specify that we want to skip the dark current correction step
-        step_args = {'dark_current': {'skip': True}}
+        step_args = {'dark_current': {'skip': True},
+                     'persistence': {'skip': True}}
 
         # Call the pipeline
         outputs = run_parallel_pipeline(pipeline_files, "dark", [output_suffix], self.instrument, step_args=step_args)
@@ -720,6 +721,13 @@ class Dark():
             if processed_file not in slope_files and os.path.isfile(processed_file):
                 slope_files.append(processed_file)
                 os.remove(filename)
+
+        # If the pipeline fails here and no slope files are produced, slope_files will be an empty list. In that
+        # case, we're done, and can move on to the next aperture.
+        self.num_slope_files = len(slope_files)
+        if self.num_slope_files == 0:
+            logging.info(f'No slope_files produced from file list: {[os.path.basename(e) for e in file_list]}')
+            return
 
         obs_times = []
         logging.info(f'\tSlope images to use in the dark monitor for {self.instrument}, {self.aperture}:')
@@ -790,6 +798,15 @@ class Dark():
                     else:
                         baseline_mean, baseline_stdev = self.read_baseline_slope_image(baseline_file)
 
+                # Commenting out bad pixel searches for now, since the dark monitor is running
+                # on one exposure at a time. In that case, the low SNR of the baseline image means
+                # that a bad pixel search returns a high number of false positives, which then slows
+                # the database interactions significantly (and doesn't provide useful results).
+                # But we still need to add entries to the bad pixel table because we need to track
+                # the name of the file containing the mean dark rate image.
+                logging.info('\tAdding new entry to the bad pixel table, to keep track of mean dark image filename')
+                self.add_bad_pix(([], []), 'hot', file_list, mean_slope_file, baseline_file, min_time, mid_time, max_time)
+                """
                 # Check the hot/dead pixel population for changes
                 logging.info("\tFinding new hot/dead pixels")
                 new_hot_pix, new_dead_pix = self.find_hot_dead_pixels(slope_image, baseline_mean)
@@ -830,6 +847,12 @@ class Dark():
                 # Add new noisy pixels to the database
                 logging.info('\tFound {} new noisy pixels'.format(len(new_noisy_pixels[0])))
                 self.add_bad_pix(new_noisy_pixels, 'noisy', file_list, mean_slope_file, baseline_file, min_time, mid_time, max_time)
+                """
+            else:
+                # Subarray data - no bad pixel checks
+                baseline_file = mean_slope_file
+                logging.info('\tAdding new entry to the bad pixel table, to keep track of mean dark image filename')
+                self.add_bad_pix(([], []), 'hot', file_list, mean_slope_file, baseline_file, min_time, mid_time, max_time)
 
             # Create png file of mean slope image. Add bad pixels only for full frame apertures
             self.create_mean_slope_figure(slope_image, len(slope_files), hotxy=new_hot_pix, deadxy=new_dead_pix,
@@ -1068,6 +1091,9 @@ class Dark():
                                                                                                        self.start_time_batches,
                                                                                                        self.end_time_batches,
                                                                                                        self.integration_batches):
+                            # Initialize monitor_run value
+                            monitor_run = True
+
                             # Copy files from filesystem
                             dark_files, not_copied = copy_files(new_file_list, self.working_data_dir)
 
@@ -1099,8 +1125,11 @@ class Dark():
                                 for dkfile in dark_files:
                                     logging.info(f'\t{dkfile}')
                                 self.process(dark_files)
+                                if self.num_slope_files == 0:
+                                    logging.info('\tNo valid slope files produced. Skipping monitor.')
+                                    monitor_run = False
                             else:
-                                logging.info('\tNo files remaining to process. Skipping monitor.')
+                                logging.info('\tAfter filtering and copying, no files remaining to process. Skipping monitor.')
                                 monitor_run = False
 
                             # Update the query history once for each group of files

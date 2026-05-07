@@ -2126,12 +2126,19 @@ def get_thumbnail_by_rootname(rootname):
     thumbnail_basename = 'none'
 
     if len(thumbnails) > 0:
-        preferred = [thumb for thumb in thumbnails]
+        preferred = [thumb for thumb in thumbnails if 'rate' in thumb]
         if len(preferred) == 0:
             preferred = [thumb for thumb in thumbnails if 'dark' in thumb]
+        if len(preferred) == 0:
+            level3_suffixes = ['x1d', 'x1dints', 'phot', 'whtlt', 's2d', 's3d',
+                               'i2d', 'crf', 'cal', 'psfsub', 'psfstack', 'ami-oi',
+                               'amimulti-oi', 'aminorm-oi']
+            for suffix in level3_suffixes:
+                preferred = [thumb for thumb in thumbnails if suffix in thumb]
+                if len(preferred) > 0:
+                    break
         if len(preferred) > 0:
             thumbnail_basename = os.path.basename(preferred[0])
-
     return thumbnail_basename
 
 
@@ -2379,7 +2386,7 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     data_dict : dict
         Dictionary of data needed for the ``thumbnails`` template
     """
-    log_file = configure_logging("django", include_time=False)
+    #log_file = configure_logging("django", include_time=False)
     logging.debug(f"Collecting thumbnails for {inst} {proposal} {obs_num}")
     # generate the list of all obs of the proposal here, so that the list can be
     # properly packaged up and sent to the js scripts. but to do this, we need to call
@@ -2432,7 +2439,10 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
 
     for obsnum in obs_loop_list:
         data_dict['file_data'][obsnum] = {}
-        data_dict['file_data'][obsnum]['files'] = {}
+        data_dict['file_data'][obsnum]['stage_2'] = {}
+        data_dict['file_data'][obsnum]['stage_3'] = {}
+        data_dict['file_data'][obsnum]['stage_2']['files'] = {}
+        data_dict['file_data'][obsnum]['stage_3']['files'] = {}
 
     exp_types = set()
     exp_groups = set()
@@ -2441,22 +2451,25 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # in the proposal
     for rootname in rootnames:
         logging.debug(f"Gathering data for {rootname}")
-        # Skip over unsupported filenames
-        # e.g. jw02279-o001_s000... are spec2 products for WFSS with one file per source
-        # Any filename with a dash after the proposal number is either this spec2 product
-        # or a level 3 product
-        # if f'jw{proposal}-' in rootname:
-        #     continue
 
         # Parse filename
         filename_dict = filename_parser(rootname)
-        # if filename_dict['recognized_filename']:
-        #     # Weed out file types that are not supported by generate_preview_images
-        #     if 'stage_3' in filename_dict['filename_type']:
-        #         continue
-        # else:
-        #     # Skip over files not recognized by the filename_parser
-        #     continue
+        if filename_dict['recognized_filename']:
+            # Weed out file types that are not supported by generate_preview_images.
+            # Source-based WFSS filenames are no longer supported, but the files are still in MAST.
+            # Skip these. e.g. jw02279-o001_s000000123
+            if 'stage_3_wfss_source_id' in filename_dict['filename_type']:
+                continue
+        else:
+            # Skip over files not recognized by the filename_parser
+            continue
+
+        # Get the stage of the rootname so that we can add it to the right place
+        # in the nested dictionary
+        if 'stage_3' not in filename_dict['filename_type']:
+            stage = 'stage_2'
+        else:
+            stage = 'stage_3'
 
         # Get list of available filenames and exposure start times. All files with a given
         # rootname will have the same exposure start time, so just keep the first.
@@ -2490,19 +2503,19 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
 
         # Add data to dictionary
         obsnum = filename_dict['observation']
-        data_dict['file_data'][obsnum]['files'][rootname] = {}
-        data_dict['file_data'][obsnum]['files'][rootname]['filename_dict'] = filename_dict
-        data_dict['file_data'][obsnum]['files'][rootname]['available_files'] = available_files
-        data_dict['file_data'][obsnum]['files'][rootname]['viewed'] = viewed
-        data_dict['file_data'][obsnum]['files'][rootname]['exp_type'] = exp_type
-        data_dict['file_data'][obsnum]['files'][rootname]['thumbnail'] = get_thumbnail_by_rootname(rootname)
-        data_dict['file_data'][obsnum]['files'][rootname]['filter'] = filter_type
-        data_dict['file_data'][obsnum]['files'][rootname]['pupil'] = pupil_type
-        data_dict['file_data'][obsnum]['files'][rootname]['grating'] = grating_type
+        data_dict['file_data'][obsnum][stage]['files'][rootname] = {}
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['filename_dict'] = filename_dict
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['available_files'] = available_files
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['viewed'] = viewed
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['exp_type'] = exp_type
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['thumbnail'] = get_thumbnail_by_rootname(rootname)
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['filter'] = filter_type
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['pupil'] = pupil_type
+        data_dict['file_data'][obsnum][stage]['files'][rootname]['grating'] = grating_type
 
         try:
-            data_dict['file_data'][obsnum]['files'][rootname]['expstart'] = exp_start
-            data_dict['file_data'][obsnum]['files'][rootname]['expstart_iso'] = Time(exp_start, format='mjd').iso.split('.')[0]
+            data_dict['file_data'][obsnum][stage]['files'][rootname]['expstart'] = exp_start
+            data_dict['file_data'][obsnum][stage]['files'][rootname]['expstart_iso'] = Time(exp_start, format='mjd').iso.split('.')[0]
         except (ValueError, TypeError) as e:
             logging.warning("Unable to populate exp_start info for {}".format(rootname))
             logging.warning(e)
@@ -2512,36 +2525,39 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # Extract information for sorting with dropdown menus
     # (Don't include the proposal as a sorting parameter if the proposal has already been specified)
     detectors, proposals, visits, filters, pupils, gratings = [], [], [], [], [], []
-    for obnum in list(data_dict['file_data'].keys()):
-        for i, rootname in enumerate(list(data_dict['file_data'][obnum]['files'].keys())):
-            proposals.append(data_dict['file_data'][obnum]['files'][rootname]['filename_dict']['program_id'])
-            try:  # Some rootnames cannot parse out detectors
-                detectors.append(data_dict['file_data'][obnum]['files'][rootname]['filename_dict']['detector'])
-            except KeyError:
-                pass
-            try:  # Some rootnames cannot parse out visit
-                visits.append(data_dict['file_data'][obnum]['files'][rootname]['filename_dict']['visit'])
-            except KeyError:
-                pass
-            try:
-                filters.append(data_dict['file_data'][obnum]['files'][rootname]['filter'])
-            except KeyError:
-                pass
-            try:
-                pupils.append(data_dict['file_data'][obnum]['files'][rootname]['pupil'])
-            except KeyError:
-                pass
-            try:
-                gratings.append(data_dict['file_data'][obnum]['files'][rootname]['grating'])
-            except KeyError:
-                pass
+    for obsnum in list(data_dict['file_data'].keys()):
+        obstime_set = False
+        for stage in ['stage_2', 'stage_3']:
+            for i, rootname in enumerate(list(data_dict['file_data'][obsnum][stage]['files'].keys())):
+                proposals.append(data_dict['file_data'][obsnum][stage]['files'][rootname]['filename_dict']['program_id'])
+                try:  # Some rootnames cannot parse out detectors
+                    detectors.append(data_dict['file_data'][obsnum][stage]['files'][rootname]['filename_dict']['detector'])
+                except KeyError:
+                    pass
+                try:  # Some rootnames cannot parse out visit
+                    visits.append(data_dict['file_data'][obsnum][stage]['files'][rootname]['filename_dict']['visit'])
+                except KeyError:
+                    pass
+                try:
+                    filters.append(data_dict['file_data'][obsnum][stage]['files'][rootname]['filter'])
+                except KeyError:
+                    pass
+                try:
+                    pupils.append(data_dict['file_data'][obsnum][stage]['files'][rootname]['pupil'])
+                except KeyError:
+                    pass
+                try:
+                    gratings.append(data_dict['file_data'][obsnum][stage]['files'][rootname]['grating'])
+                except KeyError:
+                    pass
 
-            # Set a representative exp_time for each observation. To be used for
-            # sorting later. It doesn't matter which exposure's exp_time we use,
-            # since all exposures for a given observation are taken together. There's
-            # no mixing of observations.
-            if i == 0:
-                data_dict['file_data'][obnum]['obs_exp_time'] = data_dict['file_data'][obnum]['files'][rootname]['expstart']
+                # Set a representative exp_time for each observation. To be used for
+                # sorting later. It doesn't matter which exposure's exp_time we use,
+                # since all exposures for a given observation are taken together. There's
+                # no mixing of observations.
+                if ((i == 0) and (not obstime_set)):
+                    data_dict['file_data'][obsnum]['obs_exp_time'] = data_dict['file_data'][obsnum][stage]['files'][rootname]['expstart']
+                    obstime_set = True
 
     if proposal is not None:
         dropdown_menus = {'detector': sorted(detectors),
@@ -2568,9 +2584,13 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     # Order dictionary by descending expstart time. Start by ordering the observations, using
     # the representative obs_exp_time. Then order the entries within each observation.
     sorted_file_data = {k: v for k, v in sorted(data_dict['file_data'].items(), key=lambda item: item[1]['obs_exp_time'], reverse=True)}
-    for key, value in sorted_file_data.items():
-        files = value['files']
-        sorted_file_data[key]['files'] = {k: v for k, v in sorted(files.items(), key=lambda item: item[1]['expstart'], reverse=True)}
+
+    # Sort separately for stage_2 and stage_3 files
+    for key in sorted_file_data:
+        for stage_key in ['stage_2', 'stage_3']:
+            value = sorted_file_data[key][stage_key]
+            files = value['files']
+            sorted_file_data[key][stage_key]['files'] = {k: v for k, v in sorted(files.items(), key=lambda item: item[1]['expstart'], reverse=True)}
 
     data_dict['file_data'] = sorted_file_data
 

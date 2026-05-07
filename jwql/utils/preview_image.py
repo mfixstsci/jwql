@@ -709,13 +709,7 @@ class PreviewImage():
         intgration_range : range
             Range object of integration steps
         """
-        if nint <= 10:
-            integration_range = range(nint)
-        elif 11 <= nint <= 100:
-            integration_range = range(0, nint, 10)
-        else:
-            integration_range = range(0, nint, 100)
-
+        integration_range = range(0, nint, round(nint / 10))
         return integration_range
 
     def make_spectrum_image(self):
@@ -729,7 +723,7 @@ class PreviewImage():
             outdir = indir
         else:
             outdir = self.preview_output_directory
-        
+
         exp_type = self.model.meta.exposure.type
 
         if "x1dints.fits" in infile:
@@ -824,7 +818,7 @@ class PreviewImage():
             plt.tight_layout()
             self.save_image(outfile)
             plt.close(self.fig)
-        
+
     def make_spectrum_figure(self, wavelength, flux, targname, integration_num=None, maxsize=8):
         """
         Make figure that contains level 2 x1d data.

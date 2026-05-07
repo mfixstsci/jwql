@@ -1594,59 +1594,67 @@ function update_thumbnail_array_all_obs(data) {
         thumbnail_content += `<div class='observation-group' data-obs='${obs}' data-exp_start='${obs_expstart}'>`;
         thumbnail_content += `<h4>Observation ${obs}</h4>`;
 
-        Object.keys(data.file_data[obs]['files']).forEach((rootname, i) => {
-            let file = data.file_data[obs]['files'][rootname];
 
-            // Extract metadata
-            let viewed = file.viewed;
-            let exp_type = file.exp_type;
-            let exp_time = file.expstart;  // Timestamp for sorting
-            let filename_dict = file.filename_dict;
-            let filter_type = file.filter;
-            let pupil_type = file.pupil;
-            let grating_type = file.grating;
-            let group_root = file.filename_dict.group_root || "unknown";
-            let observation_num = filename_dict.observation; // Extract observation number
+        //const stages = Object.keys(data_dict['file_data'][obsnum]).filter(k => k !== 'obs_exp_time');
+        //Object.keys(data.file_data[obs]).forEach((rootname, i) => {
 
-            // Determine the instrument name
-            let instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
+        for (const stage of ['stage_2', 'stage_3']) {
+            thumbnail_content += `<h3>Stage ${stage}</h3>`;
 
-            var content = `<div class="thumbnail" data-instrument="${instrument}"
-                                data-detector="${filename_dict.detector}"
-                                data-proposal="${filename_dict.program_id}"
-                                data-file_root="${rootname}"
-                                data-group_root="${filename_dict.group_root}"
-                                data-exp_start="${file.expstart}"
-                                data-look="${viewed}"
-                                data-exp_type="${exp_type}"
-                                data-visit="${filename_dict.visit}"
-                                data-filter="${filter_type}"
-                                data-pupil="${pupil_type}"
-                                data-grating="${grating_type}">`;
+            Object.keys(data.file_data[obs][stage]['files']).forEach((rootname, i) => {
+                let file = data.file_data[obs][stage]['files'][rootname];
 
-            content += '<div class="thumbnail-group">';
-            content += `<a class="thumbnail-link" href="#" data-image-href="/${instrument}/${rootname}/"
-                            data-group-href="/${instrument}/exposure/${filename_dict.group_root}">`;
-            content += '<span class="helper"></span>';
-            content += `<img id="thumbnail${obs}_${i}" src="/static/img/default_thumb.png"
-                            alt="Thumbnail for file ${rootname}">`;
-            content += '<div class="thumbnail-color-fill"></div>';
-            content += '<div class="thumbnail-info">';
-            content += `Proposal: ${filename_dict.program_id} <br>`;
-            content += `Observation: ${filename_dict.observation} <br>`;
-            content += `Visit: ${filename_dict.visit} <br>`;
-            content += `Detector: ${filename_dict.detector} <br>`;
-            content += `Exp_Start: ${file.expstart_iso} <br>`;
-            content += '</div></a></div></div>';
+                // Extract metadata
+                let viewed = file.viewed;
+                let exp_type = file.exp_type;
+                let exp_time = file.expstart;  // Timestamp for sorting
+                let filename_dict = file.filename_dict;
+                let filter_type = file.filter;
+                let pupil_type = file.pupil;
+                let grating_type = file.grating;
+                let group_root = file.filename_dict.group_root || "unknown";
+                let observation_num = filename_dict.observation; // Extract observation number
 
-            thumbnail_content += content;
-            if (file.thumbnail !== 'none') {
-                var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
-                image_updates.push([`${obs}_${i}`, jpg_path]);
-                //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
-            }
-        });
-        thumbnail_content += `</div>`;
+                // Determine the instrument name
+                let instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
+
+                var content = `<div class="thumbnail" data-instrument="${instrument}"
+                                    data-detector="${filename_dict.detector}"
+                                    data-proposal="${filename_dict.program_id}"
+                                    data-file_root="${rootname}"
+                                    data-group_root="${filename_dict.group_root}"
+                                    data-exp_start="${file.expstart}"
+                                    data-look="${viewed}"
+                                    data-exp_type="${exp_type}"
+                                    data-visit="${filename_dict.visit}"
+                                    data-filter="${filter_type}"
+                                    data-pupil="${pupil_type}"
+                                    data-grating="${grating_type}">`;
+
+                content += '<div class="thumbnail-group">';
+                content += `<a class="thumbnail-link" href="#" data-image-href="/${instrument}/${rootname}/"
+                                data-group-href="/${instrument}/exposure/${filename_dict.group_root}">`;
+                content += '<span class="helper"></span>';
+                content += `<img id="thumbnail${obs}_${i}" src="/static/img/default_thumb.png"
+                                alt="Thumbnail for file ${rootname}">`;
+                content += '<div class="thumbnail-color-fill"></div>';
+                content += '<div class="thumbnail-info">';
+                content += `Proposal: ${filename_dict.program_id} <br>`;
+                content += `Observation: ${filename_dict.observation} <br>`;
+                content += `Visit: ${filename_dict.visit} <br>`;
+                content += `Detector: ${filename_dict.detector} <br>`;
+                content += `Exp_Start: ${file.expstart_iso} <br>`;
+                content += '</div></a></div></div>';
+
+                thumbnail_content += content;
+                if (file.thumbnail !== 'none') {
+                    var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
+                    image_updates.push([`${obs}_${i}`, jpg_path]);
+                    //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
+                }
+            });
+            thumbnail_content += `</div>`;
+        }
     });
 
     $("#thumbnail-array")[0].innerHTML = thumbnail_content;
@@ -1666,58 +1674,66 @@ function update_thumbnail_array(data) {
     // Add content to the thumbnail array div
     var thumbnail_content = "";
     var image_updates = [];
-    for (var i = 0; i < Object.keys(data.file_data).length; i++) {
 
-        // Parse out useful variables
-        var rootname = Object.keys(data.file_data)[i];
-        var file = data.file_data[rootname];
-        var viewed = file.viewed;
-        var exp_type = file.exp_type;
-        var filename_dict = file.filename_dict;
-        var filter_type = file.filter;
-        var pupil_type = file.pupil;
-        var grating_type = file.grating;
 
-        // Build div content
-        var instrument;
-        if (data.inst != "all") {
-            instrument = data.inst;
-        } else {
-            instrument = filename_dict.instrument;
-        }
-        var content = '<div class="thumbnail" data-instrument="' + instrument +
-                      '" data-detector="' + filename_dict.detector + '" data-proposal="' + filename_dict.program_id +
-                      '" data-file_root="' + rootname + '" data-group_root="' + filename_dict.group_root +
-                      '" data-exp_start="' + file.expstart + '" data-look="' + viewed + '" data-exp_type="' + exp_type +
-                      '" data-visit="' + filename_dict.visit + '" data-filter="' + filter_type + '" data-pupil="' + pupil_type +
-                      '" data-grating="' + grating_type + '">';
-        content += '<div class="thumbnail-group">'
-        content += '<a class="thumbnail-link" href="#" data-image-href="/' +
-                   instrument + '/' + rootname + '/" data-group-href="/' +
-                   instrument + '/exposure/' + filename_dict.group_root +  '">';
-        content += '<span class="helper"></span>'
 
-        // Make sure thumbnail img always has a src and alt
-        content += '<img id="thumbnail' + i +
-                   '" src="/static/img/default_thumb.png" ' +
-                   'alt="Thumbnail for file ' + rootname + '">';
-        content += '<div class="thumbnail-color-fill" ></div>';
-        content += '<div class="thumbnail-info">';
-        content += 'Proposal: ' + filename_dict.program_id + '<br>';
-        content += 'Observation: ' + filename_dict.observation + '<br>';
-        content += 'Visit: ' + filename_dict.visit + '<br>';
-        content += 'Detector: ' + filename_dict.detector + '<br>';
-        content += 'Exp_Start: ' + file.expstart_iso + '<br>';
-        content += '</div></a></div></div>';
+    for (const stage of ['stage_2', 'stage_3']) {
+        thumbnail_content += `<h3>Stage ${stage}</h3>`;
 
-        // Add the content to the div
-        thumbnail_content += content;
 
-        // Add the appropriate image to the thumbnail
-        if (file.thumbnail != 'none') {
-            var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program +
-                           '/' + file.thumbnail;
-            image_updates.push([i, jpg_path]);
+        for (var i = 0; i < Object.keys(data.file_data[stage]).length; i++) {
+
+            // Parse out useful variables
+            var rootname = Object.keys(data.file_data)[i];
+            var file = data.file_data[rootname];
+            var viewed = file.viewed;
+            var exp_type = file.exp_type;
+            var filename_dict = file.filename_dict;
+            var filter_type = file.filter;
+            var pupil_type = file.pupil;
+            var grating_type = file.grating;
+
+            // Build div content
+            var instrument;
+            if (data.inst != "all") {
+                instrument = data.inst;
+            } else {
+                instrument = filename_dict.instrument;
+            }
+            var content = '<div class="thumbnail" data-instrument="' + instrument +
+                          '" data-detector="' + filename_dict.detector + '" data-proposal="' + filename_dict.program_id +
+                          '" data-file_root="' + rootname + '" data-group_root="' + filename_dict.group_root +
+                          '" data-exp_start="' + file.expstart + '" data-look="' + viewed + '" data-exp_type="' + exp_type +
+                          '" data-visit="' + filename_dict.visit + '" data-filter="' + filter_type + '" data-pupil="' + pupil_type +
+                          '" data-grating="' + grating_type + '">';
+            content += '<div class="thumbnail-group">'
+            content += '<a class="thumbnail-link" href="#" data-image-href="/' +
+                        instrument + '/' + rootname + '/" data-group-href="/' +
+                        instrument + '/exposure/' + filename_dict.group_root +  '">';
+            content += '<span class="helper"></span>'
+
+            // Make sure thumbnail img always has a src and alt
+            content += '<img id="thumbnail' + i +
+                       '" src="/static/img/default_thumb.png" ' +
+                       'alt="Thumbnail for file ' + rootname + '">';
+            content += '<div class="thumbnail-color-fill" ></div>';
+            content += '<div class="thumbnail-info">';
+            content += 'Proposal: ' + filename_dict.program_id + '<br>';
+            content += 'Observation: ' + filename_dict.observation + '<br>';
+            content += 'Visit: ' + filename_dict.visit + '<br>';
+            content += 'Detector: ' + filename_dict.detector + '<br>';
+            content += 'Exp_Start: ' + file.expstart_iso + '<br>';
+            content += '</div></a></div></div>';
+
+            // Add the content to the div
+            thumbnail_content += content;
+
+            // Add the appropriate image to the thumbnail
+            if (file.thumbnail != 'none') {
+                var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program +
+                               '/' + file.thumbnail;
+                image_updates.push([i, jpg_path]);
+            }
         }
     }
     $("#thumbnail-array")[0].innerHTML = thumbnail_content;

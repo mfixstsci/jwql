@@ -1439,11 +1439,18 @@ function update_wata_page(base_url) {
  * @param {String} base_url - The base URL for gathering data from the AJAX view.
  */
 function update_group_options(data, base_url) {
+    // Get the total number of files
+    var total_files = 0;
+    for (const obsnum of Object.keys(data.file_data)) {
+        for (const stage of ['stage_2', 'stage_3']) {
+            total_files += Object.keys(data.file_data[obsnum][stage]['files']).length;
+        }
+    }
 
     // Build div content
     var content = '<div class="d-inline" id="group_by" data-ngroup="' +
                   data.exp_groups.length + '" data-nfile="' +
-                  Object.keys(data.file_data).length + '">Group by:<br></div>';
+                  total_files + '">Group by:<br></div>';
     content += '<button class="btn btn-primary dropdown-toggle" type="button" id="group_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + data.thumbnail_group + '</button>';
     content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
     content += '<a class="dropdown-item" href="#" onclick="group_by_thumbnails(\'Exposure\', \'' + base_url + '\');">Exposure</a>';
@@ -1763,8 +1770,10 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             // Perform various updates to divs
             //var num_thumbnails = Object.keys(data.file_data).length;
             var num_thumbnails = 0
-            for (key in data.file_data) {
-                num_thumbnails += Object.keys(data.file_data[key]['files']).length;
+            for (obs_key in data.file_data) {
+                for (const stage of ['stage_2', 'stage_3']) {
+                    num_thumbnails += Object.keys(data.file_data[obs_key][stage]['files']).length;
+                }
             }
             update_show_count(num_thumbnails, 'activities');
             update_thumbnail_array_all_obs(data);

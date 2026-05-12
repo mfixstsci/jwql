@@ -2563,13 +2563,15 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
         dropdown_menus = {'detector': sorted(detectors),
                           'look': THUMBNAIL_FILTER_LOOK,
                           'exp_type': sorted(exp_types),
-                          'visit': sorted(visits)}
+                          'visit': sorted(visits),
+                          'stage': ['Stage2', 'Stage3']}
     else:
         dropdown_menus = {'detector': sorted(detectors),
                           'proposal': sorted(proposals),
                           'look': THUMBNAIL_FILTER_LOOK,
                           'exp_type': sorted(exp_types),
-                          'visit': sorted(visits)}
+                          'visit': sorted(visits),
+                          'stage': ['Stage2', 'Stage3']}
     if filters is not None:
         dropdown_menus['filter'] = sorted(filters)
     if pupils is not None:

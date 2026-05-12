@@ -1667,7 +1667,7 @@ function update_thumbnail_array_all_obs(data) {
 
         for (const stage of ['stage_2', 'stage_3']) {
             const stage_num = stage.at(-1);
-            thumbnail_content += `<div class='stage-group' data-obs='${obs}' data-exp_start='${obs_expstart}' data-stage='${stage_num}'>`;
+            thumbnail_content += `<div class='stage-group' data-obs='${obs}' data-exp_start='${obs_expstart}' data-stage='Stage${stage_num}'>`;
             thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
 
             console.log('LOOP, stage: ' + stage)
@@ -1694,6 +1694,7 @@ function update_thumbnail_array_all_obs(data) {
                                     data-proposal="${filename_dict.program_id}"
                                     data-file_root="${rootname}"
                                     data-group_root="${filename_dict.group_root}"
+                                    data-stage="Stage ${stage_num}"
                                     data-exp_start="${file.expstart}"
                                     data-look="${viewed}"
                                     data-exp_type="${exp_type}"

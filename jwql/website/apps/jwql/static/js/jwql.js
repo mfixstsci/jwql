@@ -1059,6 +1059,9 @@ function sort_by_thumbnails(sort_type, base_url) {
     });
 }
 
+
+
+
 /**
  * Sort thumbnail display on observation level page by a given sort type, save sort type
  * in session for use in previous/next buttons
@@ -1067,6 +1070,58 @@ function sort_by_thumbnails(sort_type, base_url) {
  *
  * This function is used to sort thumbnails on observation level pages.
 */
+function sort_by_thumbnails_all_obs(sort_type, base_url) {
+    // Update dropdown menu text
+    document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
+    var obs_groups = $('div.observation-group');
+
+    // Step 1: Sort the observation groups themselves
+    if (sort_type == 'Descending') {
+        tinysort(obs_groups, {attr:'data-obs', order: 'desc' });
+    } else if (sort_type === "Recent") {
+        tinysort(obs_groups, { attr: 'data-exp_start', order: 'desc' });
+    } else if (sort_type === "Oldest") {
+        tinysort(obs_groups, { attr: 'data-exp_start', order: 'asc' });
+    } else {
+        tinysort(obs_groups, {attr:'data-obs', order: 'asc' });
+    }
+
+    // Step 2: Sort thumbnails within each stage-group (stage groups themselves are NOT sorted
+    // relative to each other — stage 2 always comes before stage 3)
+    $('div.stage-group').each(function() {
+        var thumbs = $(this).children('div.thumbnail');
+        if (sort_type == 'Descending') {
+            tinysort(thumbs, {attr: 'data-file_root', order:'desc' });
+        } else if (sort_type === 'Recent') {
+            tinysort(thumbs, { attr: 'data-exp_start', order: 'desc' }, {attr:'data-file_root', order:'asc'});
+        } else if (sort_type === "Oldest") {
+            tinysort(thumbs, { attr: 'data-exp_start', order: 'asc' }, {attr:'data-file_root', order:'asc'});
+        } else {
+            tinysort(thumbs, { attr: 'data-file_root', order: 'asc' });
+        }
+    });
+
+    $.ajax({
+        url: base_url + '/ajax/image_sort/',
+        data: { 'sort_type': sort_type },
+        error: function() { console.log("session image sort update failed"); }
+    });
+}
+
+
+
+
+
+
+
+/** ORIGINAL VERSION
+ * Sort thumbnail display on observation level page by a given sort type, save sort type
+ * in session for use in previous/next buttons
+ * @param {String} sort_type - The sort type by file name
+ * @param {String} base_url - The base URL for gathering data from the AJAX view.
+ *
+ * This function is used to sort thumbnails on observation level pages.
+
 function sort_by_thumbnails_all_obs(sort_type, base_url) {
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
@@ -1104,6 +1159,9 @@ function sort_by_thumbnails_all_obs(sort_type, base_url) {
         error: function() { console.log("session image sort update failed"); }
     });
 }
+*/
+
+
 
 
 /**
@@ -1594,6 +1652,8 @@ function update_thumbnail_array_all_obs(data) {
     //Object.keys(data.obs_list).forEach(obs => {
     Object.keys(data.file_data).forEach(obs => {
 
+        console.log('LOOP, obs: ' + obs)
+
         // Add representative exp_time from the first file to the observation div level
         //const keysList = Object.keys(data.file_data[obs]['files']);
         //obs_expstart = data.file_data[obs]['files'][keysList[0]].expstart;
@@ -1606,7 +1666,11 @@ function update_thumbnail_array_all_obs(data) {
         //Object.keys(data.file_data[obs]).forEach((rootname, i) => {
 
         for (const stage of ['stage_2', 'stage_3']) {
-            thumbnail_content += `<h3>Stage ${stage}</h3>`;
+            const stage_num = stage.at(-1);
+            thumbnail_content += `<div class='stage-group' data-obs='${obs}' data-exp_start='${obs_expstart}' data-stage='${stage_num}'>`;
+            thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
+
+            console.log('LOOP, stage: ' + stage)
 
             Object.keys(data.file_data[obs][stage]['files']).forEach((rootname, i) => {
                 let file = data.file_data[obs][stage]['files'][rootname];
@@ -1642,7 +1706,7 @@ function update_thumbnail_array_all_obs(data) {
                 content += `<a class="thumbnail-link" href="#" data-image-href="/${instrument}/${rootname}/"
                                 data-group-href="/${instrument}/exposure/${filename_dict.group_root}">`;
                 content += '<span class="helper"></span>';
-                content += `<img id="thumbnail${obs}_${i}" src="/static/img/default_thumb.png"
+                content += `<img id="thumbnail${obs}_${stage_num}_${i}" src="/static/img/default_thumb.png"
                                 alt="Thumbnail for file ${rootname}">`;
                 content += '<div class="thumbnail-color-fill"></div>';
                 content += '<div class="thumbnail-info">';
@@ -1656,12 +1720,14 @@ function update_thumbnail_array_all_obs(data) {
                 thumbnail_content += content;
                 if (file.thumbnail !== 'none') {
                     var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
-                    image_updates.push([`${obs}_${i}`, jpg_path]);
+                    image_updates.push([`${obs}_${stage_num}_${i}`, jpg_path]);
+                    console.log(rootname, i, jpg_path)
                     //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
                 }
             });
             thumbnail_content += `</div>`;
-        }
+        };
+        thumbnail_content += `</div>`;
     });
 
     $("#thumbnail-array")[0].innerHTML = thumbnail_content;
@@ -1682,11 +1748,9 @@ function update_thumbnail_array(data) {
     var thumbnail_content = "";
     var image_updates = [];
 
-
-
     for (const stage of ['stage_2', 'stage_3']) {
-        thumbnail_content += `<h3>Stage ${stage}</h3>`;
-
+        const stage_num = stage.at(-1);
+        thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
 
         for (var i = 0; i < Object.keys(data.file_data[stage]).length; i++) {
 

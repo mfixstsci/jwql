@@ -1139,8 +1139,9 @@ def save_page_navigation_data(request, data):
             navigate_data[rootname] = data['file_data'][rootname]['expstart']
     except:
         for obs in data['file_data']:
-            for rootname in data['file_data'][obs]['files']:
-                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
+            for stage in ['stage_2', 'stage_3']:
+                for rootname in data['file_data'][obs][stage]['files']:
+                    navigate_data[rootname] = data['file_data'][obs][stage]['files'][rootname]['expstart']
 
     request.session['navigation_data'] = navigate_data
     return

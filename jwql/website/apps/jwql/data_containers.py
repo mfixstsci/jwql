@@ -1282,10 +1282,10 @@ def get_filesystem_filenames(proposal=None, rootname=None,
         # Level 2 only. This "proposal" block is not currently used anywhere.
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public',
-                         'jw{}'.format(proposal_string), '*/*'))
+                         'jw{}'.format(proposal_string), '*/*.fits'))
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary',
-                         'jw{}'.format(proposal_string), '*/*')))
+                         'jw{}'.format(proposal_string), '*/*.fits')))
 
     elif rootname is not None:
         proposal_dir = rootname[0:7]
@@ -1294,10 +1294,10 @@ def get_filesystem_filenames(proposal=None, rootname=None,
         observation_dir = rootname.split('_')[0]
         filenames = glob.glob(
             os.path.join(FILESYSTEM_DIR, 'public', proposal_dir,
-                         observation_dir, f'{rootname}*'))
+                         observation_dir, f'{rootname}*.fits'))
         filenames.extend(glob.glob(
             os.path.join(FILESYSTEM_DIR, 'proprietary', proposal_dir,
-                         observation_dir, f'{rootname}*')))
+                         observation_dir, f'{rootname}*.fits')))
 
         # Level 3 files
         if len(filenames) == 0:
@@ -2624,9 +2624,10 @@ def thumbnails_query_ajax(rootnames):
     # Gather data for each rootname
     for rootname in rootnames:
         # fit expected format for get_filenames_by_rootname()
-        split_name = rootname.split("_")
+        #split_name = rootname.split("_")
         try:
-            rootname = split_name[0] + '_' + split_name[1] + '_' + split_name[2] + '_' + split_name[3]
+            #rootname = split_name[0] + '_' + split_name[1] + '_' + split_name[2] + '_' + split_name[3]
+            rootname = rootname.rsplit("_", 1)[0]
         except IndexError:
             continue
 
@@ -2668,6 +2669,12 @@ def thumbnails_query_ajax(rootnames):
         data_dict['file_data'][rootname]['filter'] = filter_type
         data_dict['file_data'][rootname]['pupil'] = pupil_type
         data_dict['file_data'][rootname]['grating'] = grating_type
+
+        if 'stage_3' not in filename_dict['filename_type']:
+            data_dict['file_data'][rootname]['stage'] = 'stage_2'
+        else:
+            data_dict['file_data'][rootname]['stage'] = 'stage_3'
+
         for filename in available_files:
             file_info = filename_parser(filename)
             if file_info['recognized_filename']:
@@ -2698,8 +2705,11 @@ def thumbnails_query_ajax(rootnames):
                    rootname in list(data_dict['file_data'].keys())]
     proposals = [data_dict['file_data'][rootname]['filename_dict']['program_id'] for
                  rootname in list(data_dict['file_data'].keys())]
-    visits = [data_dict['file_data'][rootname]['filename_dict']['visit'] for
-              rootname in list(data_dict['file_data'].keys())]
+    try:
+        visits = [data_dict['file_data'][rootname]['filename_dict']['visit'] for
+                  rootname in list(data_dict['file_data'].keys())]
+    except KeyError:
+        visits = []
     filters = [data_dict['file_data'][rootname]['filter'] for
                rootname in list(data_dict['file_data'].keys())]
     pupils = [data_dict['file_data'][rootname]['pupil'] for

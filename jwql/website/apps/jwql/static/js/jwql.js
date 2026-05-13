@@ -1667,9 +1667,11 @@ function update_thumbnail_array_all_obs(data) {
 
         for (const stage of ['stage_2', 'stage_3']) {
             const stage_num = stage.at(-1);
+            const files = data.file_data[obs][stage]['files'];
             thumbnail_content += `<div class='stage-group' data-obs='${obs}' data-exp_start='${obs_expstart}' data-stage='Stage${stage_num}'>`;
-            thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
-
+            if (Object.keys(files).length > 0) {
+                thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
+            }
             console.log('LOOP, stage: ' + stage)
 
             Object.keys(data.file_data[obs][stage]['files']).forEach((rootname, i) => {
@@ -1711,10 +1713,31 @@ function update_thumbnail_array_all_obs(data) {
                                 alt="Thumbnail for file ${rootname}">`;
                 content += '<div class="thumbnail-color-fill"></div>';
                 content += '<div class="thumbnail-info">';
+
+                if (stage == 'stage_3') {
+                    content += `Stage 3 <br>`;
+                }
+
                 content += `Proposal: ${filename_dict.program_id} <br>`;
                 content += `Observation: ${filename_dict.observation} <br>`;
-                content += `Visit: ${filename_dict.visit} <br>`;
-                content += `Detector: ${filename_dict.detector} <br>`;
+
+                if (stage == 'stage_2') {
+                    content += `Visit: ${filename_dict.visit} <br>`;
+                    content += `Detector: ${filename_dict.detector} <br>`;
+                }
+
+                if (stage == 'stage_3') {
+                    if (filter_type !== 'undefined') {
+                        content += `Filter: ${filter_type} <br>`;
+                    }
+                    if (pupil_type !== 'undefined') {
+                        content += `Pupil: ${pupil_type} <br>`;
+                    }
+                    if (grating_type !== 'empty') {
+                        content += `Grating: ${grating_type} <br>`;
+                    }
+                }
+
                 content += `Exp_Start: ${file.expstart_iso} <br>`;
                 content += '</div></a></div></div>';
 

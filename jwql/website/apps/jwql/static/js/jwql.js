@@ -1497,22 +1497,24 @@ function update_wata_page(base_url) {
 function update_group_options(data, base_url) {
     // Get the total number of files
     var total_files = 0;
-    const firstValue = Object.values(data['file_data'])[0];
+    const fileData = data['file_data'];
 
-    // Determine whether the data is coming from the query result, or the observation level page
-    const from_query = 'inst' in firstValue;
+    if (Object.keys(fileData).length > 0) {
+        const firstValue = Object.values(fileData)[0];
+        const from_query = 'inst' in firstValue;
 
-    if (!from_query) {
-        for (const obsnum of Object.keys(data.file_data)) {
-            for (const stage of ['stage_2', 'stage_3']) {
-                const files = data.file_data[obsnum]?.[stage]?.['files'];
-                if (files) {
-                    total_files += Object.keys(files).length;
+        if (!from_query) {
+            for (const obsnum of Object.keys(fileData)) {
+                for (const stage of ['stage_2', 'stage_3']) {
+                    const files = fileData[obsnum]?.[stage]?.['files'];
+                    if (files) {
+                        total_files += Object.keys(files).length;
+                    }
                 }
             }
+        } else {
+            total_files = Object.keys(fileData).length;
         }
-    } else {
-        total_files = Object.keys(data.file_data).length
     }
 
     // Build div content
@@ -1702,7 +1704,6 @@ function update_thumbnail_array_all_obs(data) {
             if (Object.keys(files).length > 0) {
                 thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
             }
-            console.log('LOOP, stage: ' + stage)
 
             Object.keys(data.file_data[obs][stage]['files']).forEach((rootname, i) => {
                 let file = data.file_data[obs][stage]['files'][rootname];

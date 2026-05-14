@@ -2720,7 +2720,8 @@ def thumbnails_query_ajax(rootnames):
     dropdown_menus = {'instrument': instruments,
                       'detector': sorted(detectors),
                       'proposal': sorted(proposals),
-                      'visit': sorted(visits)}
+                      'visit': sorted(visits),
+                      'stage': ['Stage 2', 'Stage 3']}
     if filters is not None:
         dropdown_menus['filter'] = sorted(filters)
     if pupils is not None:

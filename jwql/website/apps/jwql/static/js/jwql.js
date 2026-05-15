@@ -1685,8 +1685,6 @@ function update_thumbnail_array_all_obs(data) {
     //Object.keys(data.obs_list).forEach(obs => {
     Object.keys(data.file_data).forEach(obs => {
 
-        console.log('LOOP, obs: ' + obs)
-
         // Add representative exp_time from the first file to the observation div level
         //const keysList = Object.keys(data.file_data[obs]['files']);
         //obs_expstart = data.file_data[obs]['files'][keysList[0]].expstart;thumbnail

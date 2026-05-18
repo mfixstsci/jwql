@@ -226,6 +226,41 @@ def save_page_navigation_data_ajax(request):
 
     # a string of the form " 'rootname1'='expstart1', 'rootname2'='expstart2', ..."
     if request.method == 'POST':
+
+
+
+
+        # Check if navigation_data exists and if it does, whether it is a
+        # flat or nested dict
+        dtype = 'flat'
+        navigation_data = request.POST.get('navigation_data')
+        if navigation_data:
+            first_key = list(navigation_data)[0]
+            sec_key = list(navigation_data[first_key])[0]
+            if isinstance(navigation_data[first_key][sec_key], dict):
+                dtype = 'nested'
+
+        navigate_dict = request.POST.get('navigate_dict')
+        # Save session in form {rootname:expstart} or {obs:{stage:{rotname:expstart}}}
+        rootname_expstarts = dict()
+        for item in navigate_dict.split(','):
+            rootname, expstart = item.split("=")
+            if dtype == 'flat':
+                rootname_expstarts[rootname] = float(expstart)
+            else:
+                root_file_info = RootFileInfo.objects.filter(root_name__startswith=rootname)
+                obsnum = root_file_info[0].obsnum.obsnum
+                if obs not in rootname_expstarts:
+                    rootname_expstarts[obs] = {}
+                stage = 'stage_2'
+                if rootname[7] == '-':
+                    stage = 'stage_3'
+                if stage not in rootname_expstarts[stage]:
+                    rootname_expstarts[obs][stage] = {}
+                rootname_expstarts[obs][stage][rootname] = float(expstart)
+        request.session['navigation_data'] = rootname_expstarts
+
+        """ORIGINAL VERSION HERE
         navigate_dict = request.POST.get('navigate_dict')
         # Save session in form {rootname:expstart}
         rootname_expstarts = dict()
@@ -233,6 +268,7 @@ def save_page_navigation_data_ajax(request):
             rootname, expstart = item.split("=")
             rootname_expstarts[rootname] = float(expstart)
         request.session['navigation_data'] = rootname_expstarts
+        """
 
     context = {'item': request.session['navigation_data']}
     return JsonResponse(context, json_dumps_params={'indent': 2})
@@ -1214,7 +1250,9 @@ def sort_nested_navigation_data(sorting_type, nav_data):
     # This is consistent with how Tinysort is utilized in jwql.js->sort_by_thumbnails
     matching_rootfiles = []
     if sorting_type in ['Descending']:
-        for obs in nav_data:
+        # obs keys need to be looped over in the correct order here....
+        ordered_obs = sorted(nav_data.keys(), reverse=True) #???something is still wrong here. stages are outside of obs
+        for obs in ordered_obs:
             for stage in nav_data[obs]:
                 matching_rootfiles += sorted(nav_data[obs][stage], reverse=True)
     elif sorting_type in ['Recent']:
@@ -1246,7 +1284,8 @@ def sort_nested_navigation_data(sorting_type, nav_data):
                 matching_rootfiles += list(nav_data[obs][stage].keys())
     else:
         # Ascending by filename
-        for obs in nav_data:
+        ordered_obs = sorted(nav_data.keys())
+        for obs in ordered_obs:
             for stage in nav_data[obs]:
                 matching_rootfiles += sorted(nav_data[obs][stage])
 
@@ -1378,9 +1417,9 @@ def view_exposure(request, inst, group_root):
         # level page) vs flat (coming from a query results page) navigation_data
         first_key = next(iter(navigation_data))
         if not isinstance(navigation_data[first_key], dict):
-            matching_rootfiles = sort_flat_navigation_data(sort_type, nav_data)
+            matching_rootfiles = sort_flat_navigation_data(sort_type, navigation_data)
         else:
-            matching_rootfiles = sort_nested_navigation_data(sort_type, nav_data)
+            matching_rootfiles = sort_nested_navigation_data(sort_type, navigation_data)
 
         # pick out group names from the matching root files
         group_root_list = []
@@ -1571,9 +1610,9 @@ def view_image(request, inst, file_root, initial_suffix=None):
         # level page) vs flat (coming from a query results page) navigation_data
         first_key = next(iter(navigation_data))
         if not isinstance(navigation_data[first_key], dict):
-            file_root_list = sort_flat_navigation_data(sort_type, nav_data)
+            file_root_list = sort_flat_navigation_data(sort_type, navigation_data)
         else:
-            file_root_list = sort_nested_navigation_data(sort_type, nav_data)
+            file_root_list = sort_nested_navigation_data(sort_type, navigation_data)
 
     else:
         if image_info['level'] == 2:

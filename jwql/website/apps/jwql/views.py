@@ -229,7 +229,7 @@ def save_page_navigation_data_ajax(request):
 
 
 
-
+        """
         # Check if navigation_data exists and if it does, whether it is a
         # flat or nested dict
         dtype = 'flat'
@@ -241,6 +241,7 @@ def save_page_navigation_data_ajax(request):
                 dtype = 'nested'
 
         navigate_dict = request.POST.get('navigate_dict')
+
         # Save session in form {rootname:expstart} or {obs:{stage:{rotname:expstart}}}
         rootname_expstarts = dict()
         for item in navigate_dict.split(','):
@@ -259,8 +260,8 @@ def save_page_navigation_data_ajax(request):
                     rootname_expstarts[obs][stage] = {}
                 rootname_expstarts[obs][stage][rootname] = float(expstart)
         request.session['navigation_data'] = rootname_expstarts
+        """
 
-        """ORIGINAL VERSION HERE
         navigate_dict = request.POST.get('navigate_dict')
         # Save session in form {rootname:expstart}
         rootname_expstarts = dict()
@@ -268,7 +269,6 @@ def save_page_navigation_data_ajax(request):
             rootname, expstart = item.split("=")
             rootname_expstarts[rootname] = float(expstart)
         request.session['navigation_data'] = rootname_expstarts
-        """
 
     context = {'item': request.session['navigation_data']}
     return JsonResponse(context, json_dumps_params={'indent': 2})

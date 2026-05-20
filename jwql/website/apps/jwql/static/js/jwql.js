@@ -964,8 +964,13 @@ function show_only(filter_type, value, base_url) {
             } else {
                 thumbnails[i].style.display = "none";
             }
+            //list_of_rootnames = list_of_rootnames +
+            //                    thumbnails[i].getAttribute("data-file_root") +
+            //                    '=' + thumbnails[i].getAttribute("data-exp_start") + ',';
             list_of_rootnames = list_of_rootnames +
-                                thumbnails[i].getAttribute("data-file_root") +
+                                thumbnails[i].getAttribute("data-obs") +
+                                ':' + thumbnails[i].getAttribute("data-stage") +
+                                ':' + thumbnails[i].getAttribute("data-file_root") +
                                 '=' + thumbnails[i].getAttribute("data-exp_start") + ',';
         } else {
             thumbnails[i].style.display = "none";
@@ -1071,6 +1076,47 @@ function sort_by_thumbnails(sort_type, base_url) {
 function sort_by_thumbnails_all_obs(sort_type, base_url) {
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
+
+    // Step 1: Sort the observation groups themselves
+    var obs_container = $('div.observation-group').parent();
+    if (sort_type === 'Descending') {
+    tinysort(obs_container.children('div.observation-group'), { attr: 'data-obs', order: 'desc' });
+    } else if (sort_type === 'Recent') {
+        tinysort(obs_container.children('div.observation-group'), { attr: 'data-exp_start', order: 'desc' });
+    } else if (sort_type === 'Oldest') {
+        tinysort(obs_container.children('div.observation-group'), { attr: 'data-exp_start', order: 'asc' });
+    } else {
+        tinysort(obs_container.children('div.observation-group'), { attr: 'data-obs', order: 'asc' });
+    }
+
+    // Step 2: Sort thumbnails within each stage-group (stage groups themselves are NOT sorted
+    // relative to each other — stage 2 always comes before stage 3)
+    $('div.stage-group').each(function() {
+    if (sort_type === 'Descending') {
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-file_root', order: 'desc' });
+        } else if (sort_type === 'Recent') {
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-exp_start', order: 'desc' }, { attr: 'data\
+-file_root', order: 'asc' });
+        } else if (sort_type === 'Oldest') {
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-exp_start', order: 'asc' }, { attr: 'data-\
+file_root', order: 'asc' });
+        } else {
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-file_root', order: 'asc' });
+    }
+    });
+    $.ajax({
+        url: base_url + '/ajax/image_sort/',
+        data: { 'sort_type': sort_type },
+        error: function() { console.log("session image sort update failed"); }
+    });
+}
+
+
+
+/** MODIFIED VERSION 1
+function sort_by_thumbnails_all_obs(sort_type, base_url) {
+    // Update dropdown menu text
+    document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
     var obs_groups = $('div.observation-group');
 
     // Step 1: Sort the observation groups themselves
@@ -1105,7 +1151,7 @@ function sort_by_thumbnails_all_obs(sort_type, base_url) {
         error: function() { console.log("session image sort update failed"); }
     });
 }
-
+*/
 
 
 

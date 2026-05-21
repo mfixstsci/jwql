@@ -287,6 +287,11 @@ def save_page_navigation_data_ajax(request):
         #        rootname_expstarts[rootname] = float(expstart)
         request.session['navigation_data'] = rootname_expstarts
 
+
+
+        logging.info(f'In save_page_navigation_data_ajax, navigation_data saved as: {navigation_data}')
+
+
     context = {'item': request.session['navigation_data']}
     return JsonResponse(context, json_dumps_params={'indent': 2})
 
@@ -373,6 +378,10 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
     logging.debug(f"Ajax returned: {data}")
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
+
+
+    logging.info('In archive_thumbnails_ajax')
+
 
     save_page_navigation_data(request, data, style='nested')
     return JsonResponse(data, json_dumps_params={'indent': 2})
@@ -1213,6 +1222,10 @@ def save_page_navigation_data(request, data, style='nested'):
         else:
             raise ValueError(f'Unrecognized style keyword value: {style}. Must be either "flat" or "nested"')
 
+
+    logging.info(f'In save_page_navigation_data, navigation_data saved as {navigation_data}')
+
+
     request.session['navigation_data'] = navigate_data
     return
 
@@ -1818,6 +1831,12 @@ def view_exposure(request, inst, group_root):
     # previous/next buttons will be hidden
     navigation_data = request.session.get('navigation_data')
 
+
+
+    logging.info(f'In view_exposure, navigation_data as read in is: {navigation_data}')
+
+
+
     # For time based sorting options, sort to "Recent" first to create sorting consistency when times are the same.
     # This is consistent with how Tinysort is utilized in jwql.js->sort_by_thumbnails
     if navigation_data:
@@ -1830,6 +1849,10 @@ def view_exposure(request, inst, group_root):
             matching_rootfiles = sort_flat_navigation_data(sort_type, navigation_data)
         else:
             matching_rootfiles = sort_nested_navigation_data(sort_type, navigation_data)
+
+
+        logging.info(f'In view_exposure, matching_rootfiles after sorting is: {matching_rootfiles}')
+
 
         # pick out group names from the matching root files
         group_root_list = []

@@ -1263,9 +1263,9 @@ def set_viewed_ajax(request, group_root, status):
     context = {'marked_viewed': marked_viewed}
     return JsonResponse(context, json_dumps_params={'indent': 2})
 
-
+"""
 def sort_nested_navigation_data(sorting_type, nav_data):
-    """Sort navigation data stored in a nested dictionary (e.g. navigation data coming from an
+    Sort navigation data stored in a nested dictionary (e.g. navigation data coming from an
     observation level page.) Perform the sorting separately on the rootnames associated with
     each "stage" key.
 
@@ -1280,13 +1280,13 @@ def sort_nested_navigation_data(sorting_type, nav_data):
     -------
     group_root_list : list
         List of sorted rootnames
-    """
+
     # For time based sorting options, sort to "Recent" first to create sorting consistency when times are the same.
     # This is consistent with how Tinysort is utilized in jwql.js->sort_by_thumbnails
     matching_rootfiles = []
     if sorting_type in ['Descending']:
         # obs keys need to be looped over in the correct order here....
-        ordered_obs = sorted(nav_data.keys(), reverse=True) #???something is still wrong here. stages are outside of obs
+        ordered_obs = sorted(nav_data.keys(), reverse=True)
         for obs in ordered_obs:
             for stage in nav_data[obs]:
                 matching_rootfiles += sorted(nav_data[obs][stage], reverse=True)
@@ -1298,8 +1298,7 @@ def sort_nested_navigation_data(sorting_type, nav_data):
             for stage in nav_data[obs]:
                 nav_data[obs][stage] = dict(
                     sorted(nav_data[obs][stage].items(),
-                    key=operator.itemgetter(1),
-                    reverse=True)
+                    key=lambda x: x[1], reverse=True)
                     )
         for obs in nav_data:
             for stage in nav_data[obs]:
@@ -1312,12 +1311,12 @@ def sort_nested_navigation_data(sorting_type, nav_data):
             for stage in nav_data[obs]:
                 nav_data[obs][stage] = dict(
                     sorted(nav_data[obs][stage].items(),
-                    key=operator.itemgetter(1))
+                    key=lambda x: x[1])
                     )
         for obs in nav_data:
             for stage in nav_data[obs]:
                 matching_rootfiles += list(nav_data[obs][stage].keys())
-    else:
+    elif sorting_type == 'Ascending':
         # Ascending by filename
         ordered_obs = sorted(nav_data.keys())
         for obs in ordered_obs:
@@ -1325,6 +1324,99 @@ def sort_nested_navigation_data(sorting_type, nav_data):
                 matching_rootfiles += sorted(nav_data[obs][stage])
 
     return matching_rootfiles
+"""
+
+
+
+
+def get_leaf_values(d):
+    """Recursively collect all bottom-level values from a nested dict."""
+    values = []
+    for v in d.values():
+        if isinstance(v, dict):
+            values.extend(get_leaf_values(v))
+        else:
+            values.append(v)
+    return values
+
+
+def get_leaf_keys(d):
+    """Recursively collect all bottom-level keys from a nested dict."""
+    keys = []
+    for v in d.values():
+        if isinstance(v, dict):
+            keys.extend(get_leaf_keys(v))
+        else:
+            keys.append(v)  # bottom-level: the key is what we want
+    # Fix: we need the keys, not values, at the leaf level
+    keys = []
+    for k, v in d.items():
+        if isinstance(v, dict):
+            keys.extend(get_leaf_keys(v))
+        else:
+            keys.append(k)
+    return keys
+
+
+def sort_leaf_dict(d, mode):
+    """Sort a bottom-level dict by the given mode."""
+    if mode in ('Recent', 'Oldest'):
+        reverse = (mode == 'Recent')
+        return dict(sorted(d.items(), key=lambda x: x[1], reverse=reverse))
+    elif mode in ('Ascending', 'Descending'):
+        reverse = (mode == 'Descending')
+        return dict(sorted(d.items(), key=lambda x: x[0], reverse=reverse))
+
+
+def sort_nested_navigation_data(sorting_type, nav_data):
+    """
+    Sort nav_data in one of four modes:
+      'Recent'     - chronological by MJD values (smallest first)
+      'Oldest'     - reverse chronological by MJD values (largest first)
+      'Ascending'  - alphabetical by bottom-level keys
+      'Descending' - reverse alphabetical by bottom-level keys
+
+    Top-level keys are sorted by the same criterion applied to their contents.
+    Stage keys are always ordered stage_2 before stage_3.
+    """
+    STAGE_ORDER = ['stage_2', 'stage_3']
+
+    # --- Determine the sort key for top-level entries ---
+    if sorting_type in ('Recent', 'Oldest'):
+        # Use the minimum leaf value across all stages as the representative date
+        def top_key(item):
+            return min(get_leaf_values(item[1]))
+        reverse = (sorting_type == 'Recent')
+    elif sorting_type in ('Ascending', 'Descending'):
+        # Use the first (alphabetically smallest) leaf key as the representative
+        def top_key(item):
+            return min(get_leaf_keys(item[1]))
+        reverse = (sorting_type == 'Descending')
+
+    # --- Sort top-level entries ---
+    sorted_top = sorted(nav_data.items(), key=top_key, reverse=reverse)
+
+    # --- Rebuild dict with sorted stages and sorted leaf dicts ---
+    result = {}
+    for obs_k, obs_v in sorted_top:
+        sorted_stages = {}
+        for stage in STAGE_ORDER:
+            if stage in obs_v:
+                sorted_stages[stage] = sort_leaf_dict(obs_v[stage], sorting_type)
+        result[obs_k] = sorted_stages
+
+    # Now create a list of file root names in order
+    matching_rootfiles = []
+    for obs in result.values():
+        for stage in obs.values():
+            matching_rootfiles.extend(stage.keys())
+
+    return matching_rootfiles
+
+
+
+
+
 
 
 def sort_flat_navigation_data(sorting_type, nav_data):

@@ -263,9 +263,10 @@ def save_page_navigation_data_ajax(request):
         """
 
         navigate_dict = request.POST.get('navigate_dict')
+        navigate_dict_type = request.POST.get('navigate_dict_type')
         rootname_expstarts = dict()
-        if ':' in navigate_dict:
-            # Nested case: from observation level page
+        #if ':' in navigate_dict:
+        if navigate_dict_type == 'nested':
             for item in navigate_dict.split(','):
                 obs, stage, roottime = item.split(':')
                 rootname, expstart = roottime.split('=')
@@ -275,10 +276,15 @@ def save_page_navigation_data_ajax(request):
                     rootname_expstarts[obs][stage] = {}
                 rootname_expstarts[obs][stage][rootname] = float(expstart)
         else:
-            # Flat case: from query result page
             for item in navigate_dict.split(','):
-                rootname, expstart = item.split("=")
+                obs, stage, roottime = item.split(':')
+                rootname, expstart = roottime.split('=')
                 rootname_expstarts[rootname] = float(expstart)
+        #else:
+        #    # Flat case: from query result page
+        #    for item in navigate_dict.split(','):
+        #        rootname, expstart = item.split("=")
+        #        rootname_expstarts[rootname] = float(expstart)
         request.session['navigation_data'] = rootname_expstarts
 
     context = {'item': request.session['navigation_data']}
@@ -363,6 +369,7 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
 
     # Create nested dictionary of information needed for the page
     data = thumbnails_ajax(inst, proposal, obs_num=observation)
+    request.session['navigate_dict_type'] = 'nested'
     logging.debug(f"Ajax returned: {data}")
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
@@ -458,6 +465,10 @@ def archive_thumbnails_query_ajax(request):
     data = thumbnails_query_ajax(page_obj.object_list)
     data['thumbnail_sort'] = parameters[QueryConfigKeys.SORT_TYPE]
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
+
+    # Navigation data will be a flat, rather than nested dictionary. This will allow
+    # stage 2 and 3 files to mix on the results page
+    request.session['navigate_dict_type'] = 'flat'
 
     # add top level parameters for summarizing
     data['query_config'] = {}
@@ -1832,8 +1843,8 @@ def view_exposure(request, inst, group_root):
     else:
         # If there is no navigation_data, just use the current files
         group_root_list = []
-        for file in image_info['all_files']: do something smarter here. find obslist, loop over obs/stage
-            name = Path(file).name           need to match the initial Recent sort done on the thumbnails!
+        for file in image_info['all_files']: #do something smarter here. find obslist, loop over obs/stage
+            name = Path(file).name           #need to match the initial Recent sort done on the thumbnails!
             obs = name.split("_")[0]
             if obs not in group_root_list:
                 group_root_list.append(obs)

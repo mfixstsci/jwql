@@ -1442,14 +1442,14 @@ def sort_flat_navigation_data(sorting_type, nav_data):
     elif sorting_type in ['Recent']:
         # First sort by the exposure start time, and then by filename,
         # in order to guarantee consistency (since there are multiple files with matching exposure start times)
-        matching_rootfiles = sorted(navigation_data,
-            key=lambda k: (-navigation_data[k], k)
+        matching_rootfiles = sorted(nav_data,
+            key=lambda k: (-nav_data[k], k)
             )
     elif sorting_type in ['Oldest']:
         # First sort by the exposure start time, and then by filename,
         # in order to guarantee consistency (since there are multiple files with matching exposure start times)
-        matching_rootfiles = sorted(navigation_data,
-            key=lambda k: (navigation_data[k], k)
+        matching_rootfiles = sorted(nav_data,
+            key=lambda k: (nav_data[k], k)
             )
     else:
         matching_rootfiles = sorted(nav_data.keys())

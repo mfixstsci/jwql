@@ -2386,7 +2386,7 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
     data_dict : dict
         Dictionary of data needed for the ``thumbnails`` template
     """
-    #log_file = configure_logging("django", include_time=False)
+    log_file = configure_logging("django", include_time=False)
     logging.debug(f"Collecting thumbnails for {inst} {proposal} {obs_num}")
     # generate the list of all obs of the proposal here, so that the list can be
     # properly packaged up and sent to the js scripts. but to do this, we need to call

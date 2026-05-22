@@ -2624,10 +2624,9 @@ def thumbnails_query_ajax(rootnames):
     # Gather data for each rootname
     for rootname in rootnames:
         # fit expected format for get_filenames_by_rootname()
-        #split_name = rootname.split("_")
+        split_name = rootname.split("_")
         try:
-            #rootname = split_name[0] + '_' + split_name[1] + '_' + split_name[2] + '_' + split_name[3]
-            rootname = rootname.rsplit("_", 1)[0]
+            rootname = split_name[0] + '_' + split_name[1] + '_' + split_name[2] + '_' + split_name[3]
         except IndexError:
             continue
 

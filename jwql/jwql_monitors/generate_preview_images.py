@@ -925,7 +925,8 @@ def process_program(program, overwrite, level3_only):
         # Create the nominal preview image and thumbnail
         try:
             prev_ims, thumb_ims = preview_img_from_file(filename, parsed, preview_output_directory, thumbnail_output_directory)
-            thumbs[root] = True
+            if 'stage_3' in parsed['filename_type']:
+                thumbs[root] = True
 
             if prev_ims is not None:
                 new_preview_counter += 1

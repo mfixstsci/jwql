@@ -187,7 +187,7 @@ def array_coordinates(channelmod, detector_list, lowerleft_list):
     return xdim, ydim, module_lowerlefts
 
 
-def check_existence(file_list, outdir, file_type):
+def check_existence(file_list, outdir):
     """Given a list of fits files, determine if a preview image has
     already been created in ``outdir``.
 
@@ -890,7 +890,7 @@ def process_program(program, overwrite, level3_only):
         if not overwrite:
             # If overwrite is False, we create preview images only for files that
             # don't have them yet.
-            file_exists = check_existence([filename], preview_output_directory, parsed["filename_type"])
+            file_exists = check_existence([filename], preview_output_directory)
 
             if file_exists:
                 logging.debug("\tJPG already exists for {}, skipping.".format(filename))

@@ -2502,7 +2502,15 @@ def thumbnails_ajax(inst, proposal, obs_num=None):
         exp_groups.add(filename_dict['group_root'])
 
         # Add data to dictionary
-        obsnum = filename_dict['observation']
+        # Work around for stage 3 files where different suffixes can be from different observations,
+        # but RootFileInfo forces all suffixes to have the same observation number. If we're loading
+        # an "all obs" page then all of the proper obsnum keys will be in the dict. If we are loading
+        # a page for a single observation, just use that observation number. No need to retrieve it
+        # from the filename_parser info.
+        if obs_num is None:
+            obsnum = filename_dict['observation']
+        else:
+            obsnum = obs_num
         data_dict['file_data'][obsnum][stage]['files'][rootname] = {}
         data_dict['file_data'][obsnum][stage]['files'][rootname]['filename_dict'] = filename_dict
         data_dict['file_data'][obsnum][stage]['files'][rootname]['available_files'] = available_files

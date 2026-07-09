@@ -709,10 +709,9 @@ class PreviewImage():
         intgration_range : range
             Range object of integration steps
         """
-        if nint <= 5:
-            integration_range = range(0, nint)
-        else:
-            integration_range = range(0, nint, round(nint / 10))
+        max_preview_integrations = 10
+        integration_range = np.linspace(0, nint-1, num=min(max_preview_integrations, nint), dtype=int)
+
         return integration_range
 
     def make_spectrum_image(self):

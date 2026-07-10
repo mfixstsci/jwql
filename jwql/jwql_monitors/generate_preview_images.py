@@ -933,8 +933,8 @@ def process_program(program, overwrite, level3_only):
                 thumbnail_files.extend(thumb_ims)
                 preview_image_files.extend(prev_ims)
 
-        except (ValueError, AttributeError) as error:
-            logging.warning(error)
+        except (ValueError, AttributeError, KeyError) as error:
+            logging.warning(f'For file {filename}: {error}')
         finally:
             # Make sure all figures are closed.
             plt.close('all')

@@ -1405,7 +1405,8 @@ class Level3PreviewImage():
         Returns
         -------
         brightest : numpy.ndarray
-            1D array of index numbers corresponding to the `nsources` brightest sources.
+            1D array of index numbers corresponding to the sources in order from brightest
+            to dimmest.
         """
         num_sources = self.model.spec[0].spec_table.shape[0]
 
@@ -1419,7 +1420,7 @@ class Level3PreviewImage():
                 sources.append(source)
 
         idxs = np.argsort(medians)[::-1]
-        brightest = np.array(sources)[idxs][0:self.wfss_nbrightest_sources]
+        brightest = np.array(sources)[idxs]
 
         return brightest
 
@@ -2533,11 +2534,6 @@ class Level3PreviewImage():
             #fname = os.path.join(self.preview_output_directory, self.model.meta.filename.split('.')[0] + '.jpg')
             fname = os.path.basename(self.filename).split('.')[0] + '.jpg'
 
-            # If we are dealing with WFSS data, where we have multiple figures, use the source
-            # ID values to create unique jpg filenames.
-            if len(self.wfss_source_ids) > 0:
-                fname = fname.replace('.jpg', f'_source{self.wfss_source_ids[i]}.jpg')
-
             # Save preview image
             self.preview_images.append(fname)
             img_type = 'preview'
@@ -2900,7 +2896,14 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_idx = self.find_brightest_wfss_sources()
+        bright_index = self.find_brightest_wfss_sources()
+
+        # Often the brightest source is a saturated star. Let's try skipping over the brightest
+        # source and creating a preview image for the 2nd brightest source.
+        # Keep bright_idx as a list in case we want to create preview images for multiple wfss
+        # sources in the future
+        bright_idx = bright_index[1:2]
+
         self.wfss_source_ids = []
 
         logging.debug(f'Brightest source index nums: {bright_idx}')
@@ -2922,7 +2925,7 @@ class Level3PreviewImage():
             # Deal with this bug by checking for the existence of A mod and B mod versions of all
             # cal files, regardless of which are in the filename metadata (only for NIRCam)
             if 'nircam' in self.model.meta.filename:
-                # BEST SOLUTON HERE, WHILE WE ARE WAITING FOR A PIPELINE FIX, WOULD BE TO DOWNLOAD AND READ IN
+                # BEST SOLUTION HERE, WHILE WE ARE WAITING FOR A PIPELINE FIX, WOULD BE TO DOWNLOAD AND READ IN
                 # THE ASN FILE, AND GET ALL THE FILENAMES FROM THERE. THEN WE WOULDN'T HAVE TO WORRY ABOUT WHETHER
                 # A PARTICULAR CAL FILE IS JUST MISSING FROM THE FILESYSTEM, OR WAS NEVER USED IN THE OBSERVATION
                 modified_cal_files = []

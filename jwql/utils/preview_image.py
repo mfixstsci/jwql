@@ -751,11 +751,11 @@ class PreviewImage():
                 if len(brightest_idx) > 1:
                     # If there is more than one source in the file, use the second brightest
                     flux = self.model.spec[0].spec_table.FLUX[1, :]
-                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[idx, :]
+                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[1, :]
                 elif len(brightest_idx) == 1:
                     # If there is only one source in the file, use it
                     flux = self.model.spec[0].spec_table.FLUX[0, :]
-                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[idx, :]
+                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[0, :]
                 elif len(brightest_idx) == 0:
                     # If there are no sources in the file, use dummy values
                     flux = [0., 0.]

@@ -646,15 +646,8 @@ class PreviewImage():
             diff_img = np.expand_dims(diff_img, axis=0)
         nint, ny, nx = diff_img.shape
 
-        # If there are 10 integrations or less, make image for every integration
-        # If there are more than 10 integrations, then make image for every 10th integration
-        # If there are more than 100 integrations, then make image for every 100th integration
-        if nint <= 10:
-            integration_range = range(nint)
-        elif 11 <= nint <= 100:
-            integration_range = range(0, nint, 10)
-        else:
-            integration_range = range(0, nint, 100)
+        # Create plots only for a subset of the integrations
+        integration_range = self.get_integration_range(nint)
 
         for i in integration_range:
             frame = diff_img[i, :, :]

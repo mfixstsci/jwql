@@ -743,8 +743,28 @@ class PreviewImage():
 
                     plt.close(self.fig)
         else:
-            flux = self.model.spec[0].spec_table.FLUX
-            wavelength = self.model.spec[0].spec_table.WAVELENGTH
+            if "WFSS" in exp_type:
+                brightest_idx = find_brightest_wfss_sources(self.model)
+
+                # As with the level 3 WFSS preview images, let's skip the brightest
+                # source, which is often a saturated star, and use the second brightest
+                if len(brightest_idx) > 1:
+                    # If there is more than one source in the file, use the second brightest
+                    flux = self.model.spec[0].spec_table.FLUX[1, :]
+                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[idx, :]
+                elif len(brightest_idx) == 1:
+                    # If there is only one source in the file, use it
+                    flux = self.model.spec[0].spec_table.FLUX[0, :]
+                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[idx, :]
+                elif len(brightest_idx) == 0:
+                    # If there are no sources in the file, use dummy values
+                    flux = [0., 0.]
+                    wavelength = [0., 1.0]
+
+            else:
+                flux = self.model.spec[0].spec_table.FLUX
+                wavelength = self.model.spec[0].spec_table.WAVELENGTH
+
             targname = self.model.meta.target.proposer_name
 
             suffix = '_integ0.{}'.format(self.output_format)
@@ -1390,32 +1410,6 @@ class Level3PreviewImage():
         plt.rcParams.update({'ytick.labelsize': self.maxsize * 5. / 4})
         plt.rcParams.update({'xtick.labelsize': self.maxsize * 5. / 4})
 
-    def find_brightest_wfss_sources(self):
-        """Determine the `nsources` brightest sources in the WFSS file. Do this using the
-        mean value. Work on only the model.spec[0].spec_table. Note that if there are dithers,
-        the source may not be present in all extensions.
-
-        Returns
-        -------
-        brightest : numpy.ndarray
-            1D array of index numbers corresponding to the sources in order from brightest
-            to dimmest.
-        """
-        num_sources = self.model.spec[0].spec_table.shape[0]
-
-        medians = []
-        sources = []
-        for source in range(num_sources):
-
-            # Ignore sources where the source_id is empty, which indicates a larger problem.
-            if self.model.spec[0].spec_table['SOURCE_TYPE'][source] != '':
-                medians.append(np.nansum(self.model.spec[0].spec_table['SURF_BRIGHT'][source, :]))
-                sources.append(source)
-
-        idxs = np.argsort(medians)[::-1]
-        brightest = np.array(sources)[idxs]
-
-        return brightest
 
     def filter_coron_ta_files(self):
         """For NIRCam coron observations, there will be files listed as "target_acquisition"
@@ -2889,13 +2883,16 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_index = self.find_brightest_wfss_sources()
+        bright_index = find_brightest_wfss_sources()
 
         # Often the brightest source is a saturated star. Let's try skipping over the brightest
         # source and creating a preview image for the 2nd brightest source.
         # Keep bright_idx as a list in case we want to create preview images for multiple wfss
-        # sources in the future
-        bright_idx = bright_index[1:2]
+        # sources in the future. Note that if there is only a single source (i.e. bright_idx) is
+        # a single element list) or no objects (i.e. bright_idx is an empty list), then we keep
+        # the list as-is. An empty list will not create any figures.
+        if len(bright_idx) > 2:
+            bright_idx = bright_index[1:2]
 
         self.wfss_source_ids = []
 
@@ -3329,6 +3326,39 @@ def determine_figure_properties(xdim, ydim, threshold=0.15, maxsize=8):
     cbar_orient = determine_cbar_orient(xdim, ydim)
     figsize_value = determine_default_figsize(xdim, ydim, maxsize=maxsize, aspect=aspect_value)
     return aspect_value, cbar_orient, figsize_value
+
+
+def find_brightest_wfss_sources(model):
+    """Determine the `nsources` brightest sources in the WFSS file. Do this using the
+    mean value. Work on only the model.spec[0].spec_table. Note that if there are dithers,
+    the source may not be present in all extensions.
+
+    Parameters
+    ----------
+    model : stdatamodels.datamodel
+        Datamodel instance
+
+    Returns
+    -------
+    brightest : numpy.ndarray
+        1D array of index numbers corresponding to the sources in order from brightest
+        to dimmest.
+    """
+    num_sources = model.spec[0].spec_table.shape[0]
+
+    medians = []
+    sources = []
+    for source in range(num_sources):
+
+        # Ignore sources where the source_id is empty, which indicates a larger problem.
+        if model.spec[0].spec_table['SOURCE_TYPE'][source] != '':
+            medians.append(np.nansum(model.spec[0].spec_table['SURF_BRIGHT'][source, :]))
+            sources.append(source)
+
+    idxs = np.argsort(medians)[::-1]
+    brightest = np.array(sources)[idxs]
+
+    return brightest
 
 
 def Fnu_to_Flam(wave_micron, flux_jansky):

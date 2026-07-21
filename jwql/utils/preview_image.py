@@ -40,6 +40,7 @@ import logging
 import math
 import numbers
 import os
+from pathlib import Path
 import re
 import warnings
 
@@ -2429,7 +2430,7 @@ class Level3PreviewImage():
                     (xcentroid-xstart+0.5, ycentroid-ystart+0.5),
                     fontsize=10,
                     color='magenta')
-        ax.set_title(i2dname, fontsize=10)
+        ax.set_title(os.path.basename(i2dname), fontsize=10)
 
         # Add colorbar, and create tick labels for it
         # Create a separate axes for the colorbar, right next to the image
@@ -2883,7 +2884,7 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_index = find_brightest_wfss_sources(self.model)
+        bright_idx = find_brightest_wfss_sources(self.model)
 
         # Often the brightest source is a saturated star. Let's try skipping over the brightest
         # source and creating a preview image for the 2nd brightest source.
@@ -2892,7 +2893,7 @@ class Level3PreviewImage():
         # a single element list) or no objects (i.e. bright_idx is an empty list), then we keep
         # the list as-is. An empty list will not create any figures.
         if len(bright_idx) > 2:
-            bright_idx = bright_index[1:2]
+            bright_idx = bright_idx[1:2]
 
         self.wfss_source_ids = []
 
@@ -2901,31 +2902,28 @@ class Level3PreviewImage():
 
         # Get the corresponding cal file data
         if '-' in self.model.meta.filename:
-            if 'x1d' in self.model.meta.filename:  # Stage 3 x1d file
-                cal_files = [ext.filename for ext in self.model.spec]
-            elif 'c1d' in self.model.meta.filename:  # Stage 3 c1d file
-                x1dname = self.filename.replace('c1d', 'x1d')
-                x1dmodel = datamodels.open(x1dname)
-                cal_files = [ext.filename for ext in x1dmodel.spec]
 
-            cal_files = sorted(list(set(cal_files)))
+            # Get the list of contributing cal files from the association file
+            file_path = Path(filesystem_path(self.model.meta.filename))
+            asn_dir = file_path.parents[3] / "asn"
+            spec3_asns = sorted(asn_dir.glob("jw*spec3*asn.json"))
+            search_string = self.model.meta.filename.rsplit("_", 1)[0]
+            matching_files = []
+            for spec3_asn in spec3_asns:
+                if search_string in spec3_asn.read_text(encoding="utf-8"):
+                    matching_files.append(spec3_asn)
+
+            spec3_asn = matching_files[-1]
+            with(open(spec3_asn, "r", encoding="utf-8")) as asn_file:
+                asn = json.load(asn_file)
+
+            cal_files = []
+            for member in asn['products'][0]['members']:
+                if member['exptype'] == 'science':
+                    cal_files.append(member['expname'])
+            cal_files = sorted(cal_files)
+
             logging.debug(f'Found cal files: {cal_files}')
-
-            #Manually add files for both detectors, which may not in the cal file list
-            # Deal with this bug by checking for the existence of A mod and B mod versions of all
-            # cal files, regardless of which are in the filename metadata (only for NIRCam)
-            if 'nircam' in self.model.meta.filename:
-                # BEST SOLUTION HERE, WHILE WE ARE WAITING FOR A PIPELINE FIX, WOULD BE TO DOWNLOAD AND READ IN
-                # THE ASN FILE, AND GET ALL THE FILENAMES FROM THERE. THEN WE WOULDN'T HAVE TO WORRY ABOUT WHETHER
-                # A PARTICULAR CAL FILE IS JUST MISSING FROM THE FILESYSTEM, OR WAS NEVER USED IN THE OBSERVATION
-                modified_cal_files = []
-                for cal_file in cal_files:
-                    if 'along' in cal_file:
-                        new_cal = cal_file.replace('along', 'blong')
-                    elif 'blong' in cal_files:
-                        new_cal = cal_file.replace('blong', 'along')
-                    modified_cal_files += [cal_file, new_cal]
-                cal_files = modified_cal_files
 
             # cal files are located in a different directory from the level 3 files
             cal_files = [filesystem_path(filename, check_existence=True) for filename in cal_files]

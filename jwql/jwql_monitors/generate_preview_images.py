@@ -863,9 +863,6 @@ def process_program(program, overwrite, level3_only):
     # Keys are rootnames, values are booleans describing whether a thumbail image has been made
     thumbs = {}
 
-    logging.info('Found {} filenames'.format(len(filenames)))
-    logging.info('')
-
     new_preview_counter = 0
     existing_preview_counter = 0
     thumbnail_files = []

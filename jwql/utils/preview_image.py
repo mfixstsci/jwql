@@ -2883,7 +2883,7 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_index = find_brightest_wfss_sources()
+        bright_index = find_brightest_wfss_sources(self.model)
 
         # Often the brightest source is a saturated star. Let's try skipping over the brightest
         # source and creating a preview image for the 2nd brightest source.

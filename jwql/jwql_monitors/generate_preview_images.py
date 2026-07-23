@@ -733,7 +733,7 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
         Path in which to save the thumbnail images
     """
     # All stage 2 files and i2d.fits files
-    if 'stage_3' not in file_info['filename_type']:
+    if 'stage_3' not in file_info['filename_type'] and "_x1d" not in fname:
         try:
             # Stage 1/2 file
             img = PreviewImage(fname, "SCI")
@@ -752,6 +752,23 @@ def preview_img_from_file(fname, file_info, preview_output_directory, thumbnail_
             else:
                 img.make_image(max_img_size=8, create_thumbnail=False)
                 logging.debug('\tCreated preview image for: {}'.format(fname))
+
+            return img.preview_images, img.thumbnail_images
+
+        except (ValueError, AttributeError) as error:
+            logging.warning(error)
+            return (None, None)
+
+    elif 'stage_3' not in file_info['filename_type'] and "_x1d" in fname:
+        try:
+            # Stage 2 x1ds, we build spectra from datamodels extension is None
+            img = PreviewImage(fname, None)
+            img.preview_output_directory = preview_output_directory
+
+            # Rate or Dark images make thumbnails for program
+            # Here we just need to make the x1d spectrum figures.
+            img.make_spectrum_image()
+            logging.debug('\tCreated preview image for: {}'.format(fname))
 
             return img.preview_images, img.thumbnail_images
 
@@ -846,9 +863,6 @@ def process_program(program, overwrite, level3_only):
     # Keys are rootnames, values are booleans describing whether a thumbail image has been made
     thumbs = {}
 
-    logging.info('Found {} filenames'.format(len(filenames)))
-    logging.info('')
-
     new_preview_counter = 0
     existing_preview_counter = 0
     thumbnail_files = []
@@ -908,15 +922,16 @@ def process_program(program, overwrite, level3_only):
         # Create the nominal preview image and thumbnail
         try:
             prev_ims, thumb_ims = preview_img_from_file(filename, parsed, preview_output_directory, thumbnail_output_directory)
-            thumbs[root] = True
+            if 'stage_3' in parsed['filename_type']:
+                thumbs[root] = True
 
             if prev_ims is not None:
                 new_preview_counter += 1
                 thumbnail_files.extend(thumb_ims)
                 preview_image_files.extend(prev_ims)
 
-        except (ValueError, AttributeError) as error:
-            logging.warning(error)
+        except (ValueError, AttributeError, KeyError, FileNotFoundError) as error:
+            logging.warning(f'For file {filename}: {error}')
         finally:
             # Make sure all figures are closed.
             plt.close('all')

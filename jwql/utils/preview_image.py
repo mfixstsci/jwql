@@ -38,9 +38,10 @@ from glob import glob
 import json
 import logging
 import math
+import numbers
 import os
+from pathlib import Path
 import re
-import socket
 import warnings
 
 from astropy import constants as const
@@ -141,7 +142,10 @@ class PreviewImage():
         self.thumbnail_images = []
 
         # Read in file
-        self.data, self.dq = self.get_data(self.file, extension)
+        if "_x1d" in filename:
+            self.model = self.get_spectra_data(self.file)
+        else:
+            self.data, self.dq = self.get_data(self.file, extension)
 
     def determine_map_file(self, header):
         """Determine which file contains the map of non-science pixels given a
@@ -244,6 +248,28 @@ class PreviewImage():
         minval = sorted_pix[numclip]
         maxval = sorted_pix[-numclip - 1]
         return (minval, maxval)
+
+    def get_spectra_data(self, filename):
+        """
+        Read in one dimensional spectral data from level 2 pipeline products.
+
+        Parameters
+        ----------
+        filename : str
+            Name of fits file containing data
+
+        Returns
+        -------
+        data : jwst.datamodel
+            JWST Datamodel representation of fits file.
+        """
+
+        if os.path.isfile(filename):
+            model = datamodels.open(filename)
+        else:
+            raise FileNotFoundError('WARNING: {} does not exist!'.format(filename))
+
+        return model
 
     def get_data(self, filename, ext):
         """
@@ -621,15 +647,8 @@ class PreviewImage():
             diff_img = np.expand_dims(diff_img, axis=0)
         nint, ny, nx = diff_img.shape
 
-        # If there are 10 integrations or less, make image for every integration
-        # If there are more than 10 integrations, then make image for every 10th integration
-        # If there are more than 100 integrations, then make image for every 100th integration
-        if nint <= 10:
-            integration_range = range(nint)
-        elif 11 <= nint <= 100:
-            integration_range = range(0, nint, 10)
-        else:
-            integration_range = range(0, nint, 100)
+        # Create plots only for a subset of the integrations
+        integration_range = self.get_integration_range(nint)
 
         for i in integration_range:
             frame = diff_img[i, :, :]
@@ -670,6 +689,185 @@ class PreviewImage():
                 plt.close(self.fig)
                 self.thumbnail_images.append(self.thumbnail_filename)
 
+    def get_integration_range(self, nint):
+        """
+        Determine integration range for integration files
+
+        Parameters
+        ----------
+        nint : int
+            Number of file integrations
+
+        Returns
+        -------
+        intgration_range : range
+            Range object of integration steps
+        """
+        max_preview_integrations = 10
+        integration_range = np.linspace(0, nint-1, num=min(max_preview_integrations, nint), dtype=int)
+
+        return integration_range
+
+    def make_spectrum_image(self):
+        """
+        Make level 2 x1d quicklook spectrum images
+        """
+
+        indir, infile = os.path.split(self.file)
+
+        if self.preview_output_directory is None:
+            outdir = indir
+        else:
+            outdir = self.preview_output_directory
+
+        exp_type = self.model.meta.exposure.type
+
+        if "x1dints.fits" in infile:
+            if exp_type == "NIS_SOSS":
+                self.make_nis_soss_spectrum(outdir, infile)
+            elif exp_type == "NRS_BRIGHTOBJ" or exp_type == "NRC_TSGRISM" or exp_type == "MIR_LRS-SLITLESS":
+                targname = self.model.meta.target.proposer_name
+                nint =  self.model.spec[0].spec_table.shape[0]
+                integration_range = self.get_integration_range(nint)
+
+                for i in integration_range:
+                    wavelength = self.model.spec[0].spec_table[i]["wavelength"]
+                    flux = self.model.spec[0].spec_table[i]["flux"]
+                    suffix = '_integ{}.{}'.format(i, self.output_format)
+
+                    outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+                    self.make_spectrum_figure(wavelength, flux, targname, integration_num=i)
+                    self.save_image(outfile)
+
+                    self.preview_images.append(outfile)
+                    self.thumbnail_images.append(None)
+
+                    plt.close(self.fig)
+        else:
+            if "WFSS" in exp_type:
+                brightest_idx = find_brightest_wfss_sources(self.model)
+
+                # As with the level 3 WFSS preview images, let's skip the brightest
+                # source, which is often a saturated star, and use the second brightest
+                if len(brightest_idx) > 1:
+                    # If there is more than one source in the file, use the second brightest
+                    flux = self.model.spec[0].spec_table.FLUX[1, :]
+                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[1, :]
+                elif len(brightest_idx) == 1:
+                    # If there is only one source in the file, use it
+                    flux = self.model.spec[0].spec_table.FLUX[0, :]
+                    wavelength = self.model.spec[0].spec_table.WAVELENGTH[0, :]
+                elif len(brightest_idx) == 0:
+                    # If there are no sources in the file, use dummy values
+                    flux = [0., 0.]
+                    wavelength = [0., 1.0]
+
+            else:
+                flux = self.model.spec[0].spec_table.FLUX
+                wavelength = self.model.spec[0].spec_table.WAVELENGTH
+
+            targname = self.model.meta.target.proposer_name
+
+            suffix = '_integ0.{}'.format(self.output_format)
+            outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+
+            self.make_spectrum_figure(wavelength, flux, targname)
+            self.save_image(outfile)
+
+            plt.close(self.fig)
+
+            self.preview_images.append(outfile)
+            self.thumbnail_images.append(None)
+
+    def make_nis_soss_spectrum(self, outdir, infile, maxsize=8):
+        """
+        Make figure that contains level 2 x1dint NIRISS SOSS data
+        """
+
+        targname = self.model.meta.target.proposer_name
+        nint_per_order = np.array([order.spec_table.shape[0] for order in self.model.spec])
+
+        if nint_per_order.all():
+            nint = int(np.unique(nint_per_order)[0])
+            integration_range = self.get_integration_range(nint)
+        else:
+            raise ValueError("INTEGRATION NUMBERS ARE DIFFERENT PER ORDER")
+
+        for i in integration_range:
+            self.fig, ax = plt.subplots(ncols=1, nrows=len(nint_per_order), figsize=(maxsize, maxsize))
+            self.fig.suptitle(f'{self.model.meta.filename} Int: {i}\n{targname}')
+            for order, axis in zip(self.model.spec, ax):
+                wavelength = order.spec_table["wavelength"][i]
+                flux = order.spec_table["flux"][i]
+
+                clipped = sigma_clip_ignore_nan(flux, sigma=9)
+                vmax = np.nanmax(clipped) * 1.1
+                vmin = np.nanmin(clipped)
+
+                if vmin >= 0:
+                    vmin = vmin * 0.9
+                else:
+                    vmin = vmin * 1.1
+
+                try:
+                    wavelength_units = order.spec_table.columns["wavelength"].unit
+                    flux_units = order.spec_table.columns["flux"].unit
+                except AttributeError:
+                    wavelength_units = "um"
+                    flux_units = None
+
+                axis.plot(wavelength, flux, color='blue')
+                axis.set_xlabel(f'Wavelength ({wavelength_units})')
+                axis.set_ylabel(f'Flux ({flux_units})')
+                axis.set_ylim(vmin, vmax)
+
+                axis.set_title(f'SOSS Order: {order.spectral_order}')
+                axis.grid(ls="--")
+
+
+            suffix = '_integ{}.{}'.format(i, self.output_format)
+            outfile = os.path.join(outdir, infile.replace(".fits", suffix))
+
+            self.preview_images.append(outfile)
+            self.thumbnail_images.append(None)
+
+            plt.tight_layout()
+            self.save_image(outfile)
+            plt.close(self.fig)
+
+    def make_spectrum_figure(self, wavelength, flux, targname, integration_num=None, maxsize=8):
+        """
+        Make figure that contains level 2 x1d data.
+        """
+        # Get the x1d data
+        self.fig, ax = plt.subplots(ncols=1, nrows=1, figsize=(maxsize, maxsize))
+
+        # Determine plot range
+        clipped = sigma_clip_ignore_nan(flux, sigma=9)
+        vmax = np.nanmax(clipped) * 1.1
+        vmin = np.nanmin(clipped)
+        if vmin >= 0:
+            vmin = vmin * 0.9
+        else:
+            vmin = vmin * 1.1
+
+        try:
+            wavelength_units = self.model.spec[0].spec_table.columns["wavelength"].unit
+            flux_units = self.model.spec[0].spec_table.columns["flux"].unit
+        except AttributeError:
+            wavelength_units = None
+            flux_units = None
+
+        ax.plot(wavelength, flux, color='blue')
+        ax.set_xlabel(f'Wavelength ({wavelength_units})')
+        ax.set_ylabel(f'Flux ({flux_units})')
+        ax.set_ylim(vmin, vmax)
+        if isinstance(integration_num, numbers.Number):
+            ax.set_title(f'{self.model.meta.filename} Int: {integration_num}\n{targname}')
+        else:
+            ax.set_title(f'{self.model.meta.filename}\n{targname}')
+        ax.grid(ls="--")
+
     def nonsci_from_file(self):
         """Read in a map of non-science/reference pixels from a fits file
 
@@ -703,7 +901,12 @@ class PreviewImage():
             True if saving a thumbnail image, false for the full
             preview image.
         """
-        plt.savefig(fname, bbox_inches='tight', pad_inches=0)
+
+        if "_x1d" in fname:
+            plt.savefig(fname)
+        else:
+            plt.savefig(fname, bbox_inches='tight', pad_inches=0)
+
         permissions.set_permissions(fname)
 
         # If the image is a thumbnail, rename to '.thumb'
@@ -928,17 +1131,10 @@ class Level3PreviewImage():
             if self.exp_type == 'NRC_TSGRISM':
                 self.tso_x1dints_plot()
             elif self.exp_type == 'MIR_LRS-SLITLESS':
-                # Make sure we support both old and new file formats
-                #try:
-                #    self.miri_lrs_slitless_x1dints_plot_old_format()
-                #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
             elif self.exp_type == 'NIS_SOSS':
                 self.niriss_soss_plot()
             elif self.exp_type == 'NRS_BRIGHTOBJ':
-                #try:
-                #    self.miri_lrs_slitless_x1dints_plot_old_format()
-                #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
         elif self.exp_type == 'NIS_AMI':
             if 'amilg' in self.filename:
@@ -956,7 +1152,6 @@ class Level3PreviewImage():
                                                           'NRS_IFU',
                                                           'MIR_LRS-FIXEDSLIT'
                                                           ]:
-            #self.miri_nirspec_fixed_slit_or_ifu_x1d()
             self.miri_lrs_fixed_slit_nirspec_ifu_x1d()
         elif 'x1d' in self.filename and self.exp_type == 'MIR_MRS':
             self.miri_mrs_x1d()
@@ -1191,7 +1386,7 @@ class Level3PreviewImage():
         self.get_limits()
 
         # Create figure and axis object
-        if thumbnail:
+        if self.thumbnail:
             self.fig, ax = plt.subplots(figsize=(3, 3))
         else:
             self.fig, ax = plt.subplots(figsize=(self.maxsize, self.maxsize))
@@ -1203,36 +1398,11 @@ class Level3PreviewImage():
         ax.set_ylim(self.min_yval, self.max_yval)
         ax.set_title(os.path.filename(self.filename))
         plt.rcParams.update({'axes.titlesize': 'small'})
-        plt.rcParams.update({'font.size': maxsize * 5. / 4})
-        plt.rcParams.update({'axes.labelsize': maxsize * 5. / 4})
-        plt.rcParams.update({'ytick.labelsize': maxsize * 5. / 4})
-        plt.rcParams.update({'xtick.labelsize': maxsize * 5. / 4})
+        plt.rcParams.update({'font.size': self.maxsize * 5. / 4})
+        plt.rcParams.update({'axes.labelsize': self.maxsize * 5. / 4})
+        plt.rcParams.update({'ytick.labelsize': self.maxsize * 5. / 4})
+        plt.rcParams.update({'xtick.labelsize': self.maxsize * 5. / 4})
 
-    def find_brightest_wfss_sources(self):
-        """Determine the `nsources` brightest sources in the WFSS file. Do this using the
-        mean value. Work on only the model.spec[0].spec_table. Note that if there are dithers,
-        the source may not be present in all extensions.
-
-        Returns
-        -------
-        brightest : numpy.ndarray
-            1D array of index numbers corresponding to the `nsources` brightest sources.
-        """
-        num_sources = self.model.spec[0].spec_table.shape[0]
-
-        medians = []
-        sources = []
-        for source in range(num_sources):
-
-            # Ignore sources where the source_id is empty, which indicates a larger problem.
-            if self.model.spec[0].spec_table['SOURCE_TYPE'][source] != '':
-                medians.append(np.nansum(self.model.spec[0].spec_table['SURF_BRIGHT'][source, :]))
-                sources.append(source)
-
-        idxs = np.argsort(medians)[::-1]
-        brightest = np.array(sources)[idxs][0:self.wfss_nbrightest_sources]
-
-        return brightest
 
     def filter_coron_ta_files(self):
         """For NIRCam coron observations, there will be files listed as "target_acquisition"
@@ -1718,7 +1888,7 @@ class Level3PreviewImage():
 
             # Get the coordinates of the center of the aperture summed over to create the 1D spectrum
             # This info does not make it into the datamodel metadata, so we retrieve it via astropy.io.fits
-            x1dheader = fits.getheader(self.model.meta.filename, 1)
+            x1dheader = fits.getheader(self.filename, 1)
             centerx = x1dheader['EXTR_X']
             centery = x1dheader['EXTR_Y']
             source_type = x1dheader['SRCTYPE']
@@ -1877,7 +2047,7 @@ class Level3PreviewImage():
         """
         self.fig, ax = plt.subplots(ncols=1, nrows=2, figsize=(self.maxsize, self.maxsize * 1.5))
 
-        flux_type = 'RF_FLUX'
+        use_flux = 'RF_FLUX'
         flux = self.model.spec[0].spec_table.RF_FLUX
 
         # MRS x1d files have both regular ('flux') and residual-fringe (RF) corrected ('rf_flux') spectra.
@@ -2252,7 +2422,7 @@ class Level3PreviewImage():
                     (xcentroid-xstart+0.5, ycentroid-ystart+0.5),
                     fontsize=10,
                     color='magenta')
-        ax.set_title(i2dname, fontsize=10)
+        ax.set_title(os.path.basename(i2dname), fontsize=10)
 
         # Add colorbar, and create tick labels for it
         # Create a separate axes for the colorbar, right next to the image
@@ -2343,11 +2513,6 @@ class Level3PreviewImage():
             # Preview image filename is the name of the input file with jpg at the end
             #fname = os.path.join(self.preview_output_directory, self.model.meta.filename.split('.')[0] + '.jpg')
             fname = os.path.basename(self.filename).split('.')[0] + '.jpg'
-
-            # If we are dealing with WFSS data, where we have multiple figures, use the source
-            # ID values to create unique jpg filenames.
-            if len(self.wfss_source_ids) > 0:
-                fname = fname.replace('.jpg', f'_source{self.wfss_source_ids[i]}.jpg')
 
             # Save preview image
             self.preview_images.append(fname)
@@ -2711,7 +2876,17 @@ class Level3PreviewImage():
            3. Plot of the 1D extracted spectrum (1st and 2nd order if present)
         """
         n_ext = len(self.model.spec)
-        bright_idx = self.find_brightest_wfss_sources()
+        bright_idx = find_brightest_wfss_sources(self.model)
+
+        # Often the brightest source is a saturated star. Let's try skipping over the brightest
+        # source and creating a preview image for the 2nd brightest source.
+        # Keep bright_idx as a list in case we want to create preview images for multiple wfss
+        # sources in the future. Note that if there is only a single source (i.e. bright_idx) is
+        # a single element list) or no objects (i.e. bright_idx is an empty list), then we keep
+        # the list as-is. An empty list will not create any figures.
+        if len(bright_idx) > 2:
+            bright_idx = bright_idx[1:2]
+
         self.wfss_source_ids = []
 
         logging.debug(f'Brightest source index nums: {bright_idx}')
@@ -2719,31 +2894,28 @@ class Level3PreviewImage():
 
         # Get the corresponding cal file data
         if '-' in self.model.meta.filename:
-            if 'x1d' in self.model.meta.filename:  # Stage 3 x1d file
-                cal_files = [ext.filename for ext in self.model.spec]
-            elif 'c1d' in self.model.meta.filename:  # Stage 3 c1d file
-                x1dname = self.filename.replace('c1d', 'x1d')
-                x1dmodel = datamodels.open(x1dname)
-                cal_files = [ext.filename for ext in x1dmodel.spec]
 
-            cal_files = sorted(list(set(cal_files)))
+            # Get the list of contributing cal files from the association file
+            file_path = Path(filesystem_path(self.model.meta.filename))
+            asn_dir = file_path.parents[3] / "asn"
+            spec3_asns = sorted(asn_dir.glob("jw*spec3*asn.json"))
+            search_string = self.model.meta.filename.rsplit("_", 1)[0]
+            matching_files = []
+            for spec3_asn in spec3_asns:
+                if search_string in spec3_asn.read_text(encoding="utf-8"):
+                    matching_files.append(spec3_asn)
+
+            spec3_asn = matching_files[-1]
+            with(open(spec3_asn, "r", encoding="utf-8")) as asn_file:
+                asn = json.load(asn_file)
+
+            cal_files = []
+            for member in asn['products'][0]['members']:
+                if member['exptype'] == 'science':
+                    cal_files.append(member['expname'])
+            cal_files = sorted(cal_files)
+
             logging.debug(f'Found cal files: {cal_files}')
-
-            #Manually add files for both detectors, which may not in the cal file list
-            # Deal with this bug by checking for the existence of A mod and B mod versions of all
-            # cal files, regardless of which are in the filename metadata (only for NIRCam)
-            if 'nircam' in self.model.meta.filename:
-                # BEST SOLUTON HERE, WHILE WE ARE WAITING FOR A PIPELINE FIX, WOULD BE TO DOWNLOAD AND READ IN
-                # THE ASN FILE, AND GET ALL THE FILENAMES FROM THERE. THEN WE WOULDN'T HAVE TO WORRY ABOUT WHETHER
-                # A PARTICULAR CAL FILE IS JUST MISSING FROM THE FILESYSTEM, OR WAS NEVER USED IN THE OBSERVATION
-                modified_cal_files = []
-                for cal_file in cal_files:
-                    if 'along' in cal_file:
-                        new_cal = cal_file.replace('along', 'blong')
-                    elif 'blong' in cal_files:
-                        new_cal = cal_file.replace('blong', 'along')
-                    modified_cal_files += [cal_file, new_cal]
-                cal_files = modified_cal_files
 
             # cal files are located in a different directory from the level 3 files
             cal_files = [filesystem_path(filename, check_existence=True) for filename in cal_files]
@@ -3144,6 +3316,39 @@ def determine_figure_properties(xdim, ydim, threshold=0.15, maxsize=8):
     cbar_orient = determine_cbar_orient(xdim, ydim)
     figsize_value = determine_default_figsize(xdim, ydim, maxsize=maxsize, aspect=aspect_value)
     return aspect_value, cbar_orient, figsize_value
+
+
+def find_brightest_wfss_sources(model):
+    """Determine the `nsources` brightest sources in the WFSS file. Do this using the
+    mean value. Work on only the model.spec[0].spec_table. Note that if there are dithers,
+    the source may not be present in all extensions.
+
+    Parameters
+    ----------
+    model : stdatamodels.datamodel
+        Datamodel instance
+
+    Returns
+    -------
+    brightest : numpy.ndarray
+        1D array of index numbers corresponding to the sources in order from brightest
+        to dimmest.
+    """
+    num_sources = model.spec[0].spec_table.shape[0]
+
+    medians = []
+    sources = []
+    for source in range(num_sources):
+
+        # Ignore sources where the source_id is empty, which indicates a larger problem.
+        if model.spec[0].spec_table['SOURCE_TYPE'][source] != '':
+            medians.append(np.nansum(model.spec[0].spec_table['SURF_BRIGHT'][source, :]))
+            sources.append(source)
+
+    idxs = np.argsort(medians)[::-1]
+    brightest = np.array(sources)[idxs]
+
+    return brightest
 
 
 def Fnu_to_Flam(wave_micron, flux_jansky):

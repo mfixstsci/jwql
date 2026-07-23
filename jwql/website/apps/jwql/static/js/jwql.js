@@ -964,8 +964,13 @@ function show_only(filter_type, value, base_url) {
             } else {
                 thumbnails[i].style.display = "none";
             }
+            //list_of_rootnames = list_of_rootnames +
+            //                    thumbnails[i].getAttribute("data-file_root") +
+            //                    '=' + thumbnails[i].getAttribute("data-exp_start") + ',';
             list_of_rootnames = list_of_rootnames +
-                                thumbnails[i].getAttribute("data-file_root") +
+                                thumbnails[i].getAttribute("data-obs") +
+                                ':' + thumbnails[i].getAttribute("data-stage") +
+                                ':' + thumbnails[i].getAttribute("data-file_root") +
                                 '=' + thumbnails[i].getAttribute("data-exp_start") + ',';
         } else {
             thumbnails[i].style.display = "none";
@@ -1059,6 +1064,7 @@ function sort_by_thumbnails(sort_type, base_url) {
     });
 }
 
+
 /**
  * Sort thumbnail display on observation level page by a given sort type, save sort type
  * in session for use in previous/next buttons
@@ -1071,33 +1077,33 @@ function sort_by_thumbnails_all_obs(sort_type, base_url) {
     // Update dropdown menu text
     document.getElementById('sort_dropdownMenuButton').innerHTML = sort_type;
 
-    var obs_groups = $('div.observation-group');
-    if (sort_type == 'Descending') {
-        tinysort(obs_groups, {attr:'data-obs', order: 'desc' });
-    } else if (sort_type === "Recent") {
-        tinysort(obs_groups, { attr: 'data-exp_start', order: 'desc' });
-    } else if (sort_type === "Oldest") {
-        tinysort(obs_groups, { attr: 'data-exp_start', order: 'asc' });
+    // Step 1: Sort the observation groups themselves
+    var obs_container = $('div.observation-group').parent();
+    if (sort_type === 'Descending') {
+    tinysort(obs_container.children('div.observation-group'), { attr: 'data-obs', order: 'desc' });
+    } else if (sort_type === 'Recent') {
+        tinysort(obs_container.children('div.observation-group'), { attr: 'data-exp_start', order: 'desc' });
+    } else if (sort_type === 'Oldest') {
+        tinysort(obs_container.children('div.observation-group'), { attr: 'data-exp_start', order: 'asc' });
     } else {
-        tinysort(obs_groups, {attr:'data-obs', order: 'asc' });
+        tinysort(obs_container.children('div.observation-group'), { attr: 'data-obs', order: 'asc' });
     }
 
-    // Sort thumbnails within each observation group
-    // Note: Because thumbnails will sort relating to their current order (when the exp_start is
-    //the same between thumbnails), we need to do multiple sorts to guarantee consistency.
-    obs_groups.each(function() {
-        var thumbs = $(this).children('div.thumbnail');
-        if (sort_type == 'Descending') {
-            tinysort(thumbs, {attr: 'data-file_root', order:'desc' });
+    // Step 2: Sort thumbnails within each stage-group (stage groups themselves are NOT sorted
+    // relative to each other — stage 2 always comes before stage 3)
+    $('div.stage-group').each(function() {
+    if (sort_type === 'Descending') {
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-file_root', order: 'desc' });
         } else if (sort_type === 'Recent') {
-            tinysort(thumbs, { attr: 'data-exp_start', order: 'desc' }, {attr:'data-file_root', order:'asc'});
-        } else if (sort_type === "Oldest") {
-            tinysort(thumbs, { attr: 'data-exp_start', order: 'asc' }, {attr:'data-file_root', order:'asc'});
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-exp_start', order: 'desc' }, { attr: 'data\
+-file_root', order: 'asc' });
+        } else if (sort_type === 'Oldest') {
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-exp_start', order: 'asc' }, { attr: 'data-\
+file_root', order: 'asc' });
         } else {
-            tinysort(thumbs, { attr: 'data-file_root', order: 'asc' });
-        }
+            tinysort($(this).children('div.thumbnail'), { attr: 'data-file_root', order: 'asc' });
+    }
     });
-
     $.ajax({
         url: base_url + '/ajax/image_sort/',
         data: { 'sort_type': sort_type },
@@ -1439,11 +1445,32 @@ function update_wata_page(base_url) {
  * @param {String} base_url - The base URL for gathering data from the AJAX view.
  */
 function update_group_options(data, base_url) {
+    // Get the total number of files
+    var total_files = 0;
+    const fileData = data['file_data'];
+
+    if (Object.keys(fileData).length > 0) {
+        const firstValue = Object.values(fileData)[0];
+        const from_query = 'inst' in firstValue;
+
+        if (!from_query) {
+            for (const obsnum of Object.keys(fileData)) {
+                for (const stage of ['stage_2', 'stage_3']) {
+                    const files = fileData[obsnum]?.[stage]?.['files'];
+                    if (files) {
+                        total_files += Object.keys(files).length;
+                    }
+                }
+            }
+        } else {
+            total_files = Object.keys(fileData).length;
+        }
+    }
 
     // Build div content
     var content = '<div class="d-inline" id="group_by" data-ngroup="' +
                   data.exp_groups.length + '" data-nfile="' +
-                  Object.keys(data.file_data).length + '">Group by:<br></div>';
+                  total_files + '">Group by:<br></div>';
     content += '<button class="btn btn-primary dropdown-toggle" type="button" id="group_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + data.thumbnail_group + '</button>';
     content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
     content += '<a class="dropdown-item" href="#" onclick="group_by_thumbnails(\'Exposure\', \'' + base_url + '\');">Exposure</a>';
@@ -1452,7 +1479,6 @@ function update_group_options(data, base_url) {
     // Add the content to the div
     $("#group-by-exposure")[0].innerHTML = content;
 }
-
 
 
 /**
@@ -1572,6 +1598,28 @@ function update_sort_options(data, base_url) {
     $("#thumbnail-sort")[0].innerHTML = content;
 }
 
+/**
+ * Updates the thumbnail-sort div with sorting options
+ * @param {Object} data - The data returned by the thumbnails_query_ajax AJAX method
+ * @param {String} base_url - The base URL for gathering data from the AJAX view.
+ */
+function update_sort_options_query_results(data, base_url) {
+
+    // Build div content
+    var content = 'Sort by:';
+    content += '<div class="dropdown">';
+    content += '<button class="btn btn-primary dropdown-toggle" type="button" id="sort_dropdownMenuButton" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">' + data.thumbnail_sort + '</button>';
+    content += '<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Ascending\', \'' + base_url + '\');">Ascending</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Descending\', \'' + base_url + '\');">Descending</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Recent\', \'' + base_url + '\');">Recent</a>';
+    content += '<a class="dropdown-item" href="#" onclick="sort_by_thumbnails(\'Oldest\', \'' + base_url + '\');">Oldest</a>';
+    content += '</div></div>';
+
+    // Add the content to the div
+    $("#thumbnail-sort")[0].innerHTML = content;
+}
+
 
 /**
  * Updates the thumbnail divs with interactive images of thumbnails
@@ -1589,63 +1637,99 @@ function update_thumbnail_array_all_obs(data) {
 
         // Add representative exp_time from the first file to the observation div level
         //const keysList = Object.keys(data.file_data[obs]['files']);
-        //obs_expstart = data.file_data[obs]['files'][keysList[0]].expstart;
+        //obs_expstart = data.file_data[obs]['files'][keysList[0]].expstart;thumbnail
         obs_expstart = data.file_data[obs]['obs_exp_time']
         thumbnail_content += `<div class='observation-group' data-obs='${obs}' data-exp_start='${obs_expstart}'>`;
         thumbnail_content += `<h4>Observation ${obs}</h4>`;
 
-        Object.keys(data.file_data[obs]['files']).forEach((rootname, i) => {
-            let file = data.file_data[obs]['files'][rootname];
+        //const stages = Object.keys(data_dict['file_data'][obsnum]).filter(k => k !== 'obs_exp_time');
+        //Object.keys(data.file_data[obs]).forEach((rootname, i) => {
 
-            // Extract metadata
-            let viewed = file.viewed;
-            let exp_type = file.exp_type;
-            let exp_time = file.expstart;  // Timestamp for sorting
-            let filename_dict = file.filename_dict;
-            let filter_type = file.filter;
-            let pupil_type = file.pupil;
-            let grating_type = file.grating;
-            let group_root = file.filename_dict.group_root || "unknown";
-            let observation_num = filename_dict.observation; // Extract observation number
-
-            // Determine the instrument name
-            let instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
-
-            var content = `<div class="thumbnail" data-instrument="${instrument}"
-                                data-detector="${filename_dict.detector}"
-                                data-proposal="${filename_dict.program_id}"
-                                data-file_root="${rootname}"
-                                data-group_root="${filename_dict.group_root}"
-                                data-exp_start="${file.expstart}"
-                                data-look="${viewed}"
-                                data-exp_type="${exp_type}"
-                                data-visit="${filename_dict.visit}"
-                                data-filter="${filter_type}"
-                                data-pupil="${pupil_type}"
-                                data-grating="${grating_type}">`;
-
-            content += '<div class="thumbnail-group">';
-            content += `<a class="thumbnail-link" href="#" data-image-href="/${instrument}/${rootname}/"
-                            data-group-href="/${instrument}/exposure/${filename_dict.group_root}">`;
-            content += '<span class="helper"></span>';
-            content += `<img id="thumbnail${obs}_${i}" src="/static/img/default_thumb.png"
-                            alt="Thumbnail for file ${rootname}">`;
-            content += '<div class="thumbnail-color-fill"></div>';
-            content += '<div class="thumbnail-info">';
-            content += `Proposal: ${filename_dict.program_id} <br>`;
-            content += `Observation: ${filename_dict.observation} <br>`;
-            content += `Visit: ${filename_dict.visit} <br>`;
-            content += `Detector: ${filename_dict.detector} <br>`;
-            content += `Exp_Start: ${file.expstart_iso} <br>`;
-            content += '</div></a></div></div>';
-
-            thumbnail_content += content;
-            if (file.thumbnail !== 'none') {
-                var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
-                image_updates.push([`${obs}_${i}`, jpg_path]);
-                //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
+        for (const stage of ['stage_2', 'stage_3']) {
+            const stage_num = stage.at(-1);
+            const files = data.file_data[obs][stage]['files'];
+            thumbnail_content += `<div class='stage-group' data-obs='${obs}' data-exp_start='${obs_expstart}' data-stage='Stage ${stage_num}'>`;
+            if (Object.keys(files).length > 0) {
+                thumbnail_content += `<h5>Stage ${stage_num} Files</h5>`;
             }
-        });
+
+            Object.keys(data.file_data[obs][stage]['files']).forEach((rootname, i) => {
+                let file = data.file_data[obs][stage]['files'][rootname];
+
+                // Extract metadata
+                let viewed = file.viewed;
+                let exp_type = file.exp_type;
+                let exp_time = file.expstart;  // Timestamp for sorting
+                let filename_dict = file.filename_dict;
+                let filter_type = file.filter;
+                let pupil_type = file.pupil;
+                let grating_type = file.grating;
+                let group_root = file.filename_dict.group_root || "unknown";
+                let observation_num = filename_dict.observation; // Extract observation number
+
+                // Determine the instrument name
+                let instrument = (data.inst !== "all") ? data.inst : filename_dict.instrument;
+
+                var content = `<div class="thumbnail" data-instrument="${instrument}"
+                                    data-detector="${filename_dict.detector}"
+                                    data-proposal="${filename_dict.program_id}"
+                                    data-file_root="${rootname}"
+                                    data-group_root="${filename_dict.group_root}"
+                                    data-stage="Stage ${stage_num}"
+                                    data-exp_start="${file.expstart}"
+                                    data-look="${viewed}"
+                                    data-exp_type="${exp_type}"
+                                    data-visit="${filename_dict.visit}"
+                                    data-filter="${filter_type}"
+                                    data-pupil="${pupil_type}"
+                                    data-grating="${grating_type}">`;
+
+                content += '<div class="thumbnail-group">';
+                content += `<a class="thumbnail-link" href="#" data-image-href="/${instrument}/${rootname}/"
+                                data-group-href="/${instrument}/exposure/${filename_dict.group_root}">`;
+                content += '<span class="helper"></span>';
+                content += `<img id="thumbnail${obs}_${stage_num}_${i}" src="/static/img/default_thumb.png"
+                                alt="Thumbnail for file ${rootname}">`;
+                content += '<div class="thumbnail-color-fill"></div>';
+                content += '<div class="thumbnail-info">';
+
+                if (stage == 'stage_3') {
+                    content += `Stage 3 <br>`;
+                }
+
+                content += `Proposal: ${filename_dict.program_id} <br>`;
+                content += `Observation: ${filename_dict.observation} <br>`;
+
+                if (stage == 'stage_2') {
+                    content += `Visit: ${filename_dict.visit} <br>`;
+                    content += `Detector: ${filename_dict.detector} <br>`;
+                }
+
+                if (stage == 'stage_3') {
+                    if (filter_type !== 'empty') {
+                        content += `Filter: ${filter_type} <br>`;
+                    }
+                    if (pupil_type !== 'empty') {
+                        content += `Pupil: ${pupil_type} <br>`;
+                    }
+                    if (grating_type !== 'empty') {
+                        content += `Grating: ${grating_type} <br>`;
+                    }
+                }
+
+                content += `Exp_Start: ${file.expstart_iso} <br>`;
+                content += '</div></a></div></div>';
+
+                thumbnail_content += content;
+                if (file.thumbnail !== 'none') {
+                    var jpg_path = '/static/thumbnails/' + parse_filename(rootname).program + '/' + file.thumbnail;
+                    image_updates.push([`${obs}_${stage_num}_${i}`, jpg_path]);
+                    console.log(rootname, i, jpg_path)
+                    //image_updates.push([`${obs}_${i}`, `/static/thumbnails/${file.thumbnail}`]);
+                }
+            });
+            thumbnail_content += `</div>`;
+        };
         thumbnail_content += `</div>`;
     });
 
@@ -1677,6 +1761,8 @@ function update_thumbnail_array(data) {
         var filter_type = file.filter;
         var pupil_type = file.pupil;
         var grating_type = file.grating;
+        var stage = file.stage;
+        var stage_num = stage.at(-1);
 
         // Build div content
         var instrument;
@@ -1690,11 +1776,12 @@ function update_thumbnail_array(data) {
                       '" data-file_root="' + rootname + '" data-group_root="' + filename_dict.group_root +
                       '" data-exp_start="' + file.expstart + '" data-look="' + viewed + '" data-exp_type="' + exp_type +
                       '" data-visit="' + filename_dict.visit + '" data-filter="' + filter_type + '" data-pupil="' + pupil_type +
-                      '" data-grating="' + grating_type + '">';
+                      '" data-grating="' + grating_type + '" data-stage="Stage ' + stage_num + '">';
+
         content += '<div class="thumbnail-group">'
         content += '<a class="thumbnail-link" href="#" data-image-href="/' +
-                   instrument + '/' + rootname + '/" data-group-href="/' +
-                   instrument + '/exposure/' + filename_dict.group_root +  '">';
+                    instrument + '/' + rootname + '/" data-group-href="/' +
+                    instrument + '/exposure/' + filename_dict.group_root +  '">';
         content += '<span class="helper"></span>'
 
         // Make sure thumbnail img always has a src and alt
@@ -1703,10 +1790,31 @@ function update_thumbnail_array(data) {
                    'alt="Thumbnail for file ' + rootname + '">';
         content += '<div class="thumbnail-color-fill" ></div>';
         content += '<div class="thumbnail-info">';
+
+        if (stage == 'stage_3') {
+            content += `Stage 3 <br>`;
+        }
+
         content += 'Proposal: ' + filename_dict.program_id + '<br>';
         content += 'Observation: ' + filename_dict.observation + '<br>';
-        content += 'Visit: ' + filename_dict.visit + '<br>';
-        content += 'Detector: ' + filename_dict.detector + '<br>';
+
+        if (stage == 'stage_2') {
+            content += `Visit: ${filename_dict.visit} <br>`;
+            content += `Detector: ${filename_dict.detector} <br>`;
+        }
+
+        if (stage == 'stage_3') {
+            if (filter_type !== 'undefined') {
+                content += `Filter: ${filter_type} <br>`;
+            }
+            if (pupil_type !== 'undefined') {
+                content += `Pupil: ${pupil_type} <br>`;
+            }
+            if (grating_type !== 'empty') {
+                content += `Grating: ${grating_type} <br>`;
+            }
+        }
+
         content += 'Exp_Start: ' + file.expstart_iso + '<br>';
         content += '</div></a></div></div>';
 
@@ -1747,8 +1855,10 @@ function update_thumbnails_per_observation_page(inst, proposal, observation, bas
             // Perform various updates to divs
             //var num_thumbnails = Object.keys(data.file_data).length;
             var num_thumbnails = 0
-            for (key in data.file_data) {
-                num_thumbnails += Object.keys(data.file_data[key]['files']).length;
+            for (obs_key in data.file_data) {
+                for (const stage of ['stage_2', 'stage_3']) {
+                    num_thumbnails += Object.keys(data.file_data[obs_key][stage]['files']).length;
+                }
             }
             update_show_count(num_thumbnails, 'activities');
             update_thumbnail_array_all_obs(data);
@@ -1783,7 +1893,7 @@ function update_thumbnails_query_page(base_url, page) {
             update_thumbnail_array(data);
             update_filter_options(data, base_url, 'thumbnail');
             update_group_options(data, base_url);
-            update_sort_options(data, base_url);
+            update_sort_options_query_results(data, base_url);
             update_pagination(data);
 
             // Do initial sort and group to match sort button display

@@ -217,22 +217,35 @@ def save_page_navigation_data_ajax(request):
     request: HttpRequest object
         Incoming request from the webpage
 
-
     Returns
     -------
     HttpResponse object
         Outgoing response sent to the webpage
     """
-
-    # a string of the form " 'rootname1'='expstart1', 'rootname2'='expstart2', ..."
+    # navigation_dict will be a single string e.g. "obs1:stage1:rootname1=expstart2,obs2:stage2:rootname2=expstart2"
     if request.method == 'POST':
         navigate_dict = request.POST.get('navigate_dict')
-        # Save session in form {rootname:expstart}
+        navigate_dict_type = request.POST.get('navigate_dict_type')
         rootname_expstarts = dict()
-        for item in navigate_dict.split(','):
-            rootname, expstart = item.split("=")
-            rootname_expstarts[rootname] = float(expstart)
+        if navigate_dict_type == 'nested':
+            # navigation_data will created be in the form of {obs:{stage:{rootname:expstart}}}
+            for item in navigate_dict.split(','):
+                obs, stage, roottime = item.split(':')
+                rootname, expstart = roottime.split('=')
+                if obs not in rootname_expstarts:
+                    rootname_expstarts[obs] = {}
+                if stage not in rootname_expstarts[obs]:
+                    rootname_expstarts[obs][stage] = {}
+                rootname_expstarts[obs][stage][rootname] = float(expstart)
+        else:
+            # navigation_data will created be in the form of {rootname:expstart}}}
+            for item in navigate_dict.split(','):
+                obs, stage, roottime = item.split(':')
+                rootname, expstart = roottime.split('=')
+                rootname_expstarts[rootname] = float(expstart)
+
         request.session['navigation_data'] = rootname_expstarts
+        logging.debug(f'In save_page_navigation_data_ajax, navigation_data saved as: {navigation_data}')
 
     context = {'item': request.session['navigation_data']}
     return JsonResponse(context, json_dumps_params={'indent': 2})
@@ -316,11 +329,12 @@ def archive_thumbnails_ajax(request, inst, proposal, observation=None):
 
     # Create nested dictionary of information needed for the page
     data = thumbnails_ajax(inst, proposal, obs_num=observation)
+    request.session['navigate_dict_type'] = 'nested'
     logging.debug(f"Ajax returned: {data}")
     data['thumbnail_sort'] = request.session.get("image_sort", "Recent")
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
 
-    save_page_navigation_data(request, data)
+    save_page_navigation_data(request, data, style='nested')
     return JsonResponse(data, json_dumps_params={'indent': 2})
 
 
@@ -412,6 +426,10 @@ def archive_thumbnails_query_ajax(request):
     data['thumbnail_sort'] = parameters[QueryConfigKeys.SORT_TYPE]
     data['thumbnail_group'] = request.session.get("image_group", "Exposure")
 
+    # Navigation data will be a flat, rather than nested dictionary. This will allow
+    # stage 2 and 3 files to mix on the results page
+    request.session['navigate_dict_type'] = 'flat'
+
     # add top level parameters for summarizing
     data['query_config'] = {}
     for key in parameters:
@@ -434,7 +452,7 @@ def archive_thumbnails_query_ajax(request):
     data['total_files'] = paginator.count
 
     request.session['image_sort'] = parameters[QueryConfigKeys.SORT_TYPE]
-    save_page_navigation_data(request, data)
+    save_page_navigation_data(request, data, style='flat')
     return JsonResponse(data, json_dumps_params={'indent': 2})
 
 
@@ -1118,7 +1136,7 @@ def save_image_sort_ajax(request):
     return JsonResponse(context, json_dumps_params={'indent': 2})
 
 
-def save_page_navigation_data(request, data):
+def save_page_navigation_data(request, data, style='nested'):
     """
     Save the data from the current page in the session.
 
@@ -1130,6 +1148,8 @@ def save_page_navigation_data(request, data):
     request: HttpRequest object
     data: dictionary
         the data dictionary to be returned from the calling view function
+    style: str
+        'nested' when coming from observation level page. 'flat' when coming from query results page
     nav_by_date_range: boolean
         when viewing an image, will the next/previous buttons be sorted by date? (the other option is rootname)
     """
@@ -1138,9 +1158,20 @@ def save_page_navigation_data(request, data):
         for rootname in data['file_data']:
             navigate_data[rootname] = data['file_data'][rootname]['expstart']
     except:
-        for obs in data['file_data']:
-            for rootname in data['file_data'][obs]['files']:
-                navigate_data[rootname] = data['file_data'][obs]['files'][rootname]['expstart']
+        if style == 'nested':
+            for obs in data['file_data']:
+                navigate_data[obs] = {}
+                for stage in ['stage_2', 'stage_3']:
+                    navigate_data[obs][stage] = {}
+                    for rootname in data['file_data'][obs][stage]['files']:
+                        navigate_data[obs][stage][rootname] = data['file_data'][obs][stage]['files'][rootname]['expstart']
+        elif style == 'flat':
+            for obs in data['file_data']:
+                for stage in ['stage_2', 'stage_3']:
+                    for rootname in data['file_data'][obs][stage]['files']:
+                        navigate_data[rootname] = data['file_data'][obs][stage]['files'][rootname]['expstart']
+        else:
+            raise ValueError(f'Unrecognized style keyword value: {style}. Must be either "flat" or "nested"')
 
     request.session['navigation_data'] = navigate_data
     return
@@ -1178,6 +1209,129 @@ def set_viewed_ajax(request, group_root, status):
     # Build the context
     context = {'marked_viewed': marked_viewed}
     return JsonResponse(context, json_dumps_params={'indent': 2})
+
+
+def get_leaf_values(d):
+    """Recursively collect all bottom-level values from a nested dict."""
+    values = []
+    for v in d.values():
+        if isinstance(v, dict):
+            values.extend(get_leaf_values(v))
+        else:
+            values.append(v)
+    return values
+
+
+def get_leaf_keys(d):
+    """Recursively collect all bottom-level keys from a nested dict."""
+    keys = []
+    for v in d.values():
+        if isinstance(v, dict):
+            keys.extend(get_leaf_keys(v))
+        else:
+            keys.append(v)  # bottom-level: the key is what we want
+    # Fix: we need the keys, not values, at the leaf level
+    keys = []
+    for k, v in d.items():
+        if isinstance(v, dict):
+            keys.extend(get_leaf_keys(v))
+        else:
+            keys.append(k)
+    return keys
+
+
+def sort_leaf_dict(d, mode):
+    """Sort a bottom-level dict by the given mode."""
+    if mode in ('Recent', 'Oldest'):
+        reverse = (mode == 'Recent')
+        return dict(sorted(d.items(), key=lambda x: x[1], reverse=reverse))
+    elif mode in ('Ascending', 'Descending'):
+        reverse = (mode == 'Descending')
+        return dict(sorted(d.items(), key=lambda x: x[0], reverse=reverse))
+
+
+def sort_nested_navigation_data(sorting_type, nav_data):
+    """
+    Sort nav_data in one of four modes:
+      'Recent'     - chronological by MJD values (smallest first)
+      'Oldest'     - reverse chronological by MJD values (largest first)
+      'Ascending'  - alphabetical by bottom-level keys
+      'Descending' - reverse alphabetical by bottom-level keys
+
+    Top-level keys are sorted by the same criterion applied to their contents.
+    Stage keys are always ordered stage_2 before stage_3.
+    """
+    STAGE_ORDER = ['stage_2', 'stage_3']
+
+    # --- Determine the sort key for top-level entries ---
+    if sorting_type in ('Recent', 'Oldest'):
+        # Use the minimum leaf value across all stages as the representative date
+        def top_key(item):
+            return min(get_leaf_values(item[1]))
+        reverse = (sorting_type == 'Recent')
+    elif sorting_type in ('Ascending', 'Descending'):
+        # Use the first (alphabetically smallest) leaf key as the representative
+        def top_key(item):
+            return min(get_leaf_keys(item[1]))
+        reverse = (sorting_type == 'Descending')
+
+    # --- Sort top-level entries ---
+    sorted_top = sorted(nav_data.items(), key=top_key, reverse=reverse)
+
+    # --- Rebuild dict with sorted stages and sorted leaf dicts ---
+    result = {}
+    for obs_k, obs_v in sorted_top:
+        sorted_stages = {}
+        for stage in STAGE_ORDER:
+            if stage in obs_v:
+                sorted_stages[stage] = sort_leaf_dict(obs_v[stage], sorting_type)
+        result[obs_k] = sorted_stages
+
+    # Now create a list of file root names in order
+    matching_rootfiles = []
+    for obs in result.values():
+        for stage in obs.values():
+            matching_rootfiles.extend(stage.keys())
+
+    return matching_rootfiles
+
+
+def sort_flat_navigation_data(sorting_type, nav_data):
+    """Sort navigation data stored in a flat dictionary (e.g. navigation data coming from a
+    query results page.)
+
+    Parameters
+    ----------
+    sorting_type : str
+        Sorting criterium to use ('Descending', 'Recent', 'Oldest')
+    nav_data : dict
+        Navigataion data. Dictionary with format nav_data[rootname] = exptime.
+
+    Returns
+    -------
+    group_root_list : list
+        List of sorted rootnames
+    """
+    # For time based sorting options, sort to "Recent" first to create sorting consistency when times are the same.
+    # This is consistent with how Tinysort is utilized in jwql.js->sort_by_thumbnails
+    if sorting_type in ['Descending']:
+        matching_rootfiles = sorted(nav_data.keys(), reverse=True)
+    elif sorting_type in ['Recent']:
+        # First sort by the exposure start time, and then by filename,
+        # in order to guarantee consistency (since there are multiple files with matching exposure start times)
+        matching_rootfiles = sorted(nav_data,
+            key=lambda k: (-nav_data[k], k)
+            )
+    elif sorting_type in ['Oldest']:
+        # First sort by the exposure start time, and then by filename,
+        # in order to guarantee consistency (since there are multiple files with matching exposure start times)
+        matching_rootfiles = sorted(nav_data,
+            key=lambda k: (nav_data[k], k)
+            )
+    else:
+        matching_rootfiles = sorted(nav_data.keys())
+
+    return matching_rootfiles
 
 
 def toggle_viewed_ajax(request, file_root):
@@ -1259,27 +1413,16 @@ def view_exposure(request, inst, group_root):
     # This is consistent with how Tinysort is utilized in jwql.js->sort_by_thumbnails
     if navigation_data:
         sort_type = request.session.get('image_sort', 'Recent')
-        if sort_type in ['Descending']:
-            matching_rootfiles = sorted(navigation_data, reverse=True)
-        elif sort_type in ['Recent']:
-            navigation_data = dict(sorted(navigation_data.items()))
-            navigation_data = dict(
-                sorted(navigation_data.items(),
-                key=operator.itemgetter(1),
-                reverse=True)
-            )
-            matching_rootfiles = list(navigation_data.keys())
-        elif sort_type in ['Oldest']:
-            navigation_data = dict(sorted(navigation_data.items()))
-            navigation_data = dict(
-                sorted(navigation_data.items(),
-                key=operator.itemgetter(1))
-            )
-            matching_rootfiles = list(navigation_data.keys())
-        else:
-            matching_rootfiles = sorted(navigation_data)
 
-        # pick out group names from matching root files
+        # Sort the navigation data. Use separate functions for nested (coming from an observation
+        # level page) vs flat (coming from a query results page) navigation_data
+        first_key = next(iter(navigation_data))
+        if not isinstance(navigation_data[first_key], dict):
+            matching_rootfiles = sort_flat_navigation_data(sort_type, navigation_data)
+        else:
+            matching_rootfiles = sort_nested_navigation_data(sort_type, navigation_data)
+
+        # pick out group names from the matching root files
         group_root_list = []
         for rootname in matching_rootfiles:
             try:
@@ -1289,11 +1432,12 @@ def view_exposure(request, inst, group_root):
             if other_group_root not in group_root_list:
                 group_root_list.append(other_group_root)
     else:
+        # If there is no navigation_data, just use the current files
         group_root_list = []
-        for file in image_info['all_files']:
-            name = Path(file).name
+        for file in image_info['all_files']: #do something smarter here. find obslist, loop over obs/stage
+            name = Path(file).name           #need to match the initial Recent sort done on the thumbnails!
             obs = name.split("_")[0]
-            if '-' not in obs and obs not in group_root_list:
+            if obs not in group_root_list:
                 group_root_list.append(obs)
 
     # Get our current views RootFileInfo model and send our "viewed/new" information
@@ -1462,20 +1606,15 @@ def view_image(request, inst, file_root, initial_suffix=None):
     # jwql.js->sort_by_thumbnails
     if navigation_data:
         sort_type = request.session.get('image_sort', 'Recent')
-        if sort_type in ['Descending']:
-            file_root_list = sorted(navigation_data, reverse=True)
-        elif sort_type in ['Recent']:
-            navigation_data = dict(sorted(navigation_data.items()))
-            navigation_data = dict(sorted(navigation_data.items(),
-                                          key=operator.itemgetter(1), reverse=True))
-            file_root_list = list(navigation_data.keys())
-        elif sort_type in ['Oldest']:
-            navigation_data = dict(sorted(navigation_data.items()))
-            navigation_data = dict(sorted(navigation_data.items(),
-                                          key=operator.itemgetter(1)))
-            file_root_list = list(navigation_data.keys())
+
+        # Sort the navigation data. Use separate functions for nested (coming from an observation
+        # level page) vs flat (coming from a query results page) navigation_data
+        first_key = next(iter(navigation_data))
+        if not isinstance(navigation_data[first_key], dict):
+            file_root_list = sort_flat_navigation_data(sort_type, navigation_data)
         else:
-            file_root_list = sorted(navigation_data)
+            file_root_list = sort_nested_navigation_data(sort_type, navigation_data)
+
     else:
         if image_info['level'] == 2:
             file_root_list = sorted(get_detectors_by_rootname(file_root))

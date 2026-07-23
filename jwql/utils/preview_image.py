@@ -1131,17 +1131,10 @@ class Level3PreviewImage():
             if self.exp_type == 'NRC_TSGRISM':
                 self.tso_x1dints_plot()
             elif self.exp_type == 'MIR_LRS-SLITLESS':
-                # Make sure we support both old and new file formats
-                #try:
-                #    self.miri_lrs_slitless_x1dints_plot_old_format()
-                #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
             elif self.exp_type == 'NIS_SOSS':
                 self.niriss_soss_plot()
             elif self.exp_type == 'NRS_BRIGHTOBJ':
-                #try:
-                #    self.miri_lrs_slitless_x1dints_plot_old_format()
-                #except IndexError:
                 self.miri_lrs_slitless_x1dints_plot()
         elif self.exp_type == 'NIS_AMI':
             if 'amilg' in self.filename:
@@ -1159,7 +1152,6 @@ class Level3PreviewImage():
                                                           'NRS_IFU',
                                                           'MIR_LRS-FIXEDSLIT'
                                                           ]:
-            #self.miri_nirspec_fixed_slit_or_ifu_x1d()
             self.miri_lrs_fixed_slit_nirspec_ifu_x1d()
         elif 'x1d' in self.filename and self.exp_type == 'MIR_MRS':
             self.miri_mrs_x1d()

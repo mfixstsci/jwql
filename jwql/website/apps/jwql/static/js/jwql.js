@@ -1706,10 +1706,10 @@ function update_thumbnail_array_all_obs(data) {
                 }
 
                 if (stage == 'stage_3') {
-                    if (filter_type !== 'undefined') {
+                    if (filter_type !== 'empty') {
                         content += `Filter: ${filter_type} <br>`;
                     }
-                    if (pupil_type !== 'undefined') {
+                    if (pupil_type !== 'empty') {
                         content += `Pupil: ${pupil_type} <br>`;
                     }
                     if (grating_type !== 'empty') {

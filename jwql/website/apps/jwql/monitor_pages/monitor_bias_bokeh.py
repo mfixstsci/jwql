@@ -24,7 +24,7 @@ from datetime import datetime
 import os
 
 from bokeh.embed import components, file_html
-from bokeh.layouts import layout
+from bokeh.layouts import gridplot, layout
 from bokeh.models import ColumnDataSource, DatetimeTickFormatter, HoverTool
 from bokeh.models.layouts import Tabs, TabPanel
 from bokeh.plotting import figure, output_file, save
@@ -84,6 +84,45 @@ class BiasMonitorData():
         """Determine which database tables to use for the given instrument"""
         mixed_case_name = JWST_INSTRUMENT_NAMES_MIXEDCASE[self.instrument.lower()]
         self.stats_table = eval('{}BiasStats'.format(mixed_case_name))
+
+    def retrieve_cross_aperture_trending_data(self, apertures, amp=1, evenodd='even'):
+        """Query the database table to get all of the data needed to create
+        plots of the mean bias over time for multiple apertures
+
+        Parameters
+        ----------
+        apertures : list
+            List of strings giving the names of apertures e.g. ['NRCA1_FULL', 'NRCA2_FULL']
+
+        amp : int
+            Amplifier number from which to collect data
+
+        evenodd : str
+            Get the mean bias level from the even or odd columns of amplifier ``amp``
+        """
+        evenodd = evenodd.lower()
+        if evenodd not in ['even', 'odd']:
+            raise ValueError(f'evenodd got a value of {evenodd}. Valid values are "even" or "odd".')
+
+        if amp > 4:
+            raise ValueError(f'amp must be an integer from 1 to 4. Got {amp}')
+
+        columns = ['aperture', f'amp{amp}_{evenodd}_med', 'expstart', 'uncal_filename']
+        tmp_trending_data = self.stats_table.objects.filter(aperture__in=apertures).order_by('expstart').all().values(*columns)
+
+        # Convert the query results to a pandas dataframe
+        if len(tmp_trending_data) != 0:
+            self.cross_aperture_data = pd.DataFrame.from_records(tmp_trending_data)
+            uncal_basename = [os.path.basename(e) for e in self.cross_aperture_data['uncal_filename']]
+            self.cross_aperture_data['uncal_filename'] = uncal_basename
+
+            # Add a column of expstart values that are datetime objects
+            format_data = "%Y-%m-%dT%H:%M:%S.%f"
+            datetimes = [datetime.strptime(entry, format_data) for entry in self.cross_aperture_data['expstart']]
+            self.cross_aperture_data['expstart_str'] = self.cross_aperture_data['expstart']
+            self.cross_aperture_data['expstart'] = datetimes
+        else:
+            self.cross_aperture_data = pd.DataFrame(None, columns=columns + ['uncal_filename', 'expstart_str'])
 
     def retrieve_trending_data(self, aperture):
         """Query the database table to get all of the data needed to create
@@ -214,6 +253,13 @@ class BiasMonitorPlots():
         # keep the plot layout consistent
         self.ensure_all_full_frame_apertures()
 
+        # For instruments with more than one aperture/detector, create a cross-aperture
+        # trending plot, so that we can see data from all apertures on a single page
+        if len(self.available_apertures) > 1:
+            self.db.retrieve_cross_aperture_trending_data(self.available_apertures, amp=1, evenodd='even')
+            self.summary_aperture = f'Summary: amp {amp}, {evenodd}'
+            self.trending_plots[self.summary_aperture] = TrendingPlot(self.db.cross_aperture_data, multi_aperture_plot=True).plots
+
         for aperture in self.available_apertures:
             self.aperture = aperture
 
@@ -246,6 +292,14 @@ class BiasMonitorPlots():
         """Organize the plots into a separate tab for each aperture
         """
         tabs = []
+
+        trending_summary_key = [key for key in self.trending_plots if 'Summary' in key][0]
+        if len(trending_summary_key) > 0:
+            summary_layout = layout([[self.trending_plots[trending_summary_key]]])
+            summary_layout.sizing_mode = 'scale_width'
+            summary_tab = TabPanel(child=summary_layout, title=trending_summary_key)
+            tabs.append(summary_tab)
+
         for aperture in FULL_FRAME_APERTURES[self.instrument.upper()]:
 
             bias_layout = layout([[self.trending_plots[aperture][1], self.trending_plots[aperture][2]],
@@ -492,6 +546,11 @@ class TrendingPlot():
     data : pandas.DataFrame
         Data to be plotted
 
+    multi_aperture_plot : bool
+        If False, assume the data are all from one aperture, and create a plot of the
+        even and odd column bias signals for each amp. If True, create a multi-plot figure
+        showing the bias signal for each aperture in one of the subplots
+
     Attributes
     ----------
     data : pandas.DataFrame
@@ -501,9 +560,14 @@ class TrendingPlot():
         Dictionary containing plots. Keys are amplifier numbers (1 - 4), and values are
         Bokeh figures containing the plots.
     """
-    def __init__(self, data):
+    def __init__(self, data, multi_aperture_plot=False):
         self.data = data
-        self.create_plots()
+        self.plots = {}
+
+        if not multi_aperture_plot:
+            self.create_plots()
+        else:
+            self.create_multi_aperture_plot()
 
     def create_amp_plot(self, amp_num, amp_data):
         """Create a trending plot for a single amplifier
@@ -569,10 +633,84 @@ class TrendingPlot():
 
         return plot
 
+    def create_multi_aperture_plot(self):
+        """Create multiplot figure with one subplot per aperture
+        """
+        shared_x_range = None
+
+        apertures = self.data["aperture"].unique()
+        num_apertures = len(apertures)
+        n_cols = 2
+        n_rows = int(np.ceil(num_apertures / n_cols))
+        grid_plots = [[None] * n_cols for _ in range(n_rows)]
+        for i, aperture in enumerate(apertures):
+            row = idx // n_cols
+            col = idx % n_cols
+            ap_data = self.data[self.data['aperture'] == aperture]
+            ampcol = [col for col in ap_data.columns if 'amp' in col][0]
+            amp = ampcol[3]
+            evenodd = ampcol.split('_')[1]
+            x, y = ap_data['expstart'], ap_data[ampcol]
+
+            fig_kwargs = dict(
+                height=180,
+                width=800,
+                x_axis_type="datetime",
+                tools="xpan,xwheel_zoom,box_zoom,reset,save",
+                toolbar_location="above" if i == 0 else None,
+            )
+            if shared_x_range is not None:
+                fig_kwargs["x_range"] = shared_x_range
+
+            p = figure(**fig_kwargs)
+
+            if shared_x_range is None:
+                shared_x_range = p.x_range  # capture the range from the first plot
+
+            p.line(x, y, line_width=1.5)
+            p.scatter(x, y, size=3)
+
+            # y-axis label per subplot
+            p.yaxis.axis_label = aperture
+
+            # Remove vertical space between stacked plots
+            p.min_border_bottom = 0
+            p.min_border_top = 0
+
+            is_bottom = (row == n_rows - 1)
+
+            # x-axis formatting (only meaningful visually on the bottom plot,
+            # but harmless to set on all of them)
+            p.xaxis.formatter = DatetimeTickFormatter(
+                microseconds="%d %b %H:%M:%S.%3N",
+                seconds="%d %b %H:%M:%S.%3N",
+                hours="%d %b %H:%M",
+                days="%d %b %H:%M",
+                months="%d %b %Y %H:%M",
+                years="%d %b %Y",
+            )
+            p.xaxis.major_label_orientation = np.pi / 4
+
+            if not is_bottom:
+                # Keep the axis line and tick marks, but hide the tick labels
+                p.xaxis.major_label_text_font_size = "0pt"
+                p.xaxis.major_label_text_alpha = 0  # extra safety belt
+                p.xaxis.axis_label = None
+            else:
+                # bottom plot: give a bit more room for the rotated labels
+                p.min_border_bottom = 80
+
+            # keep gridlines subtle / optional - comment out if undesired
+            # p.xgrid.grid_line_color = None
+
+            grid_plots[row][col] = p
+
+        self.plots[f'summary_amp{amp}_{evenodd}'] = gridplot(grid_plots, toolbar_location="above", merge_tools=True)
+
+
     def create_plots(self):
         """Create the 4 plots
         """
-        self.plots = {}
         # Either all amps will have data, or all amps will be empty. No need to
         # worry about some amps having data but others not.
         # Create one plot per amplifier

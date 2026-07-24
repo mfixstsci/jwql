@@ -646,8 +646,8 @@ class TrendingPlot():
 
         # Set the default plot scaling based on science observation data
         # i.e. skip commissionning when values were crazy
-        window_start = dt.datetime(2023, 4, 1)
-        window_end = dt.datetime.now()
+        window_start = datetime(2023, 4, 1)
+        window_end = datetime.now()
 
         for idx, aperture in enumerate(apertures):
             row = idx // n_cols
@@ -658,7 +658,7 @@ class TrendingPlot():
             evenodd = ampcol.split('_')[1]
             x, y = ap_data['expstart'], ap_data[ampcol]
 
-            x_arr = np.array(x)   # your dates for this dataset
+            x_arr = pd.to_datetime(x)   # your dates for this dataset
             y_arr = np.array(y)   # your bias levels for this dataset
 
             mask = (x_arr >= window_start) & (x_arr <= window_end)
@@ -669,7 +669,7 @@ class TrendingPlot():
                 width=800,
                 x_axis_type="datetime",
                 tools="xpan,xwheel_zoom,box_zoom,reset,save",
-                toolbar_location="above" if i == 0 else None,
+                toolbar_location="above" if idx == 0 else None,
             )
             if shared_x_range is not None:
                 fig_kwargs["x_range"] = shared_x_range
@@ -685,8 +685,7 @@ class TrendingPlot():
             if shared_x_range is None:
                 shared_x_range = p.x_range  # capture the range from the first plot
 
-            p.line(x, y, line_width=1.5)
-            p.scatter(x, y, size=3)
+            p.scatter(x, y, fill_color="#C85108", line_color="#C85108", alpha=0.75)
 
             # y-axis label per subplot
             p.yaxis.axis_label = aperture

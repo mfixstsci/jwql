@@ -25,7 +25,7 @@ import os
 
 from bokeh.embed import components, file_html
 from bokeh.layouts import gridplot, layout
-from bokeh.models import ColumnDataSource, DatetimeTickFormatter, HoverTool
+from bokeh.models import ColumnDataSource, DatetimeTickFormatter, HoverTool, Range1d
 from bokeh.models.layouts import Tabs, TabPanel
 from bokeh.plotting import figure, output_file, save
 from bokeh.resources import CDN
@@ -638,12 +638,18 @@ class TrendingPlot():
         """
         shared_x_range = None
 
-        apertures = self.data["aperture"].unique()
+        apertures = sorted(self.data["aperture"].unique())
         num_apertures = len(apertures)
         n_cols = 2
         n_rows = int(np.ceil(num_apertures / n_cols))
         grid_plots = [[None] * n_cols for _ in range(n_rows)]
-        for i, aperture in enumerate(apertures):
+
+        # Set the default plot scaling based on science observation data
+        # i.e. skip commissionning when values were crazy
+        window_start = dt.datetime(2023, 4, 1)
+        window_end = dt.datetime.now()
+
+        for idx, aperture in enumerate(apertures):
             row = idx // n_cols
             col = idx % n_cols
             ap_data = self.data[self.data['aperture'] == aperture]
@@ -651,6 +657,12 @@ class TrendingPlot():
             amp = ampcol[3]
             evenodd = ampcol.split('_')[1]
             x, y = ap_data['expstart'], ap_data[ampcol]
+
+            x_arr = np.array(x)   # your dates for this dataset
+            y_arr = np.array(y)   # your bias levels for this dataset
+
+            mask = (x_arr >= window_start) & (x_arr <= window_end)
+            x_sub, y_sub = x_arr[mask], y_arr[mask]
 
             fig_kwargs = dict(
                 height=180,
@@ -661,6 +673,12 @@ class TrendingPlot():
             )
             if shared_x_range is not None:
                 fig_kwargs["x_range"] = shared_x_range
+            else:
+                fig_kwargs["x_range"] = Range1d(window_start, window_end)
+
+            y_min, y_max = y_sub.min(), y_sub.max()
+            pad = (y_max - y_min) * 0.05 or 1.0   # 5% padding; falls back to 1.0 if flat
+            fig_kwargs["y_range"] = Range1d(y_min - pad, y_max + pad)
 
             p = figure(**fig_kwargs)
 

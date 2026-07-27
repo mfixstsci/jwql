@@ -180,11 +180,16 @@ class Bias():
         # headers from the input file, as well as the 0th group
         # data of the first integration
         hdu = fits.open(filename)
-        new_hdu = fits.HDUList([hdu['PRIMARY'], hdu['SCI']])
-        new_hdu['SCI'].data = hdu['SCI'].data[0:1, 0:1, :, :]
-        new_hdu.writeto(output_filename, overwrite=True)
+
+        hdu['SCI'].data = hdu['SCI'].data[0:1, 0:1, :, :]
+
+        try:
+            hdu['ZEROFRAME'].data = hdu['ZEROFRAME'].data[0:1, :, :]
+        except KeyError:
+            pass
+
+        hdu.writeto(output_filename, overwrite=True)
         hdu.close()
-        new_hdu.close()
         set_permissions(output_filename)
         logging.info('\t{} created'.format(output_filename))
 
@@ -371,7 +376,23 @@ class Bias():
             files.
         """
         logging.info("Creating calibration tasks")
-        outputs = run_parallel_pipeline(file_list, "uncal_0thgroup", "refpix", self.instrument)
+
+        # Run only required pipeline steps
+        steps = {'dq_init': {'skip': False},
+                 'refpix': {'skip': False},
+                 'ipc': {'skip': True},
+                 'saturation': {'skip': True},
+                 'reset': {'skip': True},
+                 'clean_flicker_noise': {'skip': True},
+                 'linearity': {'skip': True},
+                 'charge_migration': {'skip': True},
+                 'dark_current': {'skip': True},
+                 'jump': {'skip': True},
+                 'ramp_fit': {'skip': True},
+                 'persistence': {'skip': True}
+                 }
+
+        outputs = run_parallel_pipeline(file_list, "uncal_0thgroup", "refpix", self.instrument, step_args=steps)
 
         for filename in file_list:
             logging.info('\tWorking on file: {}'.format(filename))

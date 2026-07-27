@@ -377,9 +377,8 @@ class Bias():
         logging.info("Creating calibration tasks")
 
         # Run only required pipeline steps
-        steps = {'dq_init': {'skip': False},
-                 'refpix': {'skip': False,
-                            'save_results': True},
+        steps = {'dq_init': {},
+                 'refpix': {'save_results': True},
                  'ipc': {'skip': True},
                  'group_scale': {},
                  'saturation': {'skip': True},
@@ -393,10 +392,6 @@ class Bias():
                  'ramp_fit': {'skip': True},
                  'persistence': {'skip': True}
                  }
-        #if self.read_pattern not in pipeline_tools.GROUPSCALE_READOUT_PATTERNS:
-        #    steps['group_scale']['skip'] = True
-        #else:
-        #    steps['group_scale']['skip'] = False
 
         outputs = run_parallel_pipeline(file_list, "uncal_0thgroup", "refpix", self.instrument, step_args=steps)
 
@@ -498,7 +493,7 @@ class Bias():
             self.identify_tables()
 
             # Get a list of all possible full-frame apertures for this instrument
-            possible_apertyres = FULL_FRAME_APERTURES[instrument.upper()]
+            possible_apertures = FULL_FRAME_APERTURES[instrument.upper()]
 
             for aperture in possible_apertures:
 

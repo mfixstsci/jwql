@@ -45,12 +45,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402 (module import not at top)
 from mpl_toolkits.axes_grid1 import make_axes_locatable  # noqa: E402 (module import not at top)
 import numpy as np  # noqa: E402 (module import not at top)
-from pysiaf import Siaf  # noqa: E402 (module import not at top)
 
 from jwql.instrument_monitors import pipeline_tools  # noqa: E402 (module import not at top)
 from jwql.shared_tasks.shared_tasks import only_one, run_parallel_pipeline  # noqa: E402 (module import not at top)
 from jwql.utils import instrument_properties, monitor_utils  # noqa: E402 (module import not at top)
-from jwql.utils.constants import JWST_INSTRUMENT_NAMES_MIXEDCASE, ON_GITHUB_ACTIONS, ON_READTHEDOCS  # noqa: E402 (module import not at top)
+from jwql.utils.constants import FULL_FRAME_APERTURES, JWST_INSTRUMENT_NAMES_MIXEDCASE, ON_GITHUB_ACTIONS, ON_READTHEDOCS  # noqa: E402 (module import not at top)
 from jwql.utils.logging_functions import log_info, log_fail  # noqa: E402 (module import not at top)
 from jwql.utils.permissions import set_permissions  # noqa: E402 (module import not at top)
 from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config  # noqa: E402 (module import not at top)
@@ -379,9 +378,12 @@ class Bias():
 
         # Run only required pipeline steps
         steps = {'dq_init': {'skip': False},
-                 'refpix': {'skip': False},
+                 'refpix': {'skip': False,
+                            'save_results': True},
                  'ipc': {'skip': True},
+                 'group_scale': {},
                  'saturation': {'skip': True},
+                 'superbias': {'skip': True},
                  'reset': {'skip': True},
                  'clean_flicker_noise': {'skip': True},
                  'linearity': {'skip': True},
@@ -391,6 +393,10 @@ class Bias():
                  'ramp_fit': {'skip': True},
                  'persistence': {'skip': True}
                  }
+        #if self.read_pattern not in pipeline_tools.GROUPSCALE_READOUT_PATTERNS:
+        #    steps['group_scale']['skip'] = True
+        #else:
+        #    steps['group_scale']['skip'] = False
 
         outputs = run_parallel_pipeline(file_list, "uncal_0thgroup", "refpix", self.instrument, step_args=steps)
 
@@ -492,8 +498,7 @@ class Bias():
             self.identify_tables()
 
             # Get a list of all possible full-frame apertures for this instrument
-            siaf = Siaf(self.instrument)
-            possible_apertures = [aperture for aperture in siaf.apertures if siaf[aperture].AperType == 'FULLSCA']
+            possible_apertyres = FULL_FRAME_APERTURES[instrument.upper()]
 
             for aperture in possible_apertures:
 

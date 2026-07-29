@@ -235,12 +235,14 @@ class BiasMonitorPlots():
         Keys are aperture names, and values are corresponding Bokeh images
         of the zeroth frames from dark exposures
     """
-    def __init__(self, instrument):
+    def __init__(self, instrument, summary_amp=1, summary_evenodd='even'):
         self.instrument = instrument
         self.trending_plots = {}
         self.zerothgroup_plots = {}
         self.rowcol_plots = {}
         self.histograms = {}
+        self.summary_amp = summary_amp
+        self.summary_evenodd = summary_evenodd
 
         # Get the data from the database
         self.db = BiasMonitorData(self.instrument)
@@ -256,9 +258,11 @@ class BiasMonitorPlots():
         # For instruments with more than one aperture/detector, create a cross-aperture
         # trending plot, so that we can see data from all apertures on a single page
         if len(self.available_apertures) > 1:
-            self.db.retrieve_cross_aperture_trending_data(self.available_apertures, amp=1, evenodd='even')
-            self.summary_aperture = f'Summary: amp {amp}, {evenodd}'
+            self.db.retrieve_cross_aperture_trending_data(self.available_apertures, amp=self.summary_amp, evenodd=self.summary_evenodd)
+            self.summary_aperture = f'Summary: amp {self.summary_amp}, {self.summary_evenodd}'
             self.trending_plots[self.summary_aperture] = TrendingPlot(self.db.cross_aperture_data, multi_aperture_plot=True).plots
+        else:
+            self.summary_aperture = 'N/A'
 
         for aperture in self.available_apertures:
             self.aperture = aperture
@@ -293,11 +297,11 @@ class BiasMonitorPlots():
         """
         tabs = []
 
-        trending_summary_key = [key for key in self.trending_plots if 'Summary' in key][0]
-        if len(trending_summary_key) > 0:
-            summary_layout = layout([[self.trending_plots[trending_summary_key]]])
+        #trending_summary_key = [key for key in self.trending_plots if 'Summary' in key][0]
+        if self.summary_aperture in self.trending_plots:
+            summary_layout = layout([self.trending_plots[self.summary_aperture]])
             summary_layout.sizing_mode = 'scale_width'
-            summary_tab = TabPanel(child=summary_layout, title=trending_summary_key)
+            summary_tab = TabPanel(child=summary_layout, title=self.summary_aperture)
             tabs.append(summary_tab)
 
         for aperture in FULL_FRAME_APERTURES[self.instrument.upper()]:
@@ -560,9 +564,14 @@ class TrendingPlot():
         Dictionary containing plots. Keys are amplifier numbers (1 - 4), and values are
         Bokeh figures containing the plots.
     """
-    def __init__(self, data, multi_aperture_plot=False):
+    def __init__(self, data, multi_aperture_plot=False, window_start='2023-04-01'):
         self.data = data
         self.plots = {}
+
+        # Set the default plot scaling based on science observation data
+        # i.e. skip commissionning when values were crazy
+        self.window_start = datetime.fromisoformat(window_start)
+        self.window_end = datetime.now()
 
         if not multi_aperture_plot:
             self.create_plots()
@@ -590,11 +599,38 @@ class TrendingPlot():
         y_label = 'Bias Level (DN)'
 
         if len(amp_data["expstart"]) > 0:
-            plot = figure(title=title_str, tools='pan,box_zoom,reset,wheel_zoom,save',
-                          background_fill_color="#fafafa")
-            source = ColumnDataSource(amp_data)
             even_col = f'amp{amp_num}_even_med'
             odd_col = f'amp{amp_num}_odd_med'
+
+            # Determine initial y range
+            y_e, y_o = amp_data[even_col], amp_data[odd_col]
+
+            x_arr = pd.to_datetime(amp_data['expstart'])
+            y_e_arr = np.array(y_e)
+            y_o_arr = np.array(y_o)
+
+            mask = (x_arr >= self.window_start) & (x_arr <= self.window_end)
+            y_e_sub = y_e_arr[mask]
+            y_o_sub = y_o_arr[mask]
+
+            y_e_min, y_e_max = y_e_sub.min(), y_e_sub.max()
+            y_o_min, y_o_max = y_o_sub.min(), y_o_sub.max()
+            if y_e_min < y_o_min:
+                ymin = y_e_min
+            else:
+                ymin = y_o_min
+            if y_e_max > y_o_max:
+                ymax = y_e_max
+            else:
+                ymax = y_o_max
+
+            pad = (ymax - ymin) * 0.05 or 1.0   # 5% padding; falls back to 1.0 if flat
+            yrange = Range1d(ymin - pad, ymax + pad)
+
+            plot = figure(title=title_str, tools='pan,box_zoom,reset,wheel_zoom,save',
+                          background_fill_color="#fafafa", x_range=Range1d(self.window_start, self.window_end),
+                          y_range=yrange)
+            source = ColumnDataSource(amp_data)
 
             plot.scatter(x='expstart', y=even_col, fill_color="#C85108", line_color="#C85108",
                          alpha=0.75, source=source, legend_label='Even cols')
@@ -644,11 +680,6 @@ class TrendingPlot():
         n_rows = int(np.ceil(num_apertures / n_cols))
         grid_plots = [[None] * n_cols for _ in range(n_rows)]
 
-        # Set the default plot scaling based on science observation data
-        # i.e. skip commissionning when values were crazy
-        window_start = datetime(2023, 4, 1)
-        window_end = datetime.now()
-
         for idx, aperture in enumerate(apertures):
             row = idx // n_cols
             col = idx % n_cols
@@ -661,12 +692,12 @@ class TrendingPlot():
             x_arr = pd.to_datetime(x)   # your dates for this dataset
             y_arr = np.array(y)   # your bias levels for this dataset
 
-            mask = (x_arr >= window_start) & (x_arr <= window_end)
+            mask = (x_arr >= self.window_start) & (x_arr <= self.window_end)
             x_sub, y_sub = x_arr[mask], y_arr[mask]
 
             fig_kwargs = dict(
-                height=180,
-                width=800,
+                frame_height=120,
+                frame_width=600,
                 x_axis_type="datetime",
                 tools="xpan,xwheel_zoom,box_zoom,reset,save",
                 toolbar_location="above" if idx == 0 else None,
@@ -674,7 +705,7 @@ class TrendingPlot():
             if shared_x_range is not None:
                 fig_kwargs["x_range"] = shared_x_range
             else:
-                fig_kwargs["x_range"] = Range1d(window_start, window_end)
+                fig_kwargs["x_range"] = Range1d(self.window_start, self.window_end)
 
             y_min, y_max = y_sub.min(), y_sub.max()
             pad = (y_max - y_min) * 0.05 or 1.0   # 5% padding; falls back to 1.0 if flat
@@ -688,7 +719,7 @@ class TrendingPlot():
             p.scatter(x, y, fill_color="#C85108", line_color="#C85108", alpha=0.75)
 
             # y-axis label per subplot
-            p.yaxis.axis_label = aperture
+            p.yaxis.axis_label = f'{aperture} (DN)'
 
             # Remove vertical space between stacked plots
             p.min_border_bottom = 0
@@ -722,7 +753,8 @@ class TrendingPlot():
 
             grid_plots[row][col] = p
 
-        self.plots[f'summary_amp{amp}_{evenodd}'] = gridplot(grid_plots, toolbar_location="above", merge_tools=True)
+        #self.plots[f'summary_amp{amp}_{evenodd}'] = gridplot(grid_plots, toolbar_location="above", merge_tools=True)
+        self.plots = gridplot(grid_plots, toolbar_location="above", merge_tools=True)
 
 
     def create_plots(self):

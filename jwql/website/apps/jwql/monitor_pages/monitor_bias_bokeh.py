@@ -297,7 +297,6 @@ class BiasMonitorPlots():
         """
         tabs = []
 
-        #trending_summary_key = [key for key in self.trending_plots if 'Summary' in key][0]
         if self.summary_aperture in self.trending_plots:
             summary_layout = layout([self.trending_plots[self.summary_aperture]])
             summary_layout.sizing_mode = 'scale_width'

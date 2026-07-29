@@ -45,12 +45,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt  # noqa: E402 (module import not at top)
 from mpl_toolkits.axes_grid1 import make_axes_locatable  # noqa: E402 (module import not at top)
 import numpy as np  # noqa: E402 (module import not at top)
-from pysiaf import Siaf  # noqa: E402 (module import not at top)
 
 from jwql.instrument_monitors import pipeline_tools  # noqa: E402 (module import not at top)
 from jwql.shared_tasks.shared_tasks import only_one, run_parallel_pipeline  # noqa: E402 (module import not at top)
 from jwql.utils import instrument_properties, monitor_utils  # noqa: E402 (module import not at top)
-from jwql.utils.constants import JWST_INSTRUMENT_NAMES_MIXEDCASE, ON_GITHUB_ACTIONS, ON_READTHEDOCS  # noqa: E402 (module import not at top)
+from jwql.utils.constants import FULL_FRAME_APERTURES, JWST_INSTRUMENT_NAMES_MIXEDCASE, ON_GITHUB_ACTIONS, ON_READTHEDOCS  # noqa: E402 (module import not at top)
 from jwql.utils.logging_functions import log_info, log_fail  # noqa: E402 (module import not at top)
 from jwql.utils.permissions import set_permissions  # noqa: E402 (module import not at top)
 from jwql.utils.utils import ensure_dir_exists, filesystem_path, get_config  # noqa: E402 (module import not at top)
@@ -180,11 +179,16 @@ class Bias():
         # headers from the input file, as well as the 0th group
         # data of the first integration
         hdu = fits.open(filename)
-        new_hdu = fits.HDUList([hdu['PRIMARY'], hdu['SCI']])
-        new_hdu['SCI'].data = hdu['SCI'].data[0:1, 0:1, :, :]
-        new_hdu.writeto(output_filename, overwrite=True)
+
+        hdu['SCI'].data = hdu['SCI'].data[0:1, 0:1, :, :]
+
+        try:
+            hdu['ZEROFRAME'].data = hdu['ZEROFRAME'].data[0:1, :, :]
+        except KeyError:
+            pass
+
+        hdu.writeto(output_filename, overwrite=True)
         hdu.close()
-        new_hdu.close()
         set_permissions(output_filename)
         logging.info('\t{} created'.format(output_filename))
 
@@ -371,7 +375,25 @@ class Bias():
             files.
         """
         logging.info("Creating calibration tasks")
-        outputs = run_parallel_pipeline(file_list, "uncal_0thgroup", "refpix", self.instrument)
+
+        # Run only required pipeline steps
+        steps = {'dq_init': {},
+                 'refpix': {'save_results': True},
+                 'ipc': {'skip': True},
+                 'group_scale': {},
+                 'saturation': {'skip': True},
+                 'superbias': {'skip': True},
+                 'reset': {'skip': True},
+                 'clean_flicker_noise': {'skip': True},
+                 'linearity': {'skip': True},
+                 'charge_migration': {'skip': True},
+                 'dark_current': {'skip': True},
+                 'jump': {'skip': True},
+                 'ramp_fit': {'skip': True},
+                 'persistence': {'skip': True}
+                 }
+
+        outputs = run_parallel_pipeline(file_list, "uncal_0thgroup", "refpix", self.instrument, step_args=steps)
 
         for filename in file_list:
             logging.info('\tWorking on file: {}'.format(filename))
@@ -471,8 +493,7 @@ class Bias():
             self.identify_tables()
 
             # Get a list of all possible full-frame apertures for this instrument
-            siaf = Siaf(self.instrument)
-            possible_apertures = [aperture for aperture in siaf.apertures if siaf[aperture].AperType == 'FULLSCA']
+            possible_apertures = FULL_FRAME_APERTURES[instrument.upper()]
 
             for aperture in possible_apertures:
 

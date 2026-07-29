@@ -74,7 +74,8 @@ def test_get_pipeline_steps():
     for instrument in instruments:
         req_steps = pipeline_tools.get_pipeline_steps(instrument)
         steps = ['dq_init', 'saturation', 'superbias', 'refpix', 'linearity',
-                 'persistence', 'dark_current', 'jump', 'rate']
+                 'persistence', 'dark_current', 'charge_migration', 'jump', 'picture_frame',
+                 'clean_flicker_noise', 'rate', 'gain_scale']
         not_required = ['group_scale', 'ipc', 'firstframe', 'lastframe', 'rscd']
         steps_dict = OrderedDict({})
         for step in steps:
@@ -90,7 +91,8 @@ def test_get_pipeline_steps():
     # NIRSpec
     nrs_req_steps = pipeline_tools.get_pipeline_steps('nirspec')
     nrs_steps = ['group_scale', 'dq_init', 'saturation', 'superbias', 'refpix', 'linearity',
-                 'dark_current', 'jump', 'rate']
+                 'dark_current', 'charge_migration', 'jump', 'picture_frame', 'clean_flicker_noise',
+                 'rate', 'gain_scale']
     not_required = ['ipc', 'persistence', 'firstframe', 'lastframe', 'rscd']
     nrs_dict = OrderedDict({})
     for step in nrs_steps:
@@ -104,9 +106,9 @@ def test_get_pipeline_steps():
 
     # MIRI
     miri_req_steps = pipeline_tools.get_pipeline_steps('miri')
-    miri_steps = ['group_scale', 'dq_init', 'saturation', 'firstframe', 'lastframe',
-                  'reset', 'linearity', 'rscd', 'dark_current', 'refpix', 'jump', 'rate',
-                  'gain_scale']
+    miri_steps = ['group_scale', 'dq_init', 'emicorr', 'saturation', 'firstframe', 'lastframe',
+                  'reset', 'linearity', 'rscd', 'dark_current', 'refpix', 'jump', 'clean_flicker_noise',
+                  'rate', 'gain_scale']
     not_required = ['ipc', 'superbias', 'persistence']
     miri_dict = OrderedDict({})
     for step in miri_steps:

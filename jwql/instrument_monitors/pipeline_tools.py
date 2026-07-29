@@ -168,11 +168,11 @@ def get_pipeline_steps(instrument):
 
     # Order is important in 'steps' lists below!!
     if instrument == 'MIRI':
-        steps = ['group_scale', 'dq_init', 'saturation', 'ipc', 'firstframe', 'lastframe', 'reset',
-                 'linearity', 'rscd', 'dark_current', 'refpix', 'jump', 'rate', 'gain_scale']
+        steps = ['group_scale', 'dq_init', 'emicorr', 'saturation', 'ipc', 'firstframe', 'lastframe', 'reset',
+                 'linearity', 'rscd', 'dark_current', 'refpix', 'jump', 'clean_flicker_noise', 'rate', 'gain_scale']
     else:
         steps = ['group_scale', 'dq_init', 'saturation', 'ipc', 'superbias', 'refpix', 'linearity',
-                 'persistence', 'dark_current', 'jump', 'rate']
+                 'persistence', 'dark_current', 'charge_migration', 'jump', 'picture_frame', 'clean_flicker_noise', 'rate', 'gain_scale']
 
         # No persistence correction for NIRSpec
         if instrument == 'NIRSPEC':

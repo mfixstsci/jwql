@@ -306,7 +306,12 @@ class PreviewImage():
                 if ext in extnames:
                     dimensions = len(hdulist[ext].data.shape)
                     if dimensions == 4:
-                        data = hdulist[ext].data[:, [0, -1], :, :].astype(float)
+                        if hdulist[ext].data.shape[1] > 1:
+                            data = hdulist[ext].data[:, [0, -1], :, :].astype(float)
+                        else:
+                            # For ramps with a single group, remove that dimension so
+                            # that we do not create a difference image
+                            data = hdulist[ext].data[:, 0, :, :].astype(float)
                     else:
                         data = hdulist[ext].data.astype(float)
                     yd, xd = data.shape[-2:]

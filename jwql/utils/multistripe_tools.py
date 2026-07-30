@@ -105,12 +105,12 @@ def save_new_soss_uncal_file(input_file, outdir='data/'):
 
         Parameters
         ----------
-        hdulist : astropy.fits.io.HDUList
+        hdulist : astropy.io.fits.HDUList
             hdulist from a JWST fits file
 
         Returns
         -------
-        ???
+        hdulist : astropy.io.fits.HDUList
             If hdulist is from a SOSS multistripe exposure, return hdulist of a
             rearranged file that will produce better preview images
         """

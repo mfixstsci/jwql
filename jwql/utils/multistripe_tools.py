@@ -100,41 +100,41 @@ def save_new_soss_uncal_file(input_file, outdir='data/'):
     return str(output_file)
 
 
-    def soss_uncal_multistripe_check(hdulist):
-        """Check if the given hdulist is from an uncal file of a SOSS multistripe exposure
+def soss_uncal_multistripe_check(hdulist):
+    """Check if the given hdulist is from an uncal file of a SOSS multistripe exposure
 
-        Parameters
-        ----------
-        hdulist : astropy.io.fits.HDUList
-            hdulist from a JWST fits file
+    Parameters
+    ----------
+    hdulist : astropy.io.fits.HDUList
+        hdulist from a JWST fits file
 
-        Returns
-        -------
-        hdulist : astropy.io.fits.HDUList
-            If hdulist is from a SOSS multistripe exposure, return hdulist of a
-            rearranged file that will produce better preview images
-        """
-        # We only need to rearragne uncal files
-        if (('uncal' in hdulist[0].header['FILENAME']) & ('STRIPE_SOSS' in hdulist[0].header['SUBARRAY'])):
+    Returns
+    -------
+    hdulist : astropy.io.fits.HDUList
+        If hdulist is from a SOSS multistripe exposure, return hdulist of a
+        rearranged file that will produce better preview images
+    """
+    # We only need to rearragne uncal files
+    if (('uncal' in hdulist[0].header['FILENAME']) & ('STRIPE_SOSS' in hdulist[0].header['SUBARRAY'])):
 
-            # Reconstruct SUBSTRIP256
-            new_data = reconstruct(hdulist["SCI"].data, hdulist[0].header)
-            hdulist["SCI"].data = new_data
+        # Reconstruct SUBSTRIP256
+        new_data = reconstruct(hdulist["SCI"].data, hdulist[0].header)
+        hdulist["SCI"].data = new_data
 
-            # Exposure information
-            hdulist[0].header["EXP_TYPE"] = "NIS_SOSS"
+        # Exposure information
+        hdulist[0].header["EXP_TYPE"] = "NIS_SOSS"
 
-            # Integration count
-            hdulist[0].header["NINTS"] = new_data.shape[0]
+        # Integration count
+        hdulist[0].header["NINTS"] = new_data.shape[0]
 
-            # Subarray information
-            hdulist[0].header["SUBARRAY"] = "SUBSTRIP256"
-            hdulist[0].header["SUBSIZE1"] = 2048
-            hdulist[0].header["SUBSIZE2"] = new_data.shape[2]
+        # Subarray information
+        hdulist[0].header["SUBARRAY"] = "SUBSTRIP256"
+        hdulist[0].header["SUBSIZE1"] = 2048
+        hdulist[0].header["SUBSIZE2"] = new_data.shape[2]
 
-            # SCI extension dimensions
-            hdulist["SCI"].header["NAXIS1"] = 2048
-            hdulist["SCI"].header["NAXIS2"] = new_data.shape[2]
+        # SCI extension dimensions
+        hdulist["SCI"].header["NAXIS1"] = 2048
+        hdulist["SCI"].header["NAXIS2"] = new_data.shape[2]
 
-        return hdulist
+    return hdulist
 

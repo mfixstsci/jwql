@@ -688,6 +688,10 @@ class TrendingPlot():
         n_rows = int(np.ceil(num_apertures / n_cols))
         grid_plots = [[None] * n_cols for _ in range(n_rows)]
 
+        # Adjust the figure height based on the number of rows
+        frame_heights = {5: 120, 4: 133, 3: 166, 2: 250, 1:480}
+        frame_height = frame_heights[n_rows]
+
         for idx, aperture in enumerate(apertures):
             row = idx // n_cols
             col = idx % n_cols
@@ -704,7 +708,7 @@ class TrendingPlot():
             x_sub, y_sub = x_arr[mask], y_arr[mask]
 
             fig_kwargs = dict(
-                frame_height=120,
+                frame_height=frame_height,
                 frame_width=600,
                 x_axis_type="datetime",
                 tools="xpan,xwheel_zoom,box_zoom,reset,save",

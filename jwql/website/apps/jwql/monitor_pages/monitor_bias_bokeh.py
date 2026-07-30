@@ -104,7 +104,7 @@ class BiasMonitorData():
         if evenodd not in ['even', 'odd']:
             raise ValueError(f'evenodd got a value of {evenodd}. Valid values are "even" or "odd".')
 
-        if amp > 4:
+        if amp not in [1, 2, 3, 4]:
             raise ValueError(f'amp must be an integer from 1 to 4. Got {amp}')
 
         columns = ['aperture', f'amp{amp}_{evenodd}_med', 'expstart', 'uncal_filename']

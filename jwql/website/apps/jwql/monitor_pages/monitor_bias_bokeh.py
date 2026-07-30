@@ -701,8 +701,8 @@ class TrendingPlot():
             evenodd = ampcol.split('_')[1]
             x, y = ap_data['expstart'], ap_data[ampcol]
 
-            x_arr = pd.to_datetime(x)   # your dates for this dataset
-            y_arr = np.array(y)   # your bias levels for this dataset
+            x_arr = pd.to_datetime(x)
+            y_arr = np.array(y)
 
             mask = (x_arr >= self.window_start) & (x_arr <= self.window_end)
             x_sub, y_sub = x_arr[mask], y_arr[mask]

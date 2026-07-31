@@ -59,6 +59,7 @@ from jwst import datamodels
 from jwql.edb.utils import get_ta_centroids
 from jwql.utils import permissions
 from jwql.utils.constants import ON_GITHUB_ACTIONS, ON_READTHEDOCS
+from jwql.utils.multistripe_tools import soss_uncal_multistripe_check
 from jwql.utils.utils import filesystem_path, get_config
 
 # Use the 'Agg' backend to avoid invoking $DISPLAY
@@ -295,6 +296,8 @@ class PreviewImage():
         if os.path.isfile(filename):
             extnames = []
             with fits.open(filename) as hdulist:
+                if 'uncal' in filename:
+                    hdulist = soss_uncal_multistripe_check(hdulist)
                 for exten in hdulist:
                     try:
                         extnames.append(exten.header['EXTNAME'])
@@ -303,7 +306,12 @@ class PreviewImage():
                 if ext in extnames:
                     dimensions = len(hdulist[ext].data.shape)
                     if dimensions == 4:
-                        data = hdulist[ext].data[:, [0, -1], :, :].astype(float)
+                        if hdulist[ext].data.shape[1] > 1:
+                            data = hdulist[ext].data[:, [0, -1], :, :].astype(float)
+                        else:
+                            # For ramps with a single group, remove that dimension so
+                            # that we do not create a difference image
+                            data = hdulist[ext].data[:, 0, :, :].astype(float)
                     else:
                         data = hdulist[ext].data.astype(float)
                     yd, xd = data.shape[-2:]

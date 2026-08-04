@@ -1,5 +1,43 @@
 ## What's Changed
 
+2.0.0 (2026-08-04)
+====================
+
+Web Application
+~~~~~~~~~~~~~~~
+* Added Level 3 products everywhere by @bhilbert4
+
+Project and API documentation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+* Add level3 filename parser support by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1693
+* Make sure orphaned figures are closed. Remove repeated prog numbers. by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1717
+* Level 3 preview images by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1699
+* Fix bug affecting the save location for the prev images. by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1727
+* silly typo by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1728
+* use `micromamba env export` by @zacharyburnett in https://github.com/spacetelescope/jwql/pull/1733
+* make `torch` an optional dependency in `jwql[wisp]` by @zacharyburnett in https://github.com/spacetelescope/jwql/pull/1735
+* test on Python 3.12, 3.13, and 3.14 by @zacharyburnett in https://github.com/spacetelescope/jwql/pull/1734
+* Dependency Updates by @mfixstsci in https://github.com/spacetelescope/jwql/pull/1731
+* [WIP]: Close figures by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1713
+* Avoid negative colorbar widths by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1718
+* Fix nirspec fixedslit filename parsing. by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1732
+* Fix filename_parser and null read_patt_num by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1747
+* Fix silly typo in logging statement by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1748
+* Fixes column name change in STScI VO by @york-stsci in https://github.com/spacetelescope/jwql/pull/1750
+* Sort proposal_nums list as integers rather than strings by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1757
+* Show level 3 files on exposure and detector level pages by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1759
+* Make only 1 thumbnail per level3 rootname by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1760
+* Add timezone info to monitor starting and ending times by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1761
+* Add code to check and remove stale lock files by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1768
+* Turn off bad pixel search in Dark Monitor by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1766
+* Add level 3 file to Observation page by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1769
+* Add Level 3 Products to Web Application by @mfixstsci in https://github.com/spacetelescope/jwql/pull/1753
+* Fix bias monitor issues related to new jwst pipeline version by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1772
+* Fix Bias Monitor Page by @mfixstsci in https://github.com/spacetelescope/jwql/pull/1776
+* Add bias summary plot across detectors by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1771
+* Preview image update for uncal SOSS multistripe data by @bhilbert4 in https://github.com/spacetelescope/jwql/pull/1777
+
+
 1.4.0 (2025-10-22)
 ====================
 

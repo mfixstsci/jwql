@@ -1,5 +1,17 @@
 ## What's Changed
 
+2.0.2 (2026-08-05)
+====================
+
+* Updated pyproject.toml to explicitly pin asdf-coordinates-schemas above 0.5.1
+
+
+2.0.1 (2026-08-05)
+====================
+
+* Updated pyproject.toml to include minimum jwst pipeline version
+
+
 2.0.0 (2026-08-04)
 ====================
 

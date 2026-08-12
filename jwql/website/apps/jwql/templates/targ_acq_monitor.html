@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block preamble %}
+
+	<title>{{ inst }} Target Acquisition Monitor  - JWQL</title>
+
+{% endblock %}
+
+{% block content %}
+
+    <main role="main" class="container">
+
+		<h1>{{ inst }} Target Acquisition Monitor </h1>
+		<hr>
+
+		<iframe></iframe>
+
+        <div class="col-xl-3 text-left">
+            <!--Load the file search form from the view-->
+            <div class="anomaly_form">
+                <h5>Submit Anomaly</h5>
+                <form action="" method="post">
+                    <li class="anomaly_choice">TA Failure 1</li>
+                    <li class="anomaly_choice">TA Failure 2</li>
+                    <li class="anomaly_choice">TA Failure 3</li>
+                    <li class="anomaly_choice">TA Failure 4</li>
+                    <h5>Comments</h5>
+                    {{ comment_form.comment }}
+                    <button class="btn btn-primary" type="submit">Submit</button>
+                </form>
+            </div>
+        </div>
+
+	</main>
+
+{% endblock %}

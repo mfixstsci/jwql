@@ -291,7 +291,7 @@ def targ_acq_monitor(request, inst):
     template = "targ_acq_monitor.html"
     
     context = {
-        'inst': 'inst',
+        'inst': inst,
     }
 
     # Return a HTTP response with the template and dictionary of variables

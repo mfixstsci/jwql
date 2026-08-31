@@ -1,4 +1,5 @@
 from shiny.express import app_opts, input, render, session, ui
+from shiny import reactive
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -21,11 +22,11 @@ plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
 if running_standalone:
     ui.page_opts(title="Target Acquisition Monitor")
 
-url_arguments = None
+url_arguments = reactive.value("")
 @render.code
 def get_url_arguments():
-    url_arguments = session.clientdata.url_search()
-logging.info(f"URL search values are: {url_arguments}")
+    url_arguments.set(session.clientdata.url_search())
+logging.info(f"URL search values are: {url_arguments.get()}")
 
 # Uncal data
 # Two groups, 4 integrations

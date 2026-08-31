@@ -26,7 +26,7 @@ url_arguments = reactive.value("")
 @render.code
 def get_url_arguments():
     url_arguments.set(session.clientdata.url_search())
-logging.info(f"URL search values are: {url_arguments.get()}")
+    logging.info(f"URL search values are: {url_arguments.get()}")
 
 # Uncal data
 # Two groups, 4 integrations

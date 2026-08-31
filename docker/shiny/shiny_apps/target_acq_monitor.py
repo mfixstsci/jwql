@@ -21,6 +21,12 @@ plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
 if running_standalone:
     ui.page_opts(title="Target Acquisition Monitor")
 
+url_arguments = None
+@render.code
+def get_url_arguments():
+    return session.clientdata.url_search()
+logging.info(f"URL search values are: {url_arguments}")
+
 # Uncal data
 # Two groups, 4 integrations
 rng = np.random.default_rng()
@@ -33,9 +39,6 @@ missions = MastMissions(mission="jwst")
 obs_table = missions.query_criteria(instrume="MIRI", exp_type="MIR_TA*")
 
 with ui.navset_tab(id="my_tabs"):
-    url_arguments = session.clientdata.url_search()
-    logging.info(f"URL search values are: {url_arguments}")
-
     with ui.nav_menu("MIRI"):
         with ui.nav_panel("MIRI LRS Monitor"):
             if running_standalone:

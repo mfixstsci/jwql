@@ -29,13 +29,13 @@ uncal_data = rng.random((2, 4, 1024, 1032))
 # Calibrated data
 cal_data = rng.random((1024, 1032))
 
-url_arguments = session.clientdata.url_search()
-logging.info(f"URL search values are: {url_arguments}")
-
 missions = MastMissions(mission="jwst")
 obs_table = missions.query_criteria(instrume="MIRI", exp_type="MIR_TA*")
 
 with ui.navset_tab(id="my_tabs"):
+    url_arguments = session.clientdata.url_search()
+    logging.info(f"URL search values are: {url_arguments}")
+
     with ui.nav_menu("MIRI"):
         with ui.nav_panel("MIRI LRS Monitor"):
             if running_standalone:

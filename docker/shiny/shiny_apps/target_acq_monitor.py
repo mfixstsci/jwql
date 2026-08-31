@@ -1,4 +1,4 @@
-from shiny.express import app_opts, ui, render, input
+from shiny.express import app_opts, input, render, session, ui
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
@@ -18,7 +18,8 @@ logging.info(f"Running Standalone: {running_standalone}")
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
 
-ui.page_opts(title="Target Acquisition Monitor")
+if running_standalone:
+    ui.page_opts(title="Target Acquisition Monitor")
 
 # Uncal data
 # Two groups, 4 integrations
@@ -27,6 +28,9 @@ uncal_data = rng.random((2, 4, 1024, 1032))
 
 # Calibrated data
 cal_data = rng.random((1024, 1032))
+
+url_arguments = session.clientdata.url_search()
+logging.info(f"URL search values are: {url_arguments}")
 
 missions = MastMissions(mission="jwst")
 obs_table = missions.query_criteria(instrume="MIRI", exp_type="MIR_TA*")

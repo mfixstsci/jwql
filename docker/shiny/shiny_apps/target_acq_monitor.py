@@ -24,7 +24,7 @@ if running_standalone:
 url_arguments = None
 @render.code
 def get_url_arguments():
-    return session.clientdata.url_search()
+    url_arguments = session.clientdata.url_search()
 logging.info(f"URL search values are: {url_arguments}")
 
 # Uncal data

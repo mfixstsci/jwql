@@ -3,7 +3,7 @@ from shiny import reactive
 import logging
 
 logging.basicConfig(level=logging.DEBUG)
-app_opts(debug=True)
+app_opts(debug=False)
 
 import matplotlib.pyplot as plt
 
@@ -18,6 +18,8 @@ logging.info(f"Running Standalone: {running_standalone}")
 
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
+
+ui.page_opts(fillable=True)
 
 if running_standalone:
     ui.page_opts(title="Target Acquisition Monitor")

@@ -25,6 +25,9 @@ RUN pip install pandas
 
 EXPOSE 8000
 
+ENV SHINY_LOG_STDERR=1
+ENV SHINY_EMBED=1
+
 ADD ./shiny_entry_points/* .
 RUN chmod +x shiny*run.sh
 

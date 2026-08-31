@@ -287,11 +287,13 @@ def targ_acq_monitor(request, inst):
     """
 
     inst = JWST_INSTRUMENT_NAMES_MIXEDCASE[inst.lower()]
+    host_name = CONFIG["server_name"]
 
     template = "targ_acq_monitor.html"
     
     context = {
         'inst': inst,
+        'jwql_host': host_name
     }
 
     # Return a HTTP response with the template and dictionary of variables

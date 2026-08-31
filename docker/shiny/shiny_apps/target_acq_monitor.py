@@ -1,9 +1,17 @@
-from shiny.express import ui, render, input
+from shiny.express import app_opts, ui, render, input
+import logging
+
+logging.basicConfig(level=logging.DEBUG)
+app_opts(debug=True)
+
 import matplotlib.pyplot as plt
 
 from astropy.io import fits
 from astroquery.mast import MastMissions
 import numpy as np
+import os
+
+is_headless = bool(os.environ.get("SHINY_EMBED", 0))
 
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
@@ -24,7 +32,8 @@ obs_table = missions.query_criteria(instrume="MIRI", exp_type="MIR_TA*")
 with ui.navset_tab(id="my_tabs"):
     with ui.nav_menu("MIRI"):
         with ui.nav_panel("MIRI LRS Monitor"):
-            ui.h4("MIRI LRS Quick Look")
+            if not is_headless:
+                ui.h4("MIRI LRS Quick Look")
             with ui.div():
                 ui.input_selectize(
                     "miri_lrs_fileset_select",

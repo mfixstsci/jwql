@@ -12,6 +12,7 @@ import numpy as np
 import os
 
 running_standalone = str(os.environ.get("SHINY_EMBED", 0)) != "0"
+logging.info(f"Running Standalone: {running_standalone}")
 
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title

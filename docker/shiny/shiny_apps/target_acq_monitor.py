@@ -11,7 +11,7 @@ from astroquery.mast import MastMissions
 import numpy as np
 import os
 
-running_standalone = str(os.environ.get("SHINY_EMBED", 0)) != "0"
+running_standalone = str(os.environ.get("SHINY_EMBED", 0)) == "0"
 logging.info(f"SHINY_EMBED={os.environ.get('SHINY_EMBED')}")
 logging.info(f"Running Standalone: {running_standalone}")
 

@@ -6,10 +6,6 @@ ARG python_version
 # Create Container
 FROM python:${python_version}-alpine AS base
 
-ADD shiny_apps /shiny_apps
-
-WORKDIR /shiny_apps
-
 # Install necessary base software
 RUN apk update
 RUN echo "http://dl-8.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
@@ -27,6 +23,10 @@ EXPOSE 8000
 
 ENV SHINY_LOG_STDERR=1
 ENV SHINY_EMBED=1
+
+ADD shiny_apps /shiny_apps
+
+WORKDIR /shiny_apps
 
 ADD ./shiny_entry_points/* .
 RUN chmod +x shiny*run.sh

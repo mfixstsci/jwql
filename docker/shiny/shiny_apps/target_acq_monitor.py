@@ -282,26 +282,26 @@ def server(input, output, session):
         selected_data = uncal_data[
             input.group_slicer() - 1, input.integ_slicer() - 1, :, :
         ]
-        fig = plt.imshow(selected_data)
+        fig = plt.imshow(selected_data, aspect='auto')
         plt.xlabel("x (pixels)", fontsize=11, fontweight="bold")
         plt.ylabel("y (pixels)", fontsize=11, fontweight="bold")
-        cbar = plt.colorbar(fig, orientation="vertical", pad=0.15)
+        cbar = plt.colorbar(fig, orientation="vertical", fraction=0.046, pad=0.04)
         cbar.set_label("Counts", fontsize=11, fontweight="bold")
         return fig
     @render.plot
     def plot_lrs_cal_image():
-        fig = plt.imshow(cal_data)
+        fig = plt.imshow(cal_data, aspect='auto')
         plt.xlabel("x (pixels)", fontsize=11, fontweight="bold")
         plt.ylabel("y (pixels)", fontsize=11, fontweight="bold")
-        cbar = plt.colorbar(fig, orientation="vertical", pad=0.15)
+        cbar = plt.colorbar(fig, orientation="vertical", fraction=0.046, pad=0.04)
         cbar.set_label("Counts", fontsize=11, fontweight="bold")
         return fig
     @render.plot
     def plot_lrs_verification_image():
-        fig = plt.imshow(cal_data)
+        fig = plt.imshow(cal_data, aspect='auto')
         plt.xlabel("x (pixels)", fontsize=11, fontweight="bold")
         plt.ylabel("y (pixels)", fontsize=11, fontweight="bold")
-        cbar = plt.colorbar(fig, orientation="vertical", pad=0.15)
+        cbar = plt.colorbar(fig, orientation="vertical", fraction=0.046, pad=0.04)
         cbar.set_label("Counts", fontsize=11, fontweight="bold")
         return fig
     @render.text

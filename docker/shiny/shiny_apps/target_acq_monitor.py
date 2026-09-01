@@ -224,6 +224,7 @@ miri_lrs_ui = ui.div(
                         step=1,
                     ),
                     "Group and Integration Selection",
+                    open="closed",
                 ),
             ),
             ui.output_plot("plot_lrs_uncal_image"),#, width="100%", height="400px"),
@@ -231,6 +232,27 @@ miri_lrs_ui = ui.div(
         ),
         ui.card(
             ui.card_header("TA Image (calibrated)"),
+            ui.layout_sidebar(
+                ui.sidebar(
+                    ui.input_slider(
+                        "group_slicer",
+                        "Uncal Groups:",
+                        min=1,
+                        max=n_groups,
+                        value=1,
+                        step=1,
+                    ),
+                    ui.input_slider(
+                        "integ_slicer",
+                        "Uncal Integrations:",
+                        min=1,
+                        max=n_ints,
+                        value=1,
+                        step=1,
+                    ),
+                    "Display Selection",
+                    open="closed",
+                ),
             ui.output_plot("plot_lrs_cal_image"),#, width="100%", height="400px"),
             max_height="500px"
         ),
@@ -238,6 +260,27 @@ miri_lrs_ui = ui.div(
     ui.layout_columns(
         ui.card(
             ui.card_header("TA Verification Image"),
+            ui.layout_sidebar(
+                ui.sidebar(
+                    ui.input_slider(
+                        "group_slicer",
+                        "Uncal Groups:",
+                        min=1,
+                        max=n_groups,
+                        value=1,
+                        step=1,
+                    ),
+                    ui.input_slider(
+                        "integ_slicer",
+                        "Uncal Integrations:",
+                        min=1,
+                        max=n_ints,
+                        value=1,
+                        step=1,
+                    ),
+                    "Display Selection",
+                    open="closed",
+                ),
             ui.output_plot("plot_lrs_verification_image"),#, width="100%", height="400px"),
             max_height="500px"
         ),

@@ -387,6 +387,8 @@ def server(input, output, session):
                 ui.card(ui.card_header("NIRSpec Card"))
             )
             return nirspec_ui
+        else:
+            return full_tabbed_ui
     @render.plot
     def plot_lrs_uncal_image():
         selected_data = uncal_data[

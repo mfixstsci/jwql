@@ -187,6 +187,48 @@ obs_table = missions.query_criteria(instrume="MIRI", exp_type="MIR_TA*")
 #                     with ui.card(full_screen=True):
 #                         ui.card_header("Card 2")
 
+# google AI dynamic UI example:
+# 
+# from urllib.parse import parse_qs, urlparse
+# from shiny import App, render, ui
+# 
+# app_ui = ui.page_fluid(
+#     ui.h2("Dynamic UI based on GET arguments"),
+#     ui.output_ui("dynamic_content"),
+# )
+# 
+# 
+# def server(input, output, session):
+#   @render.ui
+#   def dynamic_content():
+#     # Get the raw query string (e.g., "?theme=dark&user=alice")
+#     query_string = session.clientdata.url_search()
+# 
+#     # Parse key-value pairs into a dictionary
+#     parsed_params = parse_qs(urlparse(query_string).query)
+#     user_type = parsed_params.get("type", ["guest"])[0]
+# 
+#     # Conditionally return different UI elements
+#     if user_type == "admin":
+#       return ui.div(
+#           ui.h3("Welcome, Administrator!"),
+#           ui.input_action_button("admin_btn", "Delete Database", class_="btn-danger"),
+#       )
+#     elif user_type == "premium":
+#       return ui.div(
+#           ui.h3("Welcome, Premium User!"),
+#           ui.p("You have access to advanced features."),
+#       )
+#     else:
+#       return ui.div(
+#           ui.h3("Hello, Guest!"),
+#           ui.p("Please log in to see more."),
+#       )
+# 
+# 
+# app = App(app_ui, server)
+
+
 miri_lrs_ui = ui.div(
     ui.h4("MIRI LRS"),
     ui.input_selectize(

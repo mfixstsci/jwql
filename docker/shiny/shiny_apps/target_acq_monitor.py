@@ -312,11 +312,81 @@ miri_lrs_ui = ui.div(
     ),
 )
 
+full_tabbed_ui = ui.navset_tab(
+    ui.nav_menu(
+        "MIRI",
+        ui.nav_panel(
+            "MIRI LRS Monitor",
+            miri_lrs_ui
+        ),
+        ui.nav_panel(
+            "MIRI MRS Monitor",
+            ui.card(
+                ui.card_header("MIRI MRS Card"),
+            ),
+        ),
+    ),
+    ui.nav_menu(
+        "NIRCam",
+        ui.nav_panel(
+            "NIRCam TA Monitor",
+            ui.card(
+                ui.card_header("NIRCam Card"),
+            ),
+        ),
+    ),
+    ui.nav_menu(
+        "NIRISS",
+        ui.nav_panel(
+            "NIRISS TA Monitor",
+            ui.card(
+                ui.card_header("NIRISS Card"),
+            ),
+        ),
+    ),
+    ui.nav_menu(
+        "NIRSpec",
+        ui.nav_panel(
+            "NIRSpec TA Monitor",
+            ui.card(
+                ui.card_header("NIRSpec Card"),
+            ),
+        ),
+    ),
+)
+
 app_ui = ui.page_fillable(
-    miri_lrs_ui
+    ui.output_ui("dynamic_layout")
 )
 
 def server(input, output, session):
+    @render.ui
+    def dynamic_layout():
+        if running_standalone:
+            return full_tabbed_ui
+        query_string = session.clientdata.url_search()
+        parsed_params = parse_qs(urlparse(query_string).query)
+        instrument = parsed_params.get("inst", ["unspecified"])[0]
+        if instrument.lower() == "miri":
+            return miri_lrs_ui
+        elif instrument.lower() == "nircam":
+            nircam_ui = ui.div(
+                ui.h4("NIRCam Monitor"),
+                ui.card(ui.card_header("NIRCam Card"))
+            )
+            return nircam_ui
+        elif instrument.lower() == "niriss":
+            niriss_ui = ui.div(
+                ui.h4("NIRISS Monitor"),
+                ui.card(ui.card_header("NIRISS Card"))
+            )
+            return niriss_ui
+        elif instrument.lower() == "nirspec":
+            nirspec_ui = ui.div(
+                ui.h4("NIRSpec Monitor"),
+                ui.card(ui.card_header("NIRSpec Card"))
+            )
+            return nirspec_ui
     @render.plot
     def plot_lrs_uncal_image():
         selected_data = uncal_data[

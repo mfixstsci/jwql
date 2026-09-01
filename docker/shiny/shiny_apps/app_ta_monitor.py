@@ -12,6 +12,8 @@ import numpy as np
 import os
 from urllib.parse import parse_qs, urlparse
 
+from support_ta_monitor_data import TADataSupplier
+
 running_standalone = str(os.environ.get("SHINY_EMBED", 0)) == "0"
 
 logging.info(f"SHINY_EMBED={os.environ.get('SHINY_EMBED')}")
@@ -20,23 +22,16 @@ logging.info(f"Running Standalone: {running_standalone}")
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
 
-url_arguments = reactive.value("")
-@render.code
-def get_url_arguments():
-    url_arguments.set(session.clientdata.url_search())
-    logging.info(f"URL search values are: {url_arguments.get()}")
-
 # Uncal data
 # Two groups, 4 integrations
 rng = np.random.default_rng()
 uncal_data = rng.random((2, 4, 1024, 1032))
 n_groups, n_ints, _, _ = uncal_data.shape
 
+data_source = reactive.value(None)
+
 # Calibrated data
 cal_data = rng.random((1024, 1032))
-
-missions = MastMissions(mission="jwst")
-obs_table = missions.query_criteria(instrume="MIRI", exp_type="MIR_TA*")
 
 def build_nav_panel(panel_name, panel_ui):
     return ui.nav_panel(panel_name, panel_ui)
@@ -54,7 +49,7 @@ miri_lrs_ui = ui.div(
     ui.input_selectize(
         "miri_lrs_fileset_select",
         "Select MIRI LRS TA Exposure",
-        choices=obs_table["fileSetName"].tolist(),
+        choices=[],
         selected=None,
         multiple=False,  # Set to True if you want a multi-tag text input
         options={
@@ -162,6 +157,13 @@ app_ui = ui.page_fillable(
 def server(input, output, session):
     @render.ui
     def dynamic_layout():
+        # Note that at some point we will need to update the data supplier based on the
+        # currently selected tab
+        data_source.set(TADataSupplier("MIRI"))
+        ui.update_selectize(
+            "miri_lrs_fileset_select",
+            choices = data_source().obs_list
+        )
         if running_standalone:
             return build_navset_ui([instrument_ui[x] for x in sorted(instrument_ui.keys())])
         query_string = session.clientdata.url_search()

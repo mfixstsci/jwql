@@ -1,4 +1,6 @@
 from astropy.io import fits
+from astropy import table as astropy_table
+import logging
 import os
 from pathlib import Path
 import shutil
@@ -11,12 +13,17 @@ EXP_TYPE_MAPPING = {
 
 def _obs_list_from_astroquery(instrument, mode=""):
     from astroquery.mast import MastMissions
+    logging.info("Loading mission")
     mission = MastMissions(mission='jwst')
     exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}{mode.upper()}*"
     columns = ['fileSetName', 'program', 'observtn', 'visit_id', 'exp_type', 'subarray']
-    mode_sci = mission.query_criteria(exp_type=exp_type, select_cols=columns)
+    logging.info(f"Loading {instrument} {mode} exposures")
+    mode_sci = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
     visits = set(mode_sci['visit_id'])
-    ta_exposures = mission.query_criteria(exp_type='MIR_TACQ', select_cols=columns)
+    exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}TACQ"
+    logging.info(f"Loading {instrument} TA exposures")
+    ta_exposures = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
+    logging.info("Combining exposure lists")
     ta_list = ta_exposures[[v in visits for v in ta_exposures['visit_id']]]
     return ta_list
 
@@ -33,34 +40,73 @@ def _download_obs_from_astroquery(obs_list, current_obs, download_dir):
     obs_row = obs_list[obs_list['fileSetName'] == current_obs]
     data_products = mission.get_unique_product_list(obs_row)
     for row in data_products:
-        print(row['uri'])
+        logging.info(row['uri'])
         if row['uri'][-8:] == "cal.fits":
             result = mission.download_file(row['uri'], local_path=download_dir)
-            print(result)
+            logging.info(result)
 
 
 def _uncal_acq_from_astroquery(data_dir, current_obs):
-    print(f"Retrieving uncalibrated data with {data_dir} {current_obs}")
+    logging.info(f"Retrieving uncalibrated data with {data_dir} {current_obs}")
     data_path = Path(data_dir)
     data_files = list(data_path.glob(f"{current_obs}*uncal.fits"))
-    print(data_files)
+    logging.info(data_files)
     if len(data_files) > 0:
         return data_files[0]
     return None
 
 
 def _cal_acq_from_astroquery(data_dir, current_obs):
-    print(f"Retrieving calibrated data with {data_dir} {current_obs}")
+    logging.info(f"Retrieving calibrated data with {data_dir} {current_obs}")
     data_path = Path(data_dir)
     data_files = list(data_path.glob(f"{current_obs}*_cal.fits"))
-    print(data_files)
+    logging.info(data_files)
     if len(data_files) > 0:
         return data_files[0]
     return None
 
 
-def _check_acq_from_astroquery(data_dir, current_obs):
-    pass
+def _check_acq_from_astroquery(instrument, ta_list, data_dir, current_obs):
+    from astroquery.mast import MastMissions
+    mission = MastMissions(mission='jwst')
+    exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}TACONFIRM"
+    logging.info(f"Looking for exposures of type {exp_type} with name {current_obs}")
+    columns = ['fileSetName', 'program', 'observtn', 'visit_id', 'exp_type', 'subarray']
+    ta_exposures = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
+    logging.info(f"Found {len(ta_exposures)} exposures")
+    ta_row = ta_list[ta_list['fileSetName'] == current_obs]
+    logging.info(f"Looking for matches to {ta_row[0]['fileSetName']} {ta_row[0]['program']} {ta_row[0]['visit_id']} {ta_row[0]['observtn']}")
+    found_rows = ta_exposures[ta_exposures['program'] == ta_row[0]['program']]
+    if len(found_rows) == 0:
+        logging.info("No Confirmation Exposure Found (by program)")
+        logging.info(set([p for p in ta_exposures['program']]))
+        return None
+    logging.info(f"Found {len(found_rows)} exposures")
+    logging.info(set([p for p in found_rows['visit_id']]))
+    found_rows = found_rows[found_rows['visit_id'] == ta_row[0]['visit_id']]
+    if len(found_rows) == 0:
+        logging.info("No Confirmation Exposure Found (by visit)")
+        return None
+    found_rows = found_rows[found_rows['observtn'] == ta_row[0]['observtn']]
+    if len(found_rows) == 0:
+        logging.info("No Confirmation Exposure Found (by observation)")
+        return None
+    logging.info(f"Found {len(found_rows)} exposures")
+    file_prefix = found_rows[0]["fileSetName"]
+    data_products = mission.get_unique_product_list(found_rows)
+    logging.info(data_products)
+    for row in data_products:
+        logging.info(row['uri'])
+        if row['uri'][-8:] == "cal.fits":
+            result = mission.download_file(row['uri'], local_path=data_dir)
+            logging.info(result)
+    data_path = Path(data_dir)
+    data_files = list(data_path.glob(f"{file_prefix}*_cal.fits"))
+    logging.info(data_files)
+    if len(data_files) > 0:
+        return data_files[0]
+    return None
+
 
 class TADataSupplier():
     def __init__(self, instrument, mode=""):
@@ -97,4 +143,5 @@ class TADataSupplier():
             return _cal_acq_from_astroquery(self.data_dir, self.current_obs)
 
     def get_obs_verification(self):
-        pass
+        if self.data_source == "astroquery":
+            return _check_acq_from_astroquery(self.instrument, self._data_table, self.data_dir, self.current_obs)

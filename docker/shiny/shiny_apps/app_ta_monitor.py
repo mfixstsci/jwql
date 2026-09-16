@@ -245,21 +245,34 @@ nircam_ui = {
     ]
 }
 
-niriss_ui = ui.card(
+niriss_tab_ui = ui.card(
     ui.card_header("NIRISS Card")
 )
 
-nirspec_ui = ui.card(
+niriss_ui = {
+    "initial": "niriss",
+    "panels": [
+        build_nav_panel("NIRISS", niriss_tab_ui)
+    ]
+}
+
+nirspec_tab_ui = ui.card(
     ui.card_header("NIRSpec Card")
 )
 
+nirspec_ui = {
+    "initial": "nirspec",
+    "panels": [
+        build_nav_panel("NIRSpec", nirspec_tab_ui)
+    ]
+}
 
 
 instrument_ui = {
     "miri": miri_ui,
     "nircam": nircam_ui,
-    "niriss": build_menu_ui("NIRISS", [("NIRISS TA Monitor", niriss_ui)]),
-    "nirspec": build_menu_ui("NIRSPEC", [("NIRSpec TA Monitor", nirspec_ui)]),
+    "niriss": niriss_ui,
+    "nirspec": nirspec_ui,
 }
 
 app_ui = ui.page_navbar(

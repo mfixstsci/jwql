@@ -232,7 +232,7 @@ def check_log_and_note_issues(msg):
     elif 'FGS guide star reacquisition failed' in msg:
         note = 'FAILED part way through: FGS guide star reacquisition failed.'
     elif 'FGS Track unsuccessful on all attempts' in msg:
-        note = f"msg[23:]}."
+        note = f"{msg[23:]}."
     elif 'FGS loss of ACS Fine Guidance Control, exit FGSGUIDEHEALTH' in msg:
         note = 'FAILED part way through: FGS loss of ACS fine guide control'
     elif 'FGS MT guide star acquisition process unsuccessful' in msg:

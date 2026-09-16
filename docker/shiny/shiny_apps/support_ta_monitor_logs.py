@@ -239,8 +239,6 @@ def check_log_and_note_issues(msg):
         note = 'FAILED guide star acquisition for moving target'
     elif 'MIRI target locate failed' in msg:
         note = 'MIRI target acq failed'
-    elif "Aborted" in msg:
-        note = f"{msg[23:]}."
     elif 'NIRCam target locate failed' in msg or 'NRC target locate failed' in msg:
         note = 'NIRCam target acq failed'
     elif ('NIRSpec TA Roll too big' in msg) or ('NIRSpec TA Roll too large' in msg):

@@ -1,4 +1,5 @@
 from shiny import App, module, reactive, render, ui
+from shiny.types import SilentException
 
 from datetime import datetime, timedelta
 import logging
@@ -27,10 +28,20 @@ logging.info(f"Running Standalone: {running_standalone}")
 plt.rcParams["font.weight"] = "bold"
 plt.rcParams["axes.labelweight"] = "bold"  # Optional: also bolds axis title
 
+CANONICAL_NAMES = {
+    "miri": "MIRI",
+    "nircam": "NIRCam",
+    "niriss": "NIRISS",
+    "nirspec": "NIRSpec"
+}
+
 data_source = reactive.value(None)
+current_instrument = reactive.value("")
+current_mode = reactive.value("")
 uncal_image = reactive.value("")
 cal_image = reactive.value("")
 check_image = reactive.value("")
+user_connected = reactive.value(False)
 
 def build_nav_panel(panel_name, panel_ui):
     return ui.nav_panel(panel_name, panel_ui)
@@ -45,10 +56,9 @@ def build_navset_ui(menu_list, id="toplevel"):
 @module.ui
 def miri_tab_ui():
     miri_ui = ui.div(
-        ui.output_ui("miri_title"),
         ui.input_selectize(
-            "miri_exposure_select",
-            "Select MIRI LRS TA Exposure",
+            "exposure_select",
+            "Select Exposure",
             choices=[],
             selected=None,
             multiple=False,  # Set to True if you want a multi-tag text input
@@ -130,15 +140,13 @@ def miri_tab_ui():
 
 @module.server
 def miri_tab_server(input, output, session):
-    @render.ui
-    def miri_title():
-        return ui.h4(f"{input.miri_mode()}")
+
     @render.ui
     def miri_uncal():
         return ui.card_header(f"TA Image (uncalibrated) {uncal_image()}"),
     @render.plot
     def plot_miri_uncal_image():
-        selected_exposure = input.miri_exposure_select()
+        selected_exposure = input.exposure_select()
         data_source().select_obs(selected_exposure)
         uncal_file = data_source().get_obs_uncal()
         if uncal_file is not None:
@@ -162,7 +170,7 @@ def miri_tab_server(input, output, session):
         return ui.card_header(f"TA Image (calibrated) {cal_image()}"),
     @render.plot
     def plot_miri_cal_image():
-        selected_exposure = input.miri_exposure_select()
+        selected_exposure = input.exposure_select()
         data_source().select_obs(selected_exposure)
         cal_file = data_source().get_obs_cal()
         if cal_file is not None:
@@ -180,7 +188,7 @@ def miri_tab_server(input, output, session):
         return ui.card_header(f"TA Image (check) {check_image()}"),
     @render.plot
     def plot_miri_verification_image():
-        selected_exposure = input.miri_exposure_select()
+        selected_exposure = input.exposure_select()
         data_source().select_obs(selected_exposure)
         check_file = data_source().get_obs_verification()
         if check_file is not None:
@@ -195,7 +203,7 @@ def miri_tab_server(input, output, session):
             return fig
     @render.text
     def text_miri_oss_log():
-        selected_exposure = input.miri_exposure_select()
+        selected_exposure = input.exposure_select()
         data_source().select_obs(selected_exposure)
         uncal_file = data_source().get_obs_uncal()
         if uncal_file is not None:
@@ -218,14 +226,24 @@ def miri_tab_server(input, output, session):
 
             return " ".join(msgs)
 
-miri_ui = build_menu_ui(
-    "MIRI",
-    [("MIRI LRS", miri_tab_ui("miri_lrs")), ("MIRI MRS", miri_tab_ui("miri_mrs"))],
-)
+miri_ui = {
+    "initial": "lrs",
+    "panels": [
+        build_nav_panel("LRS", miri_tab_ui("miri_lrs")),
+        build_nav_panel("MRS", miri_tab_ui("miri_mrs"))
+    ]
+}
 
-nircam_ui = ui.card(
+nircam_tab_ui = ui.card(
     ui.card_header("NIRCam Card")
 )
+
+nircam_ui = {
+    "initial": "nircam",
+    "panels": [
+        build_nav_panel("NIRCam", nircam_tab_ui)
+    ]
+}
 
 niriss_ui = ui.card(
     ui.card_header("NIRISS Card")
@@ -239,38 +257,94 @@ nirspec_ui = ui.card(
 
 instrument_ui = {
     "miri": miri_ui,
-    "nircam": build_menu_ui("NIRCam", [("NIRCam TA Monitor", nircam_ui)]),
+    "nircam": nircam_ui,
     "niriss": build_menu_ui("NIRISS", [("NIRISS TA Monitor", niriss_ui)]),
     "nirspec": build_menu_ui("NIRSPEC", [("NIRSpec TA Monitor", nirspec_ui)]),
 }
 
-app_ui = ui.page_fillable(
-    ui.output_ui("dynamic_layout")
+app_ui = ui.page_navbar(
+    title=ui.output_ui("dynamic_title"),
+    id="nav_toplevel",
+    fillable=True
 )
 
 def server(input, output, session):
+    tab_setup = False
+
     miri_tab_server("miri_lrs")
+
     miri_tab_server("miri_mrs")
+
     @render.ui
-    def dynamic_layout():
-        # Note that at some point we will need to update the data supplier based on the
-        # currently selected tab
-        logging.info("Creating data source")
-        data_source.set(TADataSupplier("MIRI"))
-        logging.info("Updating exposure select list")
+    def dynamic_title():
+        selected_instrument = current_instrument()
+        if selected_instrument in CANONICAL_NAMES:
+            display_name = CANONICAL_NAMES[selected_instrument]
+            logging.info(f"Updating navbar title to {display_name}")
+            return ui.span(display_name, class_="navbar-brand")
+        return ui.span("", class_="navbar-brand")
+
+    def set_exposure_options(instrument, mode, options):
+        logging.info("Running set_exposure_options")
+        selectize_id = f"{instrument}_{mode}-exposure_select"
+        logging.info(f"Selectize ID is {selectize_id}")
         ui.update_selectize(
-            "miri_lrs-miri_exposure_select",
-            choices = data_source().obs_list
+            selectize_id,
+            choices=options,
+            selected=None,
         )
-        logging.info("Checking run mode")
-        if running_standalone:
-            return build_navset_ui([instrument_ui[x] for x in sorted(instrument_ui.keys())])
-        query_string = session.clientdata.url_search()
-        parsed_params = parse_qs(urlparse(query_string).query)
-        instrument = parsed_params.get("inst", ["unspecified"])[0]
-        if instrument.lower() in instrument_ui.keys():
-            return build_navset_ui([instrument_ui[instrument.lower()]], id=f"{instrument.lower()}_title")
-        else:
-            return build_navset_ui([instrument_ui[x] for x in sorted(instrument_ui.keys())])
+        logging.info("Finished set_exposure_options")
+
+    @reactive.effect
+    @reactive.event(input.nav_toplevel)
+    def _():
+        mode = input.nav_toplevel()
+        logging.info("Running effect based on tab changing")
+        instrument = current_instrument()
+        if instrument is not None and mode is not None:
+            mode = mode.lower()
+            logging.info(f"Instrument and mode are {instrument}, {mode}")
+            if data_source() is None or data_source().instrument != instrument or data_source().mode != mode:
+                logging.info(f"Creating data source for {instrument} {mode}")
+                data_source.set(TADataSupplier(instrument, mode))
+                logging.info(f"Data source created")
+            logging.info("Getting exposure list")
+            obs_list = data_source().obs_list
+            logging.info(f"Putting {len(obs_list)} exposures in select")
+            set_exposure_options(instrument, mode, obs_list)
+            
+
+    @reactive.effect
+    def _():
+        nonlocal tab_setup
+        if not tab_setup:
+            query_string = session.clientdata.url_search()
+            parsed_params = parse_qs(urlparse(query_string).query)
+            if "inst" in parsed_params:
+                instrument = parsed_params["inst"][0].lower()
+                logging.info(f"Got instrument {instrument}")
+                if instrument in CANONICAL_NAMES:
+                    for panel in instrument_ui[instrument]["panels"]:
+                        ui.insert_nav_panel(
+                            id="nav_toplevel",
+                            nav_panel=panel,
+                            select=False
+                        )
+                    ui.update_navset("nav_toplevel", selected=instrument_ui[instrument]["initial"])
+                    current_instrument.set(instrument)
+                    tab_setup = True
+                    return
+            # Currently, just make MIRI either way.
+            instrument = "miri"
+            ui.update_page_title(f"{CANONICAL_NAMES[instrument]}")
+            current_instrument.set(instrument)
+            for panel in instrument_ui[instrument]["panels"]:
+                ui.insert_nav_panel(
+                    id="nav_toplevel",
+                    nav_panel=panel,
+                    select=False
+                )
+            ui.update_navset("nav_toplevel", selected=instrument_ui[instrument]["initial"])
+            tab_setup = True
 
 app = App(app_ui, server, debug=False)

@@ -13,18 +13,23 @@ EXP_TYPE_MAPPING = {
 
 def _obs_list_from_astroquery(instrument, mode=""):
     from astroquery.mast import MastMissions
+    logging.info(f"Loading {instrument} {mode} exposures")
     logging.info("Loading mission")
     mission = MastMissions(mission='jwst')
     exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}{mode.upper()}*"
+    logging.info(f"Looking for exposure type {exp_type}")
     columns = ['fileSetName', 'program', 'observtn', 'visit_id', 'exp_type', 'subarray']
-    logging.info(f"Loading {instrument} {mode} exposures")
     mode_sci = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
+    logging.info(f"Found {len(mode_sci)} exposures")
     visits = set(mode_sci['visit_id'])
+    logging.info(f"{len(visits)} unique visits")
     exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}TACQ"
-    logging.info(f"Loading {instrument} TA exposures")
+    logging.info(f"Loading {instrument} TA exposures {exp_type}")
     ta_exposures = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
+    logging.info(f"Found {len(ta_exposures)} unique exposures")
     logging.info("Combining exposure lists")
     ta_list = ta_exposures[[v in visits for v in ta_exposures['visit_id']]]
+    logging.info(f"Found {len(ta_list)} {mode} TA exposures")
     return ta_list
 
 def _obs_list_from_jwql():
@@ -75,6 +80,9 @@ def _check_acq_from_astroquery(instrument, ta_list, data_dir, current_obs):
     ta_exposures = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
     logging.info(f"Found {len(ta_exposures)} exposures")
     ta_row = ta_list[ta_list['fileSetName'] == current_obs]
+    if len(ta_row) == 0:
+        logging.info("No exposures populating TA list yet")
+        return None
     logging.info(f"Looking for matches to {ta_row[0]['fileSetName']} {ta_row[0]['program']} {ta_row[0]['visit_id']} {ta_row[0]['observtn']}")
     found_rows = ta_exposures[ta_exposures['program'] == ta_row[0]['program']]
     if len(found_rows) == 0:
@@ -110,6 +118,7 @@ def _check_acq_from_astroquery(instrument, ta_list, data_dir, current_obs):
 
 class TADataSupplier():
     def __init__(self, instrument, mode=""):
+        logging.info(f"Instrument is {instrument}, mode is {mode}")
         self.instrument = instrument.lower()
         self.mode = mode.lower()
         self.data_source = os.environ.get("SHINY_TA_DATA_SOURCE", "astroquery")

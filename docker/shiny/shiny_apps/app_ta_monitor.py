@@ -163,7 +163,10 @@ def miri_tab_server(input, output, session):
             plt.ylabel("y (pixels)", fontsize=11, fontweight="bold")
             cbar = plt.colorbar(fig, orientation="vertical", fraction=0.046, pad=0.04)
             cbar.set_label("Counts", fontsize=11, fontweight="bold")
-            return fig
+        else:
+            fig = plt.figure()
+            fig.text(0.5, 0.5, 'No File Available', fontsize=18, ha='center', va='center')
+        return fig
     @render.ui
     def miri_cal():
         return ui.card_header(f"TA Image (calibrated) {cal_image()}"),
@@ -181,7 +184,10 @@ def miri_tab_server(input, output, session):
             plt.ylabel("y (pixels)", fontsize=11, fontweight="bold")
             cbar = plt.colorbar(fig, orientation="vertical", fraction=0.046, pad=0.04)
             cbar.set_label("Counts", fontsize=11, fontweight="bold")
-            return fig
+        else:
+            fig = plt.figure()
+            fig.text(0.5, 0.5, 'No File Available', fontsize=18, ha='center', va='center')
+        return fig
     @render.ui
     def miri_check():
         return ui.card_header(f"TA Image (check) {check_image()}"),
@@ -199,7 +205,10 @@ def miri_tab_server(input, output, session):
             plt.ylabel("y (pixels)", fontsize=11, fontweight="bold")
             cbar = plt.colorbar(fig, orientation="vertical", fraction=0.046, pad=0.04)
             cbar.set_label("Counts", fontsize=11, fontweight="bold")
-            return fig
+        else:
+            fig = plt.figure()
+            fig.text(0.5, 0.5, 'No File Available', fontsize=18, ha='center', va='center')
+        return fig
     @render.text
     def text_miri_oss_log():
         selected_exposure = input.exposure_select()

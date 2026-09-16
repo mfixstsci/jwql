@@ -220,3 +220,38 @@ def get_ictm_event_log(
         return parse_eventlog_to_table(lines, label="Message")
     else:
         return lines
+
+def check_log_and_note_issues(msg):
+    """ 
+    Check messages to detect issues we should flag for the user to be aware of
+    """
+    # check for visit guide failures
+    if 'FGS fixed target guide star acquisition failed on all attempts, exit FGSVERMAIN' in msg:
+        #print(f"FGS ID+Acq failed on all attempts for {vid}")
+        note = "SKIPPED. FGS ID failed all attempts"
+    elif 'FGS guide star reacquisition failed' in msg:
+        note = 'FAILED part way through: FGS guide star reacquisition failed.'
+    elif 'FGS Track unsuccessful on all attempts' in msg:
+        note = f"msg[23:]}."
+    elif 'FGS loss of ACS Fine Guidance Control, exit FGSGUIDEHEALTH' in msg:
+        note = 'FAILED part way through: FGS loss of ACS fine guide control'
+    elif 'FGS MT guide star acquisition process unsuccessful' in msg:
+        note = 'FAILED guide star acquisition for moving target'
+    elif 'MIRI target locate failed' in msg:
+        note = 'MIRI target acq failed'
+    elif "Aborted" in msg:
+        note = f"{msg[23:]}."
+    elif 'NIRCam target locate failed' in msg or 'NRC target locate failed' in msg:
+        note = 'NIRCam target acq failed'
+    elif ('NIRSpec TA Roll too big' in msg) or ('NIRSpec TA Roll too large' in msg):
+        note = "NIRSpec MSATA failed; roll too large"
+    elif 'subsystem unavailable' in msg:  # This checks for like 'NRC subsystem unavailable'
+        note = msg.split(',')[0]
+    elif 'Visit constraint violation' in msg:  # This may follow a subsystem unavailable
+        note = msg
+    elif 'GENRTVSTMAIN' in msg:
+        note = "Realtime Commanding Visit. "
+    else:
+        note = None
+
+    return note

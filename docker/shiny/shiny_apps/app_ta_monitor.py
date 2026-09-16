@@ -16,9 +16,9 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from support_ta_monitor_data import TADataSupplier
-
-from log_msg_extraction import get_ictm_event_log, extract_oss_event_msgs_for_visit
-
+from support_ta_monitor_logs import get_ictm_event_log
+from support_ta_monitor_logs import extract_oss_event_msgs_for_visit
+from support_ta_monitor_logs import check_log_and_note_issues
 
 running_standalone = str(os.environ.get("SHINY_EMBED", 0)) == "0"
 
@@ -131,6 +131,7 @@ def miri_tab_ui():
             ),
             ui.card(
                 ui.card_header("OSS Log"),
+                ui.output_ui("oss_warnings"),
                 ui.output_text_verbatim("text_miri_oss_log"),
                 max_height="500px",
             ),
@@ -140,7 +141,7 @@ def miri_tab_ui():
 
 @module.server
 def miri_tab_server(input, output, session):
-
+    oss_messages = reactive.value([])
     @render.ui
     def miri_uncal():
         return ui.card_header(f"TA Image (uncalibrated) {uncal_image()}"),
@@ -211,10 +212,12 @@ def miri_tab_server(input, output, session):
         return fig
     @render.text
     def text_miri_oss_log():
+        nonlocal oss_messages
         selected_exposure = input.exposure_select()
         data_source().select_obs(selected_exposure)
         uncal_file = data_source().get_obs_uncal()
         if uncal_file is not None:
+            oss_messages.set([])
             with fits.open(uncal_file) as fits_file:
                 uncal_hdr = fits_file[0].header
 
@@ -231,8 +234,28 @@ def miri_tab_server(input, output, session):
                     )
 
             msgs = extract_oss_event_msgs_for_visit(eventlog, visit_id)
-
+            all_warnings = []
+            for i, message in enumerate(msgs):
+                warning = check_log_and_note_issues(message)
+                if warning is not None:
+                    logging.info(f"Got OSS warning: {warning}")
+                    all_warnings.append(f"Line {i+1}: {warning}")
+            if len(all_warnings) > 0:
+                oss_messages.set(all_warnings)
             return "\n".join(msgs)
+    @render.ui
+    def oss_warnings():
+        nonlocal oss_messages
+        if len(oss_messages()) > 0:
+            message_text = []
+            for message in oss_messages():
+                message_text.append(ui.tags.div(f"Warning: {message}"))
+            return ui.tags.div(
+                *message_text,
+                class_="alert alert-warning",
+                role="alert"
+            )
+        return None
 
 miri_ui = {
     "initial": "lrs",

@@ -131,7 +131,7 @@ def miri_tab_ui():
             ),
             ui.card(
                 ui.card_header("OSS Log"),
-                ui.output_text("text_miri_oss_log"),
+                ui.output_text_verbatim("text_miri_oss_log"),
                 max_height="500px",
             ),
         ),
@@ -153,7 +153,6 @@ def miri_tab_server(input, output, session):
             uncal_image.set(Path(uncal_file).stem)
             with fits.open(uncal_file) as fits_file:
                 uncal_data = fits_file['SCI'].data
-            print(uncal_data.shape)
             ui.update_slider("group_slicer", min=1, max=uncal_data.shape[0])
             ui.update_slider("integ_slicer", min=1, max=uncal_data.shape[1])
             selected_data = uncal_data[
@@ -224,7 +223,7 @@ def miri_tab_server(input, output, session):
 
             msgs = extract_oss_event_msgs_for_visit(eventlog, visit_id)
 
-            return " ".join(msgs)
+            return "\n".join(msgs)
 
 miri_ui = {
     "initial": "lrs",
@@ -304,7 +303,7 @@ def server(input, output, session):
         ui.update_selectize(
             selectize_id,
             choices=options,
-            selected=None,
+            selected=options[0],
         )
         logging.info("Finished set_exposure_options")
 

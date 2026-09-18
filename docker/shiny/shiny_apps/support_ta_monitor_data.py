@@ -98,6 +98,10 @@ def _cal_acq_from_jwql(current_obs):
         return filesystem_path(f"{current_obs}_cal.fits")
     except FileNotFoundError as e:
         logging.info(f"Exposure {current_obs} not found: {e}")
+    try:
+        return filesystem_path(f"{current_obs}_rate.fits")
+    except FileNotFoundError as e:
+        logging.info(f"Exposure {current_obs} not found: {e}")
     return None
 
 
@@ -145,6 +149,39 @@ def _check_acq_from_astroquery(instrument, ta_list, data_dir, current_obs):
         return data_files[0]
     return None
 
+def _check_acq_from_jwql(instrument, current_obs):
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
+    django.setup()
+    from jwql.website.apps.jwql.models import RootFileInfo
+    from jwql.utils.utils import filesystem_path
+    try:
+        obs_path = filesystem_path(f"{current_obs}_uncal.fits")
+    except FileNotFoundError as e:
+        logging.info(f"Check for exposure {current_obs} not found: {e}")
+        return None
+    with fits.open(obs_path) as fits_file:
+        program = fits_file[0].header["PROGRAM"].strip()
+        observation = fits_file[0].header["OBSERVTN"].strip()
+        visit = fits_file[0].header["VISIT"].strip()
+    exp_type = f"EXP_TYPE_MAPPING[instrument]_TACONFIRM"
+    results = RootFileInfo.objects.filter(proposal=program).filter(exp_type=exp_type)
+    for result in results:
+        result_name = result.root_name
+        try:
+            result_path = filesystem_path(f"{result_name}_cal.fits")
+        except FileNotFoundError as e:
+            logging.info(f"Check for exposure {current_obs} not found: {e}")
+            return None
+        with fits.open(result_path) as fits_file:
+            check_program = fits_file[0].header["PROGRAM"].strip()
+            check_observation = fits_file[0].header["OBSERVTN"].strip()
+            check_visit = fits_file[0].header["VISIT"].strip()
+        if check_program == program:
+            if check_visit == visit:
+                if check_observation == observation:
+                    return result_path
+
 
 class TADataSupplier():
     def __init__(self, instrument, mode=""):
@@ -191,4 +228,4 @@ class TADataSupplier():
         if self.data_source == "astroquery":
             return _check_acq_from_astroquery(self.instrument, self._data_table, self.data_dir, self.current_obs)
         elif self.data_source == "jwql":
-            return None
+            return _check_acq_from_jwql(self.current_obs)

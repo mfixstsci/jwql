@@ -201,10 +201,11 @@ def miri_tab_server(input, output, session):
     def miri_check():
         return ui.card_header(f"TA Image (check) {check_image()}"),
     @render.plot
-    def plot_miri_verification_image():
+    async def plot_miri_verification_image():
         selected_exposure = input.exposure_select()
-        data_source().select_obs(selected_exposure)
-        check_file = data_source().get_obs_verification()
+        exp_data = data_source()
+        exp_data.select_obs(selected_exposure)
+        check_file = await sync_to_async(exp_data.get_obs_verification)()
         if check_file is not None:
             check_image.set(Path(check_file).stem)
             with fits.open(check_file) as fits_file:

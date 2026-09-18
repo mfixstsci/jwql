@@ -70,6 +70,8 @@ def _uncal_acq_from_astroquery(data_dir, current_obs):
     return None
 
 def _uncal_acq_from_jwql(current_obs):
+    if current_obs is None:
+        return None
     from jwql.utils.utils import filesystem_path
     logging.info(f"Retrieving uncalibrated data for {current_obs}")
     try:
@@ -89,6 +91,8 @@ def _cal_acq_from_astroquery(data_dir, current_obs):
     return None
 
 def _cal_acq_from_jwql(current_obs):
+    if current_obs is None:
+        return None
     from jwql.utils.utils import filesystem_path
     logging.info(f"Retrieving uncalibrated data for {current_obs}")
     try:

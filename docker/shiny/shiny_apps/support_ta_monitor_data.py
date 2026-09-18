@@ -158,13 +158,14 @@ class TADataSupplier():
 
     @property
     def obs_list(self):
-        if hasattr(self, "_data_table"):
-            return self._data_table["fileSetName"].tolist()
+        if hasattr(self, "_obs_list"):
+            return self._obs_list
         if self.data_source == "astroquery":
             self._data_table = _obs_list_from_astroquery(self.instrument, self.mode)
+            self._obs_list = self._data_table["fileSetName"].tolist()
         elif self.data_source == "jwql":
-            self._data_table = _obs_list_from_jwql(self.instrument, self.mode)
-        return self._data_table["fileSetName"].tolist()
+            self._obs_list = _obs_list_from_jwql(self.instrument, self.mode)
+        return self._obs_list
 
     def select_obs(self, obs_name):
         if obs_name in self.obs_list and self.current_obs != obs_name:

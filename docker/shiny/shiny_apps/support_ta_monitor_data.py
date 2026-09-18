@@ -163,7 +163,7 @@ def _check_acq_from_jwql(instrument, current_obs):
         return None
     logging.info(f"CHECK: Filesystem path is {obs_path}")
     with fits.open(obs_path) as fits_file:
-        program = fits_file[0].header["PROGRAM"].strip()
+        program = str(int(fits_file[0].header["PROGRAM"].strip()))
         observation = fits_file[0].header["OBSERVTN"].strip()
         visit = fits_file[0].header["VISIT"].strip()
     logging.info(f"CHECK: Got keywords")

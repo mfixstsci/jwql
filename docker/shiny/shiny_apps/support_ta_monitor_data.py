@@ -168,8 +168,10 @@ def _check_acq_from_jwql(instrument, current_obs):
         visit = fits_file[0].header["VISIT"].strip()
     logging.info(f"CHECK: Got keywords")
     exp_type = f"{EXP_TYPE_MAPPING[instrument]}TACONFIRM"
+    logging.info(f"CHECK: program is {program}")
     logging.info(f"CHECK: exp_type is {exp_type}")
     results = RootFileInfo.objects.filter(proposal=program).filter(exp_type=exp_type)
+    logging.info(f"CHECK: results are {results}")
     for result in results:
         result_name = result.root_name
         try:

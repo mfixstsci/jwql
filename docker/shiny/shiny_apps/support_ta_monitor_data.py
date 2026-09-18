@@ -186,7 +186,7 @@ class TADataSupplier():
         if self.data_source == "astroquery":
             return _cal_acq_from_astroquery(self.data_dir, self.current_obs)
         elif self.data_source == "jwql":
-            return _uncal_acq_from_jwql(self.current_obs)
+            return _cal_acq_from_jwql(self.current_obs)
 
     def get_obs_verification(self):
         if self.data_source == "astroquery":

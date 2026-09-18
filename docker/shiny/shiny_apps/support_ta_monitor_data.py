@@ -180,7 +180,7 @@ def _check_acq_from_jwql(instrument, current_obs):
             logging.info(f"Check for exposure {current_obs} not found: {e}")
             return None
         with fits.open(result_path) as fits_file:
-            check_program = fits_file[0].header["PROGRAM"].strip()
+            check_program = str(int(fits_file[0].header["PROGRAM"].strip()))
             check_observation = fits_file[0].header["OBSERVTN"].strip()
             check_visit = fits_file[0].header["VISIT"].strip()
         logging.info(f"Checking {result_name}")

@@ -8,6 +8,7 @@ logging.basicConfig(level=logging.INFO)
 
 import matplotlib.pyplot as plt
 
+from asgiref.sync import sync_to_async
 from astropy.io import fits
 from astroquery.mast import MastMissions
 import numpy as np
@@ -348,7 +349,7 @@ def server(input, output, session):
 
     @reactive.effect
     @reactive.event(input.nav_toplevel)
-    def _():
+    async def _():
         mode = input.nav_toplevel()
         logging.info("Running effect based on tab changing")
         instrument = current_instrument()
@@ -360,7 +361,8 @@ def server(input, output, session):
                 data_source.set(TADataSupplier(instrument, mode))
                 logging.info(f"Data source created")
             logging.info("Getting exposure list")
-            obs_list = data_source().obs_list
+            obs_data = data_source()
+            obs_list = await sync_to_async(obs_data.get_obs_list)()
             logging.info(f"Putting {len(obs_list)} exposures in select")
             set_exposure_options(instrument, mode, obs_list)
             

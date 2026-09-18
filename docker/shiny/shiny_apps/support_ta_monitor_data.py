@@ -39,7 +39,7 @@ def _obs_list_from_jwql(instrument, mode=""):
     from jwql.website.apps.jwql.models import Observation, RootFileInfo
     exp_type = f"{EXP_TYPE_MAPPING[instrument]}TACQ"
     exptypes = mode.upper()
-    results = RootFileInfo.objects.filter(obsnum__exptypes__contains="MRS").filter(exp_type="MIR_TACQ")
+    results = RootFileInfo.objects.filter(obsnum__exptypes__contains=exptypes).filter(exp_type=exp_type)
     obs_list = [x.root_name for x in results]
     return obs_list
     
@@ -156,8 +156,7 @@ class TADataSupplier():
         if Path(self.data_dir).is_dir():
             shutil.rmtree(self.data_dir)
 
-    @property
-    def obs_list(self):
+    def get_obs_list(self):
         if hasattr(self, "_obs_list"):
             return self._obs_list
         if self.data_source == "astroquery":
@@ -168,7 +167,7 @@ class TADataSupplier():
         return self._obs_list
 
     def select_obs(self, obs_name):
-        if obs_name in self.obs_list and self.current_obs != obs_name:
+        if obs_name in self.get_obs_list() and self.current_obs != obs_name:
             self.current_obs = obs_name
             if self.data_source == "astroquery":
                 _download_obs_from_astroquery(self._data_table, self.current_obs, self.data_dir)

@@ -155,6 +155,7 @@ def _check_acq_from_jwql(instrument, current_obs):
     django.setup()
     from jwql.website.apps.jwql.models import RootFileInfo
     from jwql.utils.utils import filesystem_path
+    logging.info(f"Looking for check image with instrument {instrument} for {current_obs}")
     try:
         obs_path = filesystem_path(f"{current_obs}_uncal.fits")
     except FileNotFoundError as e:
@@ -177,6 +178,10 @@ def _check_acq_from_jwql(instrument, current_obs):
             check_program = fits_file[0].header["PROGRAM"].strip()
             check_observation = fits_file[0].header["OBSERVTN"].strip()
             check_visit = fits_file[0].header["VISIT"].strip()
+        logging.info(f"Checking {result_name}")
+        logging.info(f"\tProgram {program} vs {check_program}")
+        logging.info(f"\Visit {visit} vs {check_visit}")
+        logging.info(f"\Observation {observation} vs {check_observation}")
         if check_program == program:
             if check_visit == visit:
                 if check_observation == observation:

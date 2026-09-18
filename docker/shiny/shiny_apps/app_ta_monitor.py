@@ -95,7 +95,8 @@ def miri_tab_ui():
                     ),
                 ),
                 ui.output_plot("plot_miri_uncal_image"),#, width="100%", height="400px"),
-                max_height="500px"
+                max_height="500px",
+                full_screen=True
             ),
             ui.card(
                 ui.output_ui("miri_cal"),
@@ -110,7 +111,8 @@ def miri_tab_ui():
                     ),
                 ),
                 ui.output_plot("plot_miri_cal_image"),#, width="100%", height="400px"),
-                max_height="500px"
+                max_height="500px",
+                full_screen=True
             ),
         ),
         ui.layout_columns(
@@ -127,13 +129,18 @@ def miri_tab_ui():
                     ),
                 ),
                 ui.output_plot("plot_miri_verification_image"),#, width="100%", height="400px"),
-                max_height="500px"
+                max_height="500px",
+                full_screen=True
             ),
             ui.card(
                 ui.card_header("OSS Log"),
                 ui.output_ui("oss_warnings"),
-                ui.output_text_verbatim("text_miri_oss_log"),
+                ui.div(
+                    ui.output_code("text_miri_oss_log"),
+                    style="font-size: 12px;"
+                ),
                 max_height="500px",
+                full_screen=True
             ),
         ),
     )

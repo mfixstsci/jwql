@@ -63,6 +63,7 @@ def miri_tab_ui():
             choices=[],
             selected=None,
             multiple=False,  # Set to True if you want a multi-tag text input
+            width="500px",
             options={
                 "placeholder": "Enter FileSetName",
                 "create": True,  # Allows typing custom values not in the list

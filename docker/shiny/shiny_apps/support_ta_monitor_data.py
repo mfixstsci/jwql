@@ -37,7 +37,7 @@ def _obs_list_from_jwql(instrument, mode=""):
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
     django.setup()
     from jwql.website.apps.jwql.models import Observation, RootFileInfo
-    exp_type = f"{EXP_TYPE_MAPPING[instrument.upper()]}TACQ"
+    exp_type = f"{EXP_TYPE_MAPPING[instrument]}TACQ"
     exptypes = mode.upper()
     results = RootFileInfo.objects.filter(obsnum__exptypes__contains="MRS").filter(exp_type="MIR_TACQ")
     obs_list = [x.root_name for x in results]

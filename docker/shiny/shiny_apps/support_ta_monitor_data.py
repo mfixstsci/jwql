@@ -228,4 +228,4 @@ class TADataSupplier():
         if self.data_source == "astroquery":
             return _check_acq_from_astroquery(self.instrument, self._data_table, self.data_dir, self.current_obs)
         elif self.data_source == "jwql":
-            return _check_acq_from_jwql(self.current_obs)
+            return _check_acq_from_jwql(self.instrument, self.current_obs)

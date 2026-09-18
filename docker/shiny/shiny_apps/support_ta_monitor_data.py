@@ -161,11 +161,14 @@ def _check_acq_from_jwql(instrument, current_obs):
     except FileNotFoundError as e:
         logging.info(f"Check for exposure {current_obs} not found: {e}")
         return None
+    logging.info(f"CHECK: Filesystem path is {obs_path}")
     with fits.open(obs_path) as fits_file:
         program = fits_file[0].header["PROGRAM"].strip()
         observation = fits_file[0].header["OBSERVTN"].strip()
         visit = fits_file[0].header["VISIT"].strip()
-    exp_type = f"EXP_TYPE_MAPPING[instrument]_TACONFIRM"
+    logging.info(f"CHECK: Got keywords")
+    exp_type = f"EXP_TYPE_MAPPING[instrument]TACONFIRM"
+    logging.info(f"CHECK: exp_type is {exp_type}")
     results = RootFileInfo.objects.filter(proposal=program).filter(exp_type=exp_type)
     for result in results:
         result_name = result.root_name

@@ -75,7 +75,7 @@ def _uncal_acq_from_jwql(current_obs):
     from jwql.utils.utils import filesystem_path
     logging.info(f"Retrieving uncalibrated data for {current_obs}")
     try:
-        return filesystem_path(current_obs, search="*uncal.fits")
+        return filesystem_path(f"{current_obs}_uncal.fits")
     except FileNotFoundError as e:
         logging.info(f"Exposure {current_obs} not found: {e}")
     return None
@@ -96,7 +96,7 @@ def _cal_acq_from_jwql(current_obs):
     from jwql.utils.utils import filesystem_path
     logging.info(f"Retrieving uncalibrated data for {current_obs}")
     try:
-        return filesystem_path(current_obs, search="*_cal.fits")
+        return filesystem_path(f"{current_obs}_cal.fits")
     except FileNotFoundError as e:
         logging.info(f"Exposure {current_obs} not found: {e}")
     return None

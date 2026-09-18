@@ -32,8 +32,17 @@ def _obs_list_from_astroquery(instrument, mode=""):
     logging.info(f"Found {len(ta_list)} {mode} TA exposures")
     return ta_list
 
-def _obs_list_from_jwql():
-    pass
+def _obs_list_from_jwql(instrument, mode=""):
+    import django
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "jwql.website.jwql_proj.settings")
+    django.setup()
+    from jwql.website.apps.jwql.models import Observation, RootFileInfo
+    exp_type = f"{EXP_TYPE_MAPPING[instrument.upper()]}TACQ"
+    exptypes = mode.upper()
+    results = RootFileInfo.objects.filter(obsnum__exptypes__contains="MRS").filter(exp_type="MIR_TACQ")
+    obs_list = [x.root_name for x in results]
+    return obs_list
+    
 
 def _obs_list_from_filesystem():
     pass
@@ -60,6 +69,15 @@ def _uncal_acq_from_astroquery(data_dir, current_obs):
         return data_files[0]
     return None
 
+def _uncal_acq_from_jwql(current_obs):
+    from jwql.utils.utils import filesystem_path
+    logging.info(f"Retrieving uncalibrated data for {current_obs}")
+    try:
+        return filesystem_path(current_obs, search="*uncal.fits")
+    except FileNotFoundError as e:
+        logging.info(f"Exposure {current_obs} not found: {e}")
+    return None
+
 
 def _cal_acq_from_astroquery(data_dir, current_obs):
     logging.info(f"Retrieving calibrated data with {data_dir} {current_obs}")
@@ -68,6 +86,15 @@ def _cal_acq_from_astroquery(data_dir, current_obs):
     logging.info(data_files)
     if len(data_files) > 0:
         return data_files[0]
+    return None
+
+def _cal_acq_from_jwql(current_obs):
+    from jwql.utils.utils import filesystem_path
+    logging.info(f"Retrieving uncalibrated data for {current_obs}")
+    try:
+        return filesystem_path(current_obs, search="*_cal.fits")
+    except FileNotFoundError as e:
+        logging.info(f"Exposure {current_obs} not found: {e}")
     return None
 
 
@@ -135,6 +162,8 @@ class TADataSupplier():
             return self._data_table["fileSetName"].tolist()
         if self.data_source == "astroquery":
             self._data_table = _obs_list_from_astroquery(self.instrument, self.mode)
+        elif self.data_source == "jwql":
+            self._data_table = _obs_list_from_jwql(self.instrument, self.mode)
         return self._data_table["fileSetName"].tolist()
 
     def select_obs(self, obs_name):
@@ -146,11 +175,17 @@ class TADataSupplier():
     def get_obs_uncal(self):
         if self.data_source == "astroquery":
             return _uncal_acq_from_astroquery(self.data_dir, self.current_obs)
+        elif self.data_source == "jwql":
+            return _uncal_acq_from_jwql(self.current_obs)
 
     def get_obs_cal(self):
         if self.data_source == "astroquery":
             return _cal_acq_from_astroquery(self.data_dir, self.current_obs)
+        elif self.data_source == "jwql":
+            return _uncal_acq_from_jwql(self.current_obs)
 
     def get_obs_verification(self):
         if self.data_source == "astroquery":
             return _check_acq_from_astroquery(self.instrument, self._data_table, self.data_dir, self.current_obs)
+        elif self.data_source == "jwql":
+            return None

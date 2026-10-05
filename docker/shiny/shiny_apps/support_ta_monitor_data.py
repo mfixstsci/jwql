@@ -55,8 +55,20 @@ def _obs_list_from_jwql(instrument, mode=""):
     obs_list = [x.root_name for x in results if "seg" not in x.root_name]
     return sorted(obs_list)
 
-def _obs_list_from_filesystem():
-    pass
+def _obs_list_from_filesystem(instrument, mode):
+    exposure_list = set()
+    potential_files = Path("/ifs").rglob("*cal.fits")
+    apername = EXP_APER_MAPPING[instrument][mode]
+    for file in potential_files:
+        with fits.open(file) as fits_file:
+            if ((fits_file[0].header["INSTRUME"] == instrument.upper()) and
+                ("TACQ" in fits_file[0].header["EXP_TYPE"]) and
+                (fits_file[0].header["APERNAME"] == apername)):
+                exp_name = file.name
+                exp_name = exp_name[:exp_name.rfind("_")]
+                logging.info(f"Exposure is {exp_name}")
+                exposure_list.add(exp_name)
+    return sorted(list(exposure_list))
 
 
 def _download_obs_from_astroquery(obs_list, current_obs, download_dir):
@@ -92,6 +104,15 @@ def _uncal_acq_from_jwql(current_obs):
         logging.info(f"Exposure {current_obs} not found: {e}")
     return None
 
+def _uncal_acq_from_filesystem(current_obs):
+    if current_obs is None:
+        return None
+    possible_files = list(Path("/ifs").rglob(f"{current_obs}*uncal.fits"))
+    if len(possible_files) > 0:
+        return possible_files[0]
+    logging.info(f"No uncalibrated exposure found in filesystem for {current_obs}")
+    return None
+
 
 def _cal_acq_from_astroquery(data_dir, current_obs):
     logging.debug(f"Retrieving calibrated data with {data_dir} {current_obs}")
@@ -118,6 +139,15 @@ def _cal_acq_from_jwql(current_obs):
         return file_path
     except FileNotFoundError as e:
         logging.info(f"Exposure {current_obs} not found: {e}")
+    return None
+
+def _cal_acq_from_filesystem(current_obs):
+    if current_obs is None:
+        return None
+    possible_files = list(Path("/ifs").rglob(f"{current_obs}*_cal.fits"))
+    if len(possible_files) > 0:
+        return possible_files[0]
+    logging.info(f"No calibrated exposure found in filesystem for {current_obs}")
     return None
 
 
@@ -197,6 +227,30 @@ def _check_acq_from_jwql(instrument, current_obs):
                     logging.info(f"Found check file at {result_path}")
                     return result_path
 
+def _check_acq_from_filesystem(current_obs, instrument):
+    if current_obs is None:
+        return None
+    current_files = list(Path("/ifs").rglob(f"{current_obs}*_uncal.fits"))
+    if len(current_files) == 0:
+        return None
+    with fits.open(current_files[0]) as fits_file:
+        check_program = fits_file[0].header["PROGRAM"]
+        check_visit = fits_file[0].header["VISIT"]
+        check_obs = fits_file[0].header["OBSERVTN"]
+    possible_files = Path("/ifs").rglob(f"{current_obs}*uncal.fits")
+    for file in possible_files:
+        logging.info(f"Looking at {file.name} as check exposure")
+        with fits.open(file) as fits_file:
+            if fits_file[0].header["EXP_TYPE"] == f"{EXP_TYPE_MAPPING[instrument]}TACONFIRM":
+                program = fits_file[0].header["PROGRAM"]
+                visit = fits_file[0].header["VISIT"]
+                obs = fits_file[0].header["OBSERVTN"]
+                if (program == check_program) and (visit == check_visit) and (obs == check_obs):
+                    logging.info(f"Found {file}")
+                    return file
+    logging.info(f"No exposure found in filesystem for {current_obs}")
+    return None
+
 
 class TADataSupplier():
     def __init__(self, instrument, mode=""):
@@ -225,6 +279,8 @@ class TADataSupplier():
             self._obs_list = self._data_table["fileSetName"].tolist()
         elif self.data_source == "jwql":
             self._obs_list = _obs_list_from_jwql(self.instrument, self.mode)
+        else:
+            self._obs_list = _obs_list_from_filesystem(self.instrument, self.mode)
         return self._obs_list
 
     def select_obs(self, obs_name):
@@ -243,6 +299,8 @@ class TADataSupplier():
             self.uncal_path = _uncal_acq_from_astroquery(self.data_dir, self.current_obs)
         elif self.data_source == "jwql":
             self.uncal_path = _uncal_acq_from_jwql(self.current_obs)
+        else:
+            self.uncal_path = _uncal_acq_from_filesystem(self.current_obs)
         return self.uncal_path
 
     def get_plot_uncal(self, integration, annotate_plot, dq_data, flagged, zoom):
@@ -277,6 +335,8 @@ class TADataSupplier():
             self.cal_path = _cal_acq_from_astroquery(self.data_dir, self.current_obs)
         elif self.data_source == "jwql":
             self.cal_path = _cal_acq_from_jwql(self.current_obs)
+        else:
+            self.cal_path = _cal_acq_from_filesystem(self.current_obs)
         return self.cal_path
 
     def get_plot_cal(self, annotate_plot, zoom):
@@ -305,6 +365,8 @@ class TADataSupplier():
             self.check_path = _check_acq_from_astroquery(self.instrument, self._data_table, self.data_dir, self.current_obs)
         elif self.data_source == "jwql":
             self.check_path = _check_acq_from_jwql(self.instrument, self.current_obs)
+        else:
+            self.check_path = _check_acq_from_filesystem(self.current_obs, self.instrument)
         return self.check_path
 
     def get_plot_check(self, annotate_plot, zoom):

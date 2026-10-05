@@ -15,23 +15,31 @@ EXP_TYPE_MAPPING = {
     "miri": "MIR_",
 }
 
+EXP_APER_MAPPING = {
+    "miri": {
+        "mrs": "MIRIM_TAMRS",
+        "lrs": "MIRIM_TALRS"
+    },
+}
+
 def _obs_list_from_astroquery(instrument, mode=""):
     from astroquery.mast import MastMissions
     logging.info(f"Loading {instrument} {mode} from Astroquery")
     mission = MastMissions(mission='jwst')
-    exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}{mode.upper()}*"
-    logging.debug(f"Looking for exposure type {exp_type}")
+#     exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}{mode.upper()}*"
+#     logging.debug(f"Looking for exposure type {exp_type}")
     columns = ['fileSetName', 'program', 'observtn', 'visit_id', 'exp_type', 'subarray']
-    mode_sci = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
-    logging.debug(f"Found {len(mode_sci)} exposures")
-    visits = set(mode_sci['visit_id'])
-    logging.debug(f"{len(visits)} unique visits")
+#     mode_sci = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
+#     logging.debug(f"Found {len(mode_sci)} exposures")
+#     visits = set(mode_sci['visit_id'])
+#     logging.debug(f"{len(visits)} unique visits")
     exp_type = f"{EXP_TYPE_MAPPING[instrument.lower()]}TACQ"
+    apername = f"{EXP_APER_MAPPING[instrument][mode]}"
     logging.debug(f"Loading {instrument} TA exposures {exp_type}")
-    ta_exposures = mission.query_criteria(exp_type=exp_type, select_cols=columns, limit=500000)
-    logging.debug(f"Found {len(ta_exposures)} unique exposures")
-    logging.debug("Combining exposure lists")
-    ta_list = ta_exposures[[v in visits for v in ta_exposures['visit_id']]]
+    ta_list = mission.query_criteria(exp_type=exp_type, apername=apername, select_cols=columns, limit=500000)
+#     logging.debug(f"Found {len(ta_exposures)} unique exposures")
+#     logging.debug("Combining exposure lists")
+#     ta_list = ta_exposures[[v in visits for v in ta_exposures['visit_id']]]
     logging.info(f"Found {len(ta_list)} {mode} TA exposures")
     return ta_list
 
@@ -41,8 +49,9 @@ def _obs_list_from_jwql(instrument, mode=""):
     django.setup()
     from jwql.website.apps.jwql.models import Observation, RootFileInfo
     exp_type = f"{EXP_TYPE_MAPPING[instrument]}TACQ"
+    aperture = EXP_APER_MAPPING[instrument][mode]
     exptypes = mode.upper()
-    results = RootFileInfo.objects.filter(obsnum__exptypes__contains=exptypes).filter(exp_type=exp_type)
+    results = RootFileInfo.objects.filter(aperture=aperture).filter(exp_type=exp_type)
     obs_list = [x.root_name for x in results if "seg" not in x.root_name]
     return sorted(obs_list)
 

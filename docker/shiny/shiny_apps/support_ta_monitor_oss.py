@@ -276,7 +276,8 @@ def parse_ta_log_messages_by_instrument(msg_table, which_guider, visitid, verbos
 
         if len(ta_sams) == 0:
             # TA must have failed
-            logging.debug(f"No TA SAMs found for visit {visitid}; TA must have failed.")
+            logging.warning(f"No TA SAMs found for visit {visitid}; TA must have failed.")
+            ta_type = "FAILURE"
             net_ta_correction = np.nan, np.nan
         elif len(ta_sams) == 1:
             ta_type = 'MIRI TA, undithered'
